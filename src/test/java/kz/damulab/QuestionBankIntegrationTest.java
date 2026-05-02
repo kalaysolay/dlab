@@ -3,6 +3,8 @@ package kz.damulab;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -271,6 +273,21 @@ class QuestionBankIntegrationTest {
                 .andExpect(jsonPath("$.status").value("published"))
                 .andExpect(jsonPath("$.bodyRu").value("Найдите 20% от 350"))
                 .andExpect(jsonPath("$.pendingDraftVersionNo").value(2));
+
+        mockMvc.perform(post("/api/admin/questions/{id}/approve", questionId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("published"));
+
+        mockMvc.perform(post("/api/admin/questions/{id}/publish", questionId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("published"))
+                .andExpect(jsonPath("$.versionNo").value(2))
+                .andExpect(jsonPath("$.bodyRu").value("Найдите 25% от 400"))
+                .andExpect(jsonPath("$.pendingDraftVersionNo").value(nullValue()));
     }
 
     @Test
@@ -398,6 +415,51 @@ class QuestionBankIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void adminQuestionListFiltersBySubjectAndGrade() throws Exception {
+        Long mathTopicId = createTopic("filter-math-", "math", 4);
+        Long kazakhTopicId = createTopic("filter-kk-", "kazakh_language", 4);
+        mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(mathTopicId, "FILTER_MATH_UNIQUE_BODY", true)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(kazakhTopicId, "FILTER_KK_UNIQUE_BODY", true)))
+                .andExpect(status().isCreated());
+
+        Long kazakhSubjectId = subjects.findAllByOrderByTitleRuAsc().stream()
+                .filter(s -> "kazakh_language".equals(s.getCode()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        Long grade4Id = grades.findAllByOrderByGradeNoAsc().stream()
+                .filter(g -> Integer.valueOf(4).equals(g.getGradeNo()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+
+        mockMvc.perform(get("/api/admin/questions")
+                        .param("subjectId", String.valueOf(kazakhSubjectId))
+                        .param("gradeId", String.valueOf(grade4Id))
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("FILTER_KK_UNIQUE_BODY")))
+                .andExpect(content().string(not(containsString("FILTER_MATH_UNIQUE_BODY"))));
+
+        mockMvc.perform(get("/admin/questions")
+                        .param("subjectId", String.valueOf(kazakhSubjectId))
+                        .param("gradeId", String.valueOf(grade4Id))
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("FILTER_KK_UNIQUE_BODY")))
+                .andExpect(content().string(not(containsString("FILTER_MATH_UNIQUE_BODY"))));
+    }
+
     private String scqBody(Long topicId, String bodyRu, boolean exactlyOneCorrect) {
         String correctA = exactlyOneCorrect ? "false" : "true";
         return """
@@ -418,13 +480,17 @@ class QuestionBankIntegrationTest {
     }
 
     private Long createTopic(String prefix) throws Exception {
+        return createTopic(prefix, "math", 4);
+    }
+
+    private Long createTopic(String prefix, String subjectCode, int gradeNo) throws Exception {
         Long subjectId = subjects.findAllByOrderByTitleRuAsc().stream()
-                .filter(subject -> "math".equals(subject.getCode()))
+                .filter(subject -> subjectCode.equals(subject.getCode()))
                 .findFirst()
                 .orElseThrow()
                 .getId();
         Long gradeId = grades.findAllByOrderByGradeNoAsc().stream()
-                .filter(grade -> Integer.valueOf(4).equals(grade.getGradeNo()))
+                .filter(grade -> Integer.valueOf(gradeNo).equals(grade.getGradeNo()))
                 .findFirst()
                 .orElseThrow()
                 .getId();

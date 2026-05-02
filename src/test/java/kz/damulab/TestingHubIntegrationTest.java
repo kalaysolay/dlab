@@ -83,11 +83,17 @@ class TestingHubIntegrationTest {
 
     @Test
     void studentTestingPagesAreServerRendered() throws Exception {
-        mockMvc.perform(get("/student/tests")
+        String body = mockMvc.perform(get("/student/tests")
                         .with(user("student@damulab.kz").roles("STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("student/tests"))
-                .andExpect(content().string(containsString("Testing Hub")));
+                .andExpect(content().string(containsString("Testing Hub")))
+                .andExpect(content().string(containsString("4 класс")))
+                .andExpect(content().string(not(containsString("const AVAILABILITY = \"["))))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(body).contains("const AVAILABILITY = [");
 
         JsonNode session = startSession();
 

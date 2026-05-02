@@ -201,15 +201,16 @@
                                 <input type="hidden" name="reason" value="content_health">
                                 <button class="button" type="submit">На review</button>
                             </form>
-                            <form method="post" th:if="${question.status != 'archived'}"
+                            <form method="post" th:if="${question.status != 'archived' and question.status != 'approved' and question.status != 'published'}"
                                   th:action="@{/admin/questions/{id}/approve(id=${question.id})}">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                                 <button class="button" type="submit">Одобрить</button>
                             </form>
-                            <form method="post" th:if="${question.status == 'approved'}"
+                            <form method="post" th:if="${question.status == 'approved' or (question.status == 'published' and question.pendingDraftVersionNo != null)}"
                                   th:action="@{/admin/questions/{id}/publish(id=${question.id})}">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                                <button class="button primary" type="submit">Опубликовать</button>
+                                <button class="button primary" type="submit"
+                                        th:text="${question.status == 'published'} ? 'Опубликовать черновик' : 'Опубликовать'">Опубликовать</button>
                             </form>
                             <form method="post" th:if="${question.status != 'archived'}"
                                   th:action="@{/admin/questions/{id}/archive(id=${question.id})}">

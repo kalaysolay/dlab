@@ -6,9 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
@@ -31,20 +29,17 @@ public class StudentTestingPageController {
     private final SubjectRepository subjects;
     private final GradeRepository grades;
     private final TestStartAvailabilityService testStartAvailability;
-    private final ObjectMapper objectMapper;
 
     public StudentTestingPageController(
             TestingHubService testingHub,
             SubjectRepository subjects,
             GradeRepository grades,
-            TestStartAvailabilityService testStartAvailability,
-            ObjectMapper objectMapper
+            TestStartAvailabilityService testStartAvailability
     ) {
         this.testingHub = testingHub;
         this.subjects = subjects;
         this.grades = grades;
         this.testStartAvailability = testStartAvailability;
-        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/student/tests")
@@ -54,9 +49,16 @@ public class StudentTestingPageController {
             StartTestSessionRequest form = new StartTestSessionRequest();
             List<AvailableSubjectOption> availability = testStartAvailability.loadAvailability();
             if (!availability.isEmpty()) {
-                AvailableSubjectOption first = availability.get(0);
-                form.setSubjectId(first.id());
-                form.setGradeId(first.grades().get(0).id());
+                AvailableSubjectOption preferred = availability.stream()
+                        .filter(option -> isMathSubject(option.id()))
+                        .findFirst()
+                        .orElseGet(() -> availability.get(0));
+                form.setSubjectId(preferred.id());
+                AvailableGradeOption preferredGrade = preferred.grades().stream()
+                        .filter(grade -> grade.gradeNo() == 4)
+                        .findFirst()
+                        .orElseGet(() -> preferred.grades().get(0));
+                form.setGradeId(preferredGrade.id());
             } else {
                 subjects.findAllByOrderByTitleRuAsc().stream().findFirst().ifPresent(subject -> form.setSubjectId(subject.getId()));
                 grades.findAllByOrderByGradeNoAsc().stream()
@@ -127,19 +129,16 @@ public class StudentTestingPageController {
         List<AvailableSubjectOption> availability = testStartAvailability.loadAvailability();
         model.addAttribute("testAvailability", availability);
         model.addAttribute("hasTestAvailability", !availability.isEmpty());
-        model.addAttribute("testAvailabilityJson", availabilityJson(availability));
         model.addAttribute("subjects", subjects.findAllByOrderByTitleRuAsc());
         model.addAttribute("grades", grades.findAllByOrderByGradeNoAsc());
         model.addAttribute("testTypes", Arrays.stream(TestType.values()).toList());
         model.addAttribute("recentSessions", testingHub.recentSessions(studentEmail));
     }
 
-    private String availabilityJson(List<AvailableSubjectOption> availability) {
-        try {
-            return objectMapper.writeValueAsString(availability);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException(ex);
-        }
+    private boolean isMathSubject(long subjectId) {
+        return subjects.findById(subjectId)
+                .map(subject -> "math".equals(subject.getCode()))
+                .orElse(false);
     }
 
     private JsonNode answerFromRequest(SessionQuestionResponse question, HttpServletRequest request) {

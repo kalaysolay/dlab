@@ -43,7 +43,14 @@ public class AdminQuestionPageController {
     ) {
         Long resolvedSubjectId = resolveSubjectId(subjectId);
         Long resolvedGradeId = resolveGradeId(gradeId);
-        List<QuestionResponse> items = questionBank.listQuestions(topicId, status, type, query);
+        List<QuestionResponse> items = questionBank.listQuestions(
+                resolvedSubjectId,
+                resolvedGradeId,
+                topicId,
+                status,
+                type,
+                query
+        );
         QuestionHealthSummaryResponse health = questionBank.listQuestionHealth(quality);
         if (quality != null) {
             Set<Long> healthyQuestionIds = health.items().stream()

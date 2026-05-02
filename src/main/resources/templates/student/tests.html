@@ -93,10 +93,12 @@
                             <option th:each="s : ${testAvailability}" th:value="${s.id}" th:text="${s.titleRu}">Математика</option>
                         </select>
                     </label>
-                    <label class="field" id="gradeField">
+                    <label class="field" id="gradeField"
+                           th:with="selectedSubject=${testAvailability.?[id == #object.subjectId]},
+                                    initialGrades=${(selectedSubject != null and !selectedSubject.isEmpty()) ? selectedSubject[0].grades : testAvailability[0].grades}">
                         <span>Класс</span>
                         <select th:field="*{gradeId}" id="wizardGrade" required>
-                            <option th:each="g : ${testAvailability[0].grades}"
+                            <option th:each="g : ${initialGrades}"
                                     th:value="${g.id}"
                                     th:text="${g.titleRu}">4 класс</option>
                         </select>
@@ -154,7 +156,7 @@
     </main>
 </div>
 <script th:inline="javascript">
-    const AVAILABILITY = /*[[${testAvailabilityJson}]]*/ [];
+    const AVAILABILITY = /*[[${testAvailability}]]*/ [];
     const wizard = document.getElementById("subjectTestWizard");
     const selectBtn = document.getElementById("selectSubjectTest");
     const subjectSelect = document.getElementById("wizardSubject");

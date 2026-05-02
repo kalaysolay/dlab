@@ -27,12 +27,14 @@ public class AdminQuestionApiController {
 
     @GetMapping
     List<QuestionResponse> questions(
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) Long gradeId,
             @RequestParam(required = false) Long topicId,
             @RequestParam(required = false) QuestionStatus status,
             @RequestParam(required = false) QuestionType type,
             @RequestParam(required = false) String query
     ) {
-        return questionBank.listQuestions(topicId, status, type, query);
+        return questionBank.listQuestions(subjectId, gradeId, topicId, status, type, query);
     }
 
     @GetMapping("/{id}")

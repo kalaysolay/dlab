@@ -78,8 +78,15 @@ public class QuestionBankService {
     }
 
     @Transactional(readOnly = true)
-    public List<QuestionResponse> listQuestions(Long topicId, QuestionStatus status, QuestionType type, String query) {
-        return questions.findAll(filter(topicId, status, type, query)).stream()
+    public List<QuestionResponse> listQuestions(
+            Long subjectId,
+            Long gradeId,
+            Long topicId,
+            QuestionStatus status,
+            QuestionType type,
+            String query
+    ) {
+        return questions.findAll(filter(subjectId, gradeId, topicId, status, type, query)).stream()
                 .sorted((left, right) -> right.getUpdatedAt().compareTo(left.getUpdatedAt()))
                 .map(this::toResponse)
                 .toList();
@@ -322,7 +329,9 @@ public class QuestionBankService {
     public QuestionResponse approve(Long id) {
         Question question = findQuestion(id);
         requirePublishable(question);
-        question.changeStatus(QuestionStatus.APPROVED);
+        if (question.getStatus() != QuestionStatus.PUBLISHED) {
+            question.changeStatus(QuestionStatus.APPROVED);
+        }
         audit.record("question_approved", "Question", question.getId(), question.getCurrentVersion().getType().name());
         return toResponse(question);
     }
@@ -331,11 +340,19 @@ public class QuestionBankService {
     public QuestionResponse publish(Long id) {
         Question question = findQuestion(id);
         requirePublishable(question);
-        if (question.getStatus() != QuestionStatus.APPROVED) {
+        QuestionVersion draft = pendingDraft(question).orElse(null);
+        boolean hasDraft = draft != null;
+        if (question.getStatus() != QuestionStatus.APPROVED
+                && !(question.getStatus() == QuestionStatus.PUBLISHED && hasDraft)) {
             throw new QuestionBankException("question_not_approved");
         }
+        if (hasDraft) {
+            question.setCurrentVersion(draft);
+            draft.markPublished();
+        } else {
+            question.getCurrentVersion().markPublished();
+        }
         question.changeStatus(QuestionStatus.PUBLISHED);
-        question.getCurrentVersion().markPublished();
         audit.record("question_published", "Question", question.getId(), question.getCurrentVersion().getType().name());
         return toResponse(question);
     }
@@ -395,10 +412,23 @@ public class QuestionBankService {
         );
     }
 
-    private Specification<Question> filter(Long topicId, QuestionStatus status, QuestionType type, String query) {
+    private Specification<Question> filter(
+            Long subjectId,
+            Long gradeId,
+            Long topicId,
+            QuestionStatus status,
+            QuestionType type,
+            String query
+    ) {
         return (root, criteriaQuery, cb) -> {
             Join<Question, QuestionVersion> version = root.join("currentVersion", JoinType.LEFT);
             java.util.ArrayList<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (subjectId != null) {
+                predicates.add(cb.equal(version.get("topic").get("subject").get("id"), subjectId));
+            }
+            if (gradeId != null) {
+                predicates.add(cb.equal(version.get("topic").get("grade").get("id"), gradeId));
+            }
             if (topicId != null) {
                 predicates.add(cb.equal(version.get("topic").get("id"), topicId));
             }
