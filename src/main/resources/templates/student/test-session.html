@@ -9,13 +9,13 @@
 </head>
 <body>
 <div class="app-shell student-test-session-shell">
-    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <header th:replace="~{fragments/student-test-header :: studentTestHeader}"></header>
     <main class="page session-page student-test-session-page">
         <section class="panel session-shell-head">
             <div class="session-shell-title">
                 <p class="section-kicker">Тест по предметам</p>
                 <h1 class="page-title"><span th:text="${testSession.subjectTitle}">Математика</span></h1>
-                <p class="lede"><span th:text="${testSession.gradeTitle}">4 класс</span> · SessionID: <span th:text="${testSession.id}">1</span> · Тестовая сессия</p>
+                <p class="lede session-meta-line"><span th:text="${testSession.gradeTitle}">4 класс</span> · SessionID: <span th:text="${testSession.id}">1</span> · Тестовая сессия</p>
             </div>
             <div class="session-shell-right">
                 <div class="timer-box" th:attr="data-seconds=${testSession.timeLimitSeconds}">
@@ -53,8 +53,8 @@
                     <button class="button" id="prevQuestionButton" type="button">Предыдущий</button>
                     <button class="button primary" id="nextQuestionButton" type="button">Следующий</button>
                 </div>
-                <div class="actions session-footer-submit">
-                    <button class="button primary" id="openFinishModal" type="button">Завершить тест</button>
+                    <div class="actions session-footer-submit">
+                    <button class="button success" id="openFinishModal" type="button">Завершить тест</button>
                 </div>
             </section>
 
@@ -64,7 +64,7 @@
                     <div class="modal-head">
                         <h2 id="finishSessionTitle">Завершить тест?</h2>
                     </div>
-                    <p class="lede">После подтверждения откроется страница результата.</p>
+                    <p class="lede">После подтверждения система рассчитает результат и откроет страницу итогов.</p>
                     <div class="actions">
                         <button class="button primary" type="submit">Подтвердить</button>
                         <button class="button" type="button" data-close-modal="finishSessionModal">Отмена</button>
@@ -249,6 +249,15 @@
             syncHiddenFields();
             drawLines();
             updateAnswered();
+            const totalLeft = leftButtons.length;
+            if (totalLeft > 0 && links.size === totalLeft) {
+                if (selectedLabel) {
+                    selectedLabel.textContent = "Все пары выбраны";
+                }
+                if (hint) {
+                    hint.textContent = "";
+                }
+            }
         };
 
         leftButtons.forEach((button) => {

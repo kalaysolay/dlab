@@ -23,9 +23,13 @@ public class StartTestSessionRequest {
     @Max(5)
     private Integer difficulty;
 
+    /**
+     * Ignored for student sessions: size is taken from server configuration (see {@code damulab.testing}).
+     * Optional for API compatibility.
+     */
     @Min(1)
-    @Max(30)
-    private Integer questionCount = 10;
+    @Max(20)
+    private Integer questionCount;
 
     public TestType getTestType() {
         return testType;

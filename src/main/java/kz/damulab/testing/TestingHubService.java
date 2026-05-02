@@ -2,10 +2,13 @@ package kz.damulab.testing;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kz.damulab.analytics.AnalyticsService;
+import kz.damulab.config.DamulabTestingProperties;
 import kz.damulab.content.Grade;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.Subject;
@@ -29,7 +33,6 @@ import kz.damulab.users.StudentProfileRepository;
 public class TestingHubService {
 
     private static final int FALLBACK_TIME_LIMIT_SECONDS = 1500;
-    private static final int FALLBACK_QUESTION_COUNT = 10;
 
     private final TestTemplateRepository templates;
     private final TestSessionRepository sessions;
@@ -45,6 +48,8 @@ public class TestingHubService {
     private final AnalyticsService analyticsService;
     private final StudentEngagementService engagementService;
     private final ObjectMapper objectMapper;
+    private final DamulabTestingProperties testingProperties;
+    private final TestStartAvailabilityService testStartAvailability;
 
     public TestingHubService(
             TestTemplateRepository templates,
@@ -60,7 +65,9 @@ public class TestingHubService {
             AnswerChecker answerChecker,
             AnalyticsService analyticsService,
             StudentEngagementService engagementService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            DamulabTestingProperties testingProperties,
+            TestStartAvailabilityService testStartAvailability
     ) {
         this.templates = templates;
         this.sessions = sessions;
@@ -76,6 +83,8 @@ public class TestingHubService {
         this.analyticsService = analyticsService;
         this.engagementService = engagementService;
         this.objectMapper = objectMapper;
+        this.testingProperties = testingProperties;
+        this.testStartAvailability = testStartAvailability;
     }
 
     @Transactional
@@ -85,21 +94,32 @@ public class TestingHubService {
                 .orElseThrow(() -> new TestingHubException("subject_not_found"));
         Grade grade = grades.findById(request.getGradeId())
                 .orElseThrow(() -> new TestingHubException("grade_not_found"));
+        if (!testStartAvailability.isPairAvailable(subject.getId(), grade.getId())) {
+            throw new TestingHubException("published_questions_not_found");
+        }
         TestType testType = request.getTestType() == null ? TestType.SUBJECT : request.getTestType();
         TestTemplate template = templates.findFirstByTestTypeAndActiveTrue(testType).orElse(null);
-        int questionCount = request.getQuestionCount() == null ? defaultQuestionCount(template) : request.getQuestionCount();
         int timeLimit = template == null ? FALLBACK_TIME_LIMIT_SECONDS : template.getTimeLimitSeconds();
         String language = normalizeLanguage(request.getLanguage(), student.getPreferredLanguage());
 
-        List<QuestionVersion> selected = questionVersions.findPublishedForTest(
+        int fetchPool = Math.min(500, Math.max(testingProperties.getMaxQuestionCount() * 25, 50));
+        List<QuestionVersion> pool = new ArrayList<>(questionVersions.findPublishedForTest(
                 subject.getId(),
                 grade.getId(),
                 request.getDifficulty(),
-                PageRequest.of(0, questionCount)
-        );
-        if (selected.isEmpty()) {
+                PageRequest.of(0, fetchPool)
+        ));
+        if (pool.isEmpty()) {
             throw new TestingHubException("published_questions_not_found");
         }
+        Collections.shuffle(pool, ThreadLocalRandom.current());
+        int requested = testingProperties.getDefaultQuestionCount();
+        if (request.getQuestionCount() != null) {
+            requested = Math.min(request.getQuestionCount(), testingProperties.getMaxQuestionCount());
+        }
+        requested = Math.min(requested, testingProperties.getMaxQuestionCount());
+        int targetCount = Math.min(requested, pool.size());
+        List<QuestionVersion> selected = pool.subList(0, targetCount);
 
         TestSession session = sessions.save(new TestSession(
                 student,
@@ -109,7 +129,7 @@ public class TestingHubService {
                 language,
                 request.getDifficulty(),
                 timeLimit,
-                settingsJson(questionCount)
+                settingsJson(targetCount)
         ));
         int orderNo = 1;
         for (QuestionVersion version : selected) {
@@ -296,12 +316,26 @@ public class TestingHubService {
                 skillTitle(version, language),
                 version.getDifficulty(),
                 question.getPoints(),
-                answerChecker.choices(version, language),
-                answerChecker.matchingLeft(version, language),
-                answerChecker.matchingRight(version, language),
+                shuffledChoices(version, language),
+                shuffledMatching(version, language, true),
+                shuffledMatching(version, language, false),
                 answerChecker.fillPlaceholders(version),
                 answered
         );
+    }
+
+    private List<ChoiceDisplay> shuffledChoices(QuestionVersion version, String language) {
+        List<ChoiceDisplay> list = new ArrayList<>(answerChecker.choices(version, language));
+        Collections.shuffle(list, ThreadLocalRandom.current());
+        return list;
+    }
+
+    private List<MatchingDisplay> shuffledMatching(QuestionVersion version, String language, boolean left) {
+        List<MatchingDisplay> list = new ArrayList<>(
+                left ? answerChecker.matchingLeft(version, language) : answerChecker.matchingRight(version, language)
+        );
+        Collections.shuffle(list, ThreadLocalRandom.current());
+        return list;
     }
 
     private Map<Long, StudentAnswer> answerMap(Long sessionId) {
@@ -374,10 +408,6 @@ public class TestingHubService {
     private TestSession findOwnedSession(Long sessionId, StudentProfile student) {
         return sessions.findByIdAndStudentProfileId(sessionId, student.getId())
                 .orElseThrow(() -> new TestingHubException("test_session_not_found"));
-    }
-
-    private int defaultQuestionCount(TestTemplate template) {
-        return template == null ? FALLBACK_QUESTION_COUNT : template.getDefaultQuestionCount();
     }
 
     private String normalizeLanguage(String requested, String fallback) {

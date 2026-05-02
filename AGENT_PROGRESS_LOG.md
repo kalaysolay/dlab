@@ -1,9 +1,11 @@
 # Damulab.kz: progress log and gap report
 
 Статус: накопительный handoff между чатами и агентами.
-Последнее обновление: 30 апреля 2026.
+Последнее обновление: 2 мая 2026.
 
 ## Current State
+
+- 2026-05-02: Упрощён student Testing Hub (`/student/tests`): мастер предмет→класс→язык после выбора «Тест по предметам», списки только из пар с опубликованными вопросами (`TestStartAvailabilityService` + агрегат в `QuestionVersionRepository`), число вопросов из `damulab.testing` (default 12, max 20); API может явно передать `questionCount` (ограничивается max). Перемешивание порядка вопросов в сессии и вариантов SCQ/MCQ и колонок MATCHING на сервере. Сессия теста: компактный header без языка/выхода (`student-test-header`), зелёная кнопка «Завершить», текст модалки про расчёт результата; MATCHING — очистка подсказок при полном наборе пар. GET `/login` редиректит аутентифицированных на `/dashboard` (с учётом `AnonymousAuthenticationToken`). Тесты и `gradlew build` зелёные.
 
 - Этап 13 stabilization / MVP hardening начат и закрыт в текущем MVP scope: template/mockup inventory зафиксирован, question renderer/result navigation консолидированы, admin sidebar active state исправлен, mobile table overflow hardening добавлен, published question/lecture edit больше не снимает опубликованный контент из student flow, release checklist подготовлен.
 - Этап 12 content health/import закрыт в текущем engineering scope: health dashboard/API по текущим версиям вопросов, JSON и Excel `.xlsx` import jobs/errors, сохранение import source metadata, флаги/жалобы качества, discriminative power, quality-фильтры, карточки проблемных вопросов и явный перевод вопроса в `needs_review`; materialized aggregates и object-storage retention остаются масштабированием.
@@ -35,6 +37,22 @@
 - `Damulab_Vision_Scope.md` помечен как широкий продуктовый vision; MVP scope определяется `01_SYSTEM_SPECIFICATION.md` и `02_IMPLEMENTATION_PLAN.md`.
 
 ## Completed Work
+
+### 2026-05-02 - Student Testing Hub UX, shuffle, test shell, login redirect
+
+- Agent/task: реализовать план доработок MVP для `/student/tests`, прохождения теста, shuffle, редирект `/login`, обновить тесты и сборку.
+- Files changed (основные):
+  - `src/main/java/kz/damulab/config/DamulabTestingProperties.java` (new)
+  - `src/main/java/kz/damulab/testing/TestStartAvailabilityService.java`, `AvailableSubjectOption.java`, `AvailableGradeOption.java` (new)
+  - `src/main/java/kz/damulab/questions/QuestionVersionRepository.java`
+  - `src/main/java/kz/damulab/testing/TestingHubService.java`, `StartTestSessionRequest.java`, `StudentTestingPageController.java`
+  - `src/main/java/kz/damulab/web/PageController.java`
+  - `src/main/resources/application.yml`, `application-test.yml`
+  - `src/main/resources/templates/student/tests.html`, `student/test-session.html`
+  - `src/main/resources/templates/fragments/student-test-header.html` (new)
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/AuthFlowIntegrationTest.java`
+- Verification: `.\gradlew.bat test`, `.\gradlew.bat build` — успешно.
 
 ### 2026-04-30 - Lecture module production hardening (rich editor smoke, sanitization audit, attachments UX)
 

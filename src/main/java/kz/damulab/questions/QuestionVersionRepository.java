@@ -39,6 +39,31 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
     );
 
     @Query("""
+            select count(question.id)
+            from Question question
+            join question.currentVersion v
+            join v.topic topic
+            where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
+              and topic.subject.id = :subjectId
+              and topic.grade.id = :gradeId
+            """)
+    long countPublishedForSubjectAndGrade(
+            @Param("subjectId") Long subjectId,
+            @Param("gradeId") Long gradeId
+    );
+
+    @Query("""
+            select topic.subject.id, topic.grade.id, count(question.id)
+            from Question question
+            join question.currentVersion v
+            join v.topic topic
+            where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
+            group by topic.subject.id, topic.grade.id
+            having count(question.id) >= :minCount
+            """)
+    List<Object[]> countPublishedGroupedBySubjectAndGrade(@Param("minCount") long minCount);
+
+    @Query("""
             select v
             from Question question
             join question.currentVersion v

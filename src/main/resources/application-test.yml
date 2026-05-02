@@ -10,5 +10,9 @@ spring:
   flyway:
     enabled: true
 damulab:
+  testing:
+    default-question-count: 12
+    max-question-count: 20
+    min-published-per-subject-grade: 1
   quiz:
     timeout-worker-enabled: false

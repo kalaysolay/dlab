@@ -14,106 +14,109 @@
         <section class="tests-hero">
             <p class="section-kicker">Testing Hub</p>
             <h1>Выбери формат тестирования и запусти сессию</h1>
-            <p>Модуль объединяет классические тесты и интерактивные задания в единый поток: выбор категории, настройка параметров и запуск уникальной сессии.</p>
+            <p class="lede">Модуль объединяет классические тесты и интерактивные задания в единый поток.</p>
         </section>
 
         <section class="panel">
             <h2 class="section-title">Типы тестов</h2>
             <div class="test-type-grid mockup">
-                <article class="test-type-card mockup-active">
+                <button type="button"
+                        class="test-type-card mockup-active test-type-card-selectable"
+                        id="selectSubjectTest"
+                        aria-pressed="true">
                     <span class="badge">Активный</span>
-                    <h2>Тест по предметам</h2>
+                    <span class="test-type-card-title">Тест по предметам</span>
                     <p>Сценарий, доступный сейчас в MVP.</p>
-                </article>
-                <article class="test-type-card">
+                </button>
+                <article class="test-type-card test-type-card-muted" aria-disabled="true">
                     <h2>МОДО</h2>
-                    <p>Мониторинг образовательных достижений.</p>
+                    <p>Скоро.</p>
                 </article>
-                <article class="test-type-card">
+                <article class="test-type-card test-type-card-muted" aria-disabled="true">
                     <h2>СОР</h2>
-                    <p>Суммативное оценивание за раздел.</p>
+                    <p>Скоро.</p>
                 </article>
-                <article class="test-type-card">
+                <article class="test-type-card test-type-card-muted" aria-disabled="true">
                     <h2>СОЧ</h2>
-                    <p>Суммативное оценивание за четверть.</p>
+                    <p>Скоро.</p>
                 </article>
-                <article class="test-type-card">
+                <article class="test-type-card test-type-card-muted" aria-disabled="true">
                     <h2>Тест по казахскому языку</h2>
-                    <p>Для школ с русским языком обучения.</p>
+                    <p>Скоро.</p>
                 </article>
             </div>
         </section>
 
-        <section class="panel test-flow">
+        <section class="panel test-flow subject-test-wizard" id="subjectTestWizard" hidden>
             <div class="page-head compact-head">
-                <h2 class="section-title">Flow: запуск предметного среза</h2>
+                <h2 class="section-title">Запуск предметного среза</h2>
                 <span class="badge success">Предметный срез</span>
             </div>
 
             <div class="test-flow-steps">
                 <article class="test-flow-step">
                     <span class="section-kicker">Шаг 1</span>
-                    <strong>Тип</strong>
-                    <span class="muted-line">Выбор категории теста.</span>
+                    <strong>Предмет</strong>
+                    <span class="muted-line">Только пары, по которым уже есть вопросы в банке.</span>
                 </article>
                 <article class="test-flow-step">
                     <span class="section-kicker">Шаг 2</span>
-                    <strong>Параметры</strong>
-                    <span class="muted-line">Фильтры: предмет -> класс -> язык.</span>
+                    <strong>Класс</strong>
+                    <span class="muted-line">Список обновляется после выбора предмета.</span>
                 </article>
                 <article class="test-flow-step">
                     <span class="section-kicker">Шаг 3</span>
-                    <strong>Инициализация</strong>
-                    <span class="muted-line">Подбор вопросов и запуск сессии.</span>
+                    <strong>Язык</strong>
+                    <span class="muted-line">Язык формулировок вопроса.</span>
                 </article>
             </div>
 
             <div class="alert error" th:if="${error}" th:text="${error}">Ошибка</div>
 
-            <form class="form wide-form" th:action="@{/student/test-sessions}" th:object="${startTestSessionRequest}" method="post">
+            <div class="alert error" th:if="${!hasTestAvailability}">
+                Пока нет доступных тестов: в банке вопросов нет опубликованных заданий для вашего уровня.
+                Попросите методиста добавить вопросы или зайдите позже.
+            </div>
+
+            <form class="form wide-form student-test-start-form"
+                  th:if="${hasTestAvailability}"
+                  th:action="@{/student/test-sessions}"
+                  th:object="${startTestSessionRequest}"
+                  method="post"
+                  id="startSubjectTestForm">
                 <input type="hidden" th:field="*{testType}" value="SUBJECT">
-                <div class="test-flow-filters">
+                <input type="hidden" name="difficulty" value="">
+                <div class="test-wizard-grid">
                     <label class="field">
                         <span>Предмет</span>
-                        <select th:field="*{subjectId}">
-                            <option th:each="subject : ${subjects}" th:value="${subject.id}" th:text="${subject.titleRu}">Математика</option>
+                        <select th:field="*{subjectId}" id="wizardSubject" required>
+                            <option th:each="s : ${testAvailability}" th:value="${s.id}" th:text="${s.titleRu}">Математика</option>
                         </select>
                     </label>
-                    <label class="field">
+                    <label class="field" id="gradeField">
                         <span>Класс</span>
-                        <select th:field="*{gradeId}">
-                            <option th:each="grade : ${grades}" th:value="${grade.id}" th:text="${grade.titleRu}">4 класс</option>
+                        <select th:field="*{gradeId}" id="wizardGrade" required>
+                            <option th:each="g : ${testAvailability[0].grades}"
+                                    th:value="${g.id}"
+                                    th:text="${g.titleRu}">4 класс</option>
                         </select>
                     </label>
                     <label class="field">
                         <span>Язык</span>
-                        <select th:field="*{language}">
+                        <select th:field="*{language}" id="wizardLanguage">
                             <option value="ru">Русский</option>
                             <option value="kk">Қазақша</option>
                         </select>
                     </label>
-                    <label class="field">
-                        <span>Сложность</span>
-                        <select th:field="*{difficulty}">
-                            <option value="">Любая</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                        </select>
-                    </label>
-                    <label class="field">
-                        <span>Количество вопросов</span>
-                        <input type="number" min="1" max="30" th:field="*{questionCount}">
-                    </label>
                 </div>
-                <div class="test-flow-hint">
-                    <p><strong>Сессия создается как уникальный SessionID</strong> с вопросами по выбранным параметрам. Поддерживаемые типы: SCQ, MCQ, MATCHING, FILL_IN.</p>
+                <div class="test-flow-hint test-wizard-hint">
+                    <p><strong>Сессия создаётся с уникальным SessionID.</strong> Число вопросов задаётся системой (не больше 20).</p>
+                    <p class="muted-line">Типы заданий: SCQ, MCQ, MATCHING, FILL_IN.</p>
                 </div>
-                <div class="actions">
-                    <button class="button primary" type="submit">Начать тестирование</button>
-                </div>
+                <button class="button primary student-test-start-cta" type="submit" id="wizardSubmit">
+                    <span class="student-test-start-cta-icon" aria-hidden="true">▶</span>
+                    Начать тестирование
+                </button>
             </form>
         </section>
 
@@ -150,5 +153,68 @@
         </section>
     </main>
 </div>
+<script th:inline="javascript">
+    const AVAILABILITY = /*[[${testAvailabilityJson}]]*/ [];
+    const wizard = document.getElementById("subjectTestWizard");
+    const selectBtn = document.getElementById("selectSubjectTest");
+    const subjectSelect = document.getElementById("wizardSubject");
+    const gradeSelect = document.getElementById("wizardGrade");
+    const form = document.getElementById("startSubjectTestForm");
+
+    const syncGrades = () => {
+        if (!subjectSelect || !gradeSelect || !Array.isArray(AVAILABILITY)) {
+            return;
+        }
+        const sid = String(subjectSelect.value);
+        const subject = AVAILABILITY.find((s) => String(s.id) === sid);
+        const previousGrade = gradeSelect.value;
+        gradeSelect.innerHTML = "";
+        if (!subject || !subject.grades || subject.grades.length === 0) {
+            return;
+        }
+        subject.grades.forEach((g) => {
+            const opt = document.createElement("option");
+            opt.value = g.id;
+            opt.textContent = g.titleRu;
+            gradeSelect.appendChild(opt);
+        });
+        const still = subject.grades.some((g) => String(g.id) === String(previousGrade));
+        if (still) {
+            gradeSelect.value = previousGrade;
+        }
+    };
+
+    if (subjectSelect && gradeSelect) {
+        subjectSelect.addEventListener("change", syncGrades);
+    }
+
+    if (selectBtn && wizard) {
+        const showWizard = () => {
+            wizard.hidden = false;
+            selectBtn.setAttribute("aria-pressed", "true");
+            syncGrades();
+        };
+        selectBtn.addEventListener("click", showWizard);
+        if (selectBtn.getAttribute("aria-pressed") === "true") {
+            showWizard();
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        if (subjectSelect && gradeSelect) {
+            syncGrades();
+        }
+    });
+
+    if (form && subjectSelect && gradeSelect) {
+        form.addEventListener("submit", (event) => {
+            const sid = subjectSelect.value;
+            const subject = AVAILABILITY.find((s) => String(s.id) === String(sid));
+            if (!subject || !subject.grades || subject.grades.length === 0) {
+                event.preventDefault();
+            }
+        });
+    }
+</script>
 </body>
 </html>

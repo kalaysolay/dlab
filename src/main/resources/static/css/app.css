@@ -459,6 +459,17 @@ a:hover {
     text-decoration: none;
 }
 
+.button.success {
+    border-color: var(--success);
+    background: var(--success);
+    color: #ffffff;
+}
+
+.button.success:hover {
+    filter: brightness(1.05);
+    text-decoration: none;
+}
+
 .button.danger {
     border-color: #f3b8b3;
     color: var(--danger);
@@ -3364,6 +3375,86 @@ h2 {
 
 .student-test-session-page .session-footer-submit {
     margin-left: auto;
+}
+
+.student-test-header {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    padding: 12px 16px;
+}
+
+.student-test-header-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.student-test-back {
+    font-weight: 650;
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.student-test-back:hover {
+    text-decoration: underline;
+}
+
+.test-type-card-selectable {
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px;
+    font: inherit;
+}
+
+.test-type-card-selectable.mockup-active {
+    border-color: #c7d2fe;
+    background: #eef2ff;
+}
+
+.test-type-card-muted {
+    opacity: 0.55;
+}
+
+.subject-test-wizard {
+    margin-top: 8px;
+}
+
+.test-wizard-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin-top: 12px;
+}
+
+.student-test-start-cta {
+    margin-top: 16px;
+    min-height: 48px;
+    padding: 0 22px;
+    border-radius: 12px;
+    font-size: 1.02rem;
+    gap: 10px;
+}
+
+.student-test-start-cta-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25em;
+    height: 1.25em;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 0.85em;
+}
+
+.test-wizard-hint {
+    margin-top: 12px;
 }
 
 .student-test-session-shell .student-nav-grid {

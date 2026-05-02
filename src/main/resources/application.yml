@@ -17,6 +17,10 @@ server:
   port: 8080
 
 damulab:
+  testing:
+    default-question-count: 12
+    max-question-count: 20
+    min-published-per-subject-grade: 1
   ui:
     server-time-zone: Asia/Almaty
   ai:
