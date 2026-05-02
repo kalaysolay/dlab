@@ -233,8 +233,8 @@ class QuestionBankIntegrationTest {
                 .andExpect(jsonPath("$.correctAnswerRu").value(containsString("B")))
                 .andExpect(jsonPath("$.correctAnswerRu").value(containsString("70")))
                 .andExpect(jsonPath("$.explanationRu").value(containsString("Правильный ответ")))
-                .andExpect(jsonPath("$.miniLectureRu").value(containsString("Мини-лекция")))
-                .andExpect(jsonPath("$.miniLectureKk").value(containsString("мини-дәріс")));
+                .andExpect(jsonPath("$.miniLectureRu").value(containsString("Объяснение для школьника")))
+                .andExpect(jsonPath("$.miniLectureKk").value(containsString("Мектеп оқушысына")));
     }
 
     @Test

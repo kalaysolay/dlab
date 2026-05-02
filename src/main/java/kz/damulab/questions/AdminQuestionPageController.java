@@ -263,10 +263,7 @@ public class AdminQuestionPageController {
                 new MatchingPairForm("", "", "", "")
         )));
         form.setFillAnswers(new java.util.ArrayList<>(List.of(
-                new FillAnswerForm("[[1]]", "", FillMatchMode.EXACT, null),
-                new FillAnswerForm("[[2]]", "", FillMatchMode.EXACT, null),
-                new FillAnswerForm("[[3]]", "", FillMatchMode.EXACT, null),
-                new FillAnswerForm("[[4]]", "", FillMatchMode.EXACT, null)
+                new FillAnswerForm("", "", FillMatchMode.EXACT, null)
         )));
         return form;
     }

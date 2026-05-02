@@ -354,17 +354,19 @@ public class QuestionBankService {
 
         String correctAnswerRu = correctAnswerForLanguage(form, true);
         String correctAnswerKk = correctAnswerForLanguage(form, false);
-        String explanationRu = explanationForLanguage(form.getType(), true, topic.getTitleRu(), correctAnswerRu);
-        String explanationKk = explanationForLanguage(form.getType(), false, topic.getTitleKk(), correctAnswerKk);
+        int difficulty = form.getDifficulty();
+        if (difficulty < 1 || difficulty > 5) {
+            difficulty = 2;
+        }
         boolean math = isMathTopic(topic);
-        String miniLectureRu = miniLectureForLanguage(true, topic.getTitleRu(), form.getBodyRu(), explanationRu, correctAnswerRu, math);
-        String miniLectureKk = miniLectureForLanguage(false, topic.getTitleKk(), form.getBodyKk(), explanationKk, correctAnswerKk, math);
+        String lectureRu = pedagogicalLectureForLanguage(true, topic, form.getType(), form.getBodyRu(), correctAnswerRu, difficulty, math);
+        String lectureKk = pedagogicalLectureForLanguage(false, topic, form.getType(), form.getBodyKk(), correctAnswerKk, difficulty, math);
 
         return new MiniLectureDraftResponse(
-                explanationRu,
-                explanationKk,
-                miniLectureRu,
-                miniLectureKk,
+                lectureRu,
+                lectureKk,
+                lectureRu,
+                lectureKk,
                 correctAnswerRu,
                 correctAnswerKk
         );
@@ -418,7 +420,13 @@ public class QuestionBankService {
         }
         ensureChoiceRows(form.getOptions(), 4);
         ensureMatchingRows(form.getMatchingPairs(), 2);
-        ensureFillRows(form.getFillAnswers(), 4);
+        ensureFillRows(form.getFillAnswers(), Math.max(1, form.getFillAnswers().size()));
+        if (isBlank(form.getMiniLectureRu()) && !isBlank(version.getExplanationRu())) {
+            form.setMiniLectureRu(version.getExplanationRu());
+        }
+        if (isBlank(form.getMiniLectureKk()) && !isBlank(version.getExplanationKk())) {
+            form.setMiniLectureKk(version.getExplanationKk());
+        }
         return form;
     }
 
@@ -511,9 +519,9 @@ public class QuestionBankService {
     }
 
     private void ensureFillRows(List<FillAnswerForm> answers, int minRows) {
-        while (answers.size() < minRows) {
-            int index = answers.size() + 1;
-            answers.add(new FillAnswerForm("[[" + index + "]]", "", FillMatchMode.EXACT, null));
+        int target = Math.max(1, minRows);
+        while (answers.size() < target) {
+            answers.add(new FillAnswerForm("", "", FillMatchMode.EXACT, null));
         }
     }
 
@@ -616,6 +624,8 @@ public class QuestionBankService {
     private QuestionVersion buildVersion(Question question, int versionNo, QuestionForm form) {
         Topic topic = findTopic(form.getTopicId());
         AtomicSkill skill = form.getAtomicSkillId() == null ? null : findSkill(form.getAtomicSkillId());
+        String studentFacingRu = coalesceStudentText(form.getMiniLectureRu(), form.getExplanationRu());
+        String studentFacingKk = coalesceStudentText(form.getMiniLectureKk(), form.getExplanationKk());
         return new QuestionVersion(
                 question,
                 versionNo,
@@ -625,10 +635,10 @@ public class QuestionBankService {
                 form.getDifficulty(),
                 form.getBodyRu().trim(),
                 form.getBodyKk().trim(),
-                trimToNull(form.getExplanationRu()),
-                trimToNull(form.getExplanationKk()),
-                trimToNull(form.getMiniLectureRu()),
-                trimToNull(form.getMiniLectureKk()),
+                studentFacingRu,
+                studentFacingKk,
+                studentFacingRu,
+                studentFacingKk,
                 form.getSource().trim(),
                 optionsJson(form),
                 answerKeyJson(form)
@@ -675,16 +685,13 @@ public class QuestionBankService {
             }
             case FILL_IN -> {
                 List<FillAnswerForm> answers = form.getFillAnswers().stream()
-                        .filter(answer -> !isBlank(answer.getPlaceholder()) || !isBlank(answer.getAnswer()))
+                        .filter(answer -> !isBlank(answer.getPlaceholder()) && !isBlank(answer.getAnswer()))
                         .toList();
                 if (answers.isEmpty()) {
                     throw new QuestionBankException("question_correct_answer_required");
                 }
                 StringJoiner joiner = new StringJoiner("; ");
                 for (FillAnswerForm answer : answers) {
-                    if (isBlank(answer.getPlaceholder()) || isBlank(answer.getAnswer())) {
-                        throw new QuestionBankException("fill_in_answer_required");
-                    }
                     joiner.add(answer.getPlaceholder().trim() + " = " + answer.getAnswer().trim());
                 }
                 yield joiner.toString();
@@ -692,70 +699,110 @@ public class QuestionBankService {
         };
     }
 
-    private String explanationForLanguage(QuestionType type, boolean russian, String topicTitle, String correctAnswer) {
-        String intro = russian
-                ? "Правильный ответ: " + correctAnswer + "."
-                : "Дұрыс жауап: " + correctAnswer + ".";
-        String reasoning = switch (type) {
-            case SCQ -> russian
-                    ? "Для SCQ выбирается единственный вариант, который полностью соответствует условию."
-                    : "SCQ форматында шартқа толық сәйкес келетін бір ғана нұсқа таңдалады.";
-            case MCQ -> russian
-                    ? "Для MCQ выбираются все варианты, которые одновременно истинны по условию."
-                    : "MCQ форматында шартқа сай келетін барлық дұрыс нұсқалар бірге таңдалады.";
-            case MATCHING -> russian
-                    ? "Для MATCHING элементы связываются по смысловому и формульному соответствию."
-                    : "MATCHING форматында элементтер мағынасы мен формуласына сай жұпталады.";
-            case FILL_IN -> russian
-                    ? "Для FILL_IN в каждый placeholder подставляется значение, удовлетворяющее правилу проверки."
-                    : "FILL_IN форматында әр placeholder орнына тексеру ережесіне сай мән қойылады.";
-        };
-        String topic = russian
-                ? "Тема: " + topicTitle + "."
-                : "Тақырып: " + topicTitle + ".";
-        return intro + " " + reasoning + " " + topic;
+    private String coalesceStudentText(String primary, String fallback) {
+        String first = trimToNull(primary);
+        if (first != null) {
+            return first;
+        }
+        return trimToNull(fallback);
     }
 
-    private String miniLectureForLanguage(
+    /**
+     * Единый текст для ученика: контекст темы/предмета/класса, разбор с верным ответом и короткое закрепление.
+     * Используется и как «объяснение», и как «мини-лекция» (одинаковое содержание).
+     */
+    private String pedagogicalLectureForLanguage(
             boolean russian,
-            String topicTitle,
+            Topic topic,
+            QuestionType type,
             String body,
-            String explanation,
             String correctAnswer,
+            int difficulty,
             boolean math
     ) {
-        StringBuilder builder = new StringBuilder();
+        String subject = russian
+                ? nullToEmpty(topic.getSubject().getTitleRu())
+                : nullToEmpty(topic.getSubject().getTitleKk());
+        String grade = russian
+                ? nullToEmpty(topic.getGrade().getTitleRu())
+                : nullToEmpty(topic.getGrade().getTitleKk());
+        String topicTitle = russian ? topic.getTitleRu() : topic.getTitleKk();
+        String trimmedBody = body == null ? "" : body.trim();
+
+        String typeHint = switch (type) {
+            case SCQ -> russian
+                    ? "Это задание с одним верным вариантом: нужно выбрать единственный ответ, который точно следует из условия."
+                    : "Бұл бір дұрыс нұсқасы бар тапсырма: шарттан дәл шығатын біреуін таңдау керек.";
+            case MCQ -> russian
+                    ? "Здесь может быть несколько верных вариантов: отметьте все, которые одновременно выполняют условие задачи."
+                    : "Мұнда бірнеше дұрыс нұсқа болуы мүмкін: шартты бір мезгілде орындайтын барлық нұсқаларды белгілеңіз.";
+            case MATCHING -> russian
+                    ? "Нужно сопоставить пары так, чтобы смысл и формулы согласовались между левой и правой колонкой."
+                    : "Сол және оң бағандардағы мағына мен формулалар сәйкес келетін жұптарды қосу керек.";
+            case FILL_IN -> russian
+                    ? "В каждый пропуск вставьте значение, которое проходит проверку по правилу (точное совпадение, нормализация, числовой допуск или регулярное выражение — как задано в ключе)."
+                    : "Әр бос орынға тексеру ережесіне сай мәнді қойыңыз (дәл сәйкестік, нормализация, сандық қателік немесе регекс — кілтте қалай көрсетілсе).";
+        };
+
+        String breakdown = switch (type) {
+            case SCQ, MCQ -> russian
+                    ? "Сопоставьте условие с каждым вариантом: отметьте те, что следуют из данных задачи и не противоречат определениям темы «"
+                            + topicTitle + "». Сверьте выбранное с ключом: верно — «" + correctAnswer + "»."
+                    : "Әр нұсқаны шартпен салыстырыңыз: «" + topicTitle
+                            + "» тақырыбының анықтамаларына қайшы келмейтіндерді таңдаңыз. Кілтпен тексеріңіз: дұрысы — «"
+                            + correctAnswer + "».";
+            case MATCHING -> russian
+                    ? "Пройдите пары по порядку: для каждой левой части найдите правую по смыслу. Итоговое соответствие в ключе: "
+                            + correctAnswer + "."
+                    : "Жұптарды ретпен қараңыз: әр сол жақ үшін мағынасы сай оң жақты табыңыз. Кілттегі сәйкестік: "
+                            + correctAnswer + ".";
+            case FILL_IN -> russian
+                    ? "Подставьте в пропуски значения из ключа и проверьте по правилу каждого placeholder. Верные значения: "
+                            + correctAnswer + "."
+                    : "Бос орындарға кілттегі мәндерді қойыңыз және әр placeholder үшін ережеге сәйкестігін тексеріңіз. Дұрыс мәндер: "
+                            + correctAnswer + ".";
+        };
+
+        String reinforcement = math
+                ? (russian
+                ? "Для закрепления придумайте похожий пример с другими числами по той же теме и проверьте ответ тем же способом, что и в разборе выше."
+                : "Нығайту үшін сол тақырып бойынша басқа сандармен ұқсас мысал ойлап, жоғарыдағы тәсілмен жауапты тексеріңіз.")
+                : (russian
+                ? "Для закрепления сформулируйте короткий аналогичный вопрос по теме «" + topicTitle
+                        + "» и проверьте ответ, шаг за шагом повторяя ход из разбора."
+                : "Нығайту үшін «" + topicTitle + "» тақырыбындағы қысқа ұқсас сұрақ құрастырып, жауапты жоғарыдағы тәсілмен тексеріңіз.");
+
         if (russian) {
-            builder.append("Мини-лекция по теме: ").append(topicTitle).append(".\n");
-            builder.append("Кратко: ").append(body.trim()).append(".\n");
-            builder.append("Как решать:\n");
-            builder.append("1) Внимательно прочитайте условие и выделите ключевые данные.\n");
-            if (math) {
-                builder.append("2) Запишите формулу или выражение, подставьте значения и решите по шагам.\n");
-                builder.append("3) Проверьте единицы измерения и итоговое значение.\n");
-            } else {
-                builder.append("2) Сопоставьте факты из условия с правилами темы.\n");
-                builder.append("3) Отбросьте варианты, противоречащие условию.\n");
-            }
-            builder.append("Почему ответ верный: ").append(explanation).append("\n");
-            builder.append("Правильный ответ: ").append(correctAnswer);
-            return builder.toString();
+            StringBuilder b = new StringBuilder();
+            b.append("Объяснение для школьника\n");
+            b.append("Предмет: ").append(subject).append(". Класс: ").append(grade).append(". Тема: ").append(topicTitle).append(".\n");
+            b.append("Сложность в банке вопросов: ").append(difficulty).append(" из 5.\n\n");
+            b.append("Текст задания:\n«").append(trimmedBody).append("»\n\n");
+            b.append("Как устроен этот тип задания. ").append(typeHint).append("\n\n");
+            b.append("Разбор и верный ответ\n");
+            b.append(breakdown).append("\n\n");
+            b.append("Кратко: верно — ").append(correctAnswer).append(".\n\n");
+            b.append("Ещё пример на закрепление\n");
+            b.append(reinforcement);
+            return b.toString();
         }
 
-        builder.append("Тақырып бойынша мини-дәріс: ").append(topicTitle).append(".\n");
-        builder.append("Қысқаша: ").append(body.trim()).append(".\n");
-        builder.append("Шешу қадамдары:\n");
-        builder.append("1) Шартты мұқият оқып, негізгі деректерді белгілеңіз.\n");
-        if (math) {
-            builder.append("2) Формула не өрнек жазыңыз, мәндерді қойып, қадаммен есептеңіз.\n");
-            builder.append("3) Өлшем бірліктері мен соңғы нәтижені тексеріңіз.\n");
-        } else {
-            builder.append("2) Шарттағы деректерді тақырып ережелерімен сәйкестендіріңіз.\n");
-            builder.append("3) Шартқа қайшы нұсқаларды алып тастаңыз.\n");
-        }
-        builder.append("Неге бұл жауап дұрыс: ").append(explanation).append("\n");
-        builder.append("Дұрыс жауап: ").append(correctAnswer);
-        return builder.toString();
+        StringBuilder b = new StringBuilder();
+        b.append("Мектеп оқушысына түсіндірме\n");
+        b.append("Пән: ").append(subject).append(". Сынып: ").append(grade).append(". Тақырып: ").append(topicTitle).append(".\n");
+        b.append("Сұрақ қиындығы (банк): ").append(difficulty).append(" / 5.\n\n");
+        b.append("Тапсырма мәтіні:\n«").append(trimmedBody).append("»\n\n");
+        b.append("Тапсырма түрі. ").append(typeHint).append("\n\n");
+        b.append("Талдау және дұрыс жауап\n");
+        b.append(breakdown).append("\n\n");
+        b.append("Қысқаша: дұрыс жауап — ").append(correctAnswer).append(".\n\n");
+        b.append("Нығайтуға қосымша мысал\n");
+        b.append(reinforcement);
+        return b.toString();
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean isMathTopic(Topic topic) {

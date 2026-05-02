@@ -779,7 +779,7 @@ a:hover {
 }
 
 .fill-row {
-    grid-template-columns: 140px minmax(0, 1fr) 190px 140px;
+    grid-template-columns: minmax(120px, 1fr) minmax(0, 1fr) 190px 120px 42px;
 }
 
 .stack {
@@ -4759,7 +4759,8 @@ h2 {
     color: #3730a3;
 }
 
-.admin-layout .option-delete-button {
+.admin-layout .option-delete-button,
+.admin-layout .fill-delete-button {
     width: 38px;
     padding: 0;
     flex: 0 0 auto;

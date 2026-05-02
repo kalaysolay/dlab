@@ -118,24 +118,18 @@
                         <small class="field-error" th:if="${#fields.hasErrors('bodyKk')}" th:errors="*{bodyKk}">Ошибка</small>
                     </label>
                     <label class="field">
-                        <span>Объяснение RU</span>
-                        <textarea id="question-explanation-ru" th:field="*{explanationRu}"></textarea>
+                        <span>Объяснение для ученика RU</span>
+                        <textarea id="question-mini-lecture-ru" th:field="*{miniLectureRu}" rows="8"
+                                  placeholder="То же, что показывается после теста как «мини-лекция»: разбор, верный ответ, закрепление."></textarea>
+                        <small class="muted-line">Этот текст сохраняется в поле объяснения для результата теста. Отдельного поля «объяснение» больше нет.</small>
                     </label>
                     <label class="field">
-                        <span>Объяснение KK</span>
-                        <textarea id="question-explanation-kk" th:field="*{explanationKk}"></textarea>
-                    </label>
-                    <label class="field">
-                        <span>Мини-лекция RU</span>
-                        <textarea id="question-mini-lecture-ru" th:field="*{miniLectureRu}"></textarea>
-                    </label>
-                    <label class="field">
-                        <span>Мини-лекция KK</span>
-                        <textarea id="question-mini-lecture-kk" th:field="*{miniLectureKk}"></textarea>
+                        <span>Объяснение для ученика KK</span>
+                        <textarea id="question-mini-lecture-kk" th:field="*{miniLectureKk}" rows="8"></textarea>
                     </label>
                 </div>
                 <div class="actions">
-                    <button class="button" type="button" id="generate-mini-lecture">Сгенерировать мини-лекцию и объяснение (RU + KK)</button>
+                    <button class="button" type="button" id="generate-mini-lecture">Сгенерировать объяснение (RU + KK)</button>
                 </div>
                 <div id="lecture-generation-status" class="muted-line" aria-live="polite"></div>
 
@@ -215,29 +209,35 @@
                         <span>4) Если в тексте есть <code>[[1]]</code>, ниже должна быть строка с точно таким же placeholder.</span>
                     </div>
                     <div id="fill-in-validation" class="alert error" hidden></div>
-                    <div class="stack">
-                        <div class="fill-row" th:each="i : ${#numbers.sequence(0,3)}">
+                    <div id="fill-answers-list" class="stack">
+                        <div class="fill-row" th:each="fillItem, iter : *{fillAnswers}">
                             <label class="field">
-                                <span th:text="'Placeholder ' + (${i} + 1)">Placeholder</span>
-                                <input th:field="*{fillAnswers[__${i}__].placeholder}" placeholder="[[1]]">
+                                <span>Метка</span>
+                                <input class="fill-placeholder-input" th:field="*{fillAnswers[__${iter.index}__].placeholder}" placeholder="[[1]]">
                             </label>
                             <label class="field">
                                 <span>Ответ</span>
-                                <input th:field="*{fillAnswers[__${i}__].answer}">
+                                <input th:field="*{fillAnswers[__${iter.index}__].answer}">
                             </label>
                             <label class="field">
                                 <span>Правило</span>
-                                <select th:field="*{fillAnswers[__${i}__].matchMode}">
+                                <select th:field="*{fillAnswers[__${iter.index}__].matchMode}">
                                     <option th:each="mode : ${fillModes}" th:value="${mode}" th:text="${mode}">EXACT</option>
                                 </select>
                             </label>
                             <label class="field">
                                 <span>Tolerance</span>
-                                <input th:field="*{fillAnswers[__${i}__].tolerance}" placeholder="0.01">
+                                <input th:field="*{fillAnswers[__${iter.index}__].tolerance}" placeholder="0.01">
                             </label>
+                            <button class="button danger fill-delete-button" type="button" title="Удалить строку" aria-label="Удалить строку">
+                                <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#trash-2}"></use></svg>
+                            </button>
                         </div>
                     </div>
-                    <p class="muted-line">Допустимо оставлять пустые строки. Сохраняются только заполненные placeholder-ответы.</p>
+                    <div class="actions compact-actions">
+                        <button class="button" type="button" id="fill-answer-add">Добавить пропуск</button>
+                    </div>
+                    <p class="muted-line">Пустые строки не сохраняются. Для каждой метки из текста вопроса должна быть заполнена строка с тем же placeholder.</p>
                 </section>
 
                 <div class="actions">
@@ -256,11 +256,12 @@
     const questionForm = document.getElementById('question-form');
     const bodyRuInput = document.getElementById('question-body-ru');
     const bodyKkInput = document.getElementById('question-body-kk');
-    const explanationRuInput = document.getElementById('question-explanation-ru');
-    const explanationKkInput = document.getElementById('question-explanation-kk');
     const miniLectureRuInput = document.getElementById('question-mini-lecture-ru');
     const miniLectureKkInput = document.getElementById('question-mini-lecture-kk');
     const generateMiniLectureButton = document.getElementById('generate-mini-lecture');
+    const fillAnswersList = document.getElementById('fill-answers-list');
+    const fillAnswerAddButton = document.getElementById('fill-answer-add');
+    const FILL_MATCH_MODES = ['EXACT', 'NORMALIZED', 'NUMERIC_TOLERANCE', 'REGEXP'];
     const lectureGenerationStatus = document.getElementById('lecture-generation-status');
     const fillValidation = document.getElementById('fill-in-validation');
     const choiceOptionsList = document.getElementById('choice-options-list');
@@ -391,6 +392,86 @@
         choiceOptionAddButton.addEventListener('click', appendChoiceOption);
     }
 
+    function reindexFillRows() {
+        if (!fillAnswersList) {
+            return;
+        }
+        fillAnswersList.querySelectorAll('.fill-row').forEach((row, index) => {
+            row.querySelectorAll('[name^="fillAnswers["]').forEach((el) => {
+                const name = el.getAttribute('name');
+                if (name) {
+                    el.setAttribute('name', name.replace(/fillAnswers\[\d+]/, 'fillAnswers[' + index + ']'));
+                }
+            });
+        });
+    }
+
+    function fillModeOptionsHtml(selected) {
+        return FILL_MATCH_MODES.map((mode) =>
+                '<option value="' + mode + '"' + (mode === selected ? ' selected' : '') + '>' + mode + '</option>'
+        ).join('');
+    }
+
+    function appendFillRow() {
+        if (!fillAnswersList) {
+            return;
+        }
+        const index = fillAnswersList.querySelectorAll('.fill-row').length;
+        const row = document.createElement('div');
+        row.className = 'fill-row';
+        row.innerHTML = `
+            <label class="field">
+                <span>Метка</span>
+                <input class="fill-placeholder-input" name="fillAnswers[${index}].placeholder" placeholder="[[1]]">
+            </label>
+            <label class="field">
+                <span>Ответ</span>
+                <input name="fillAnswers[${index}].answer">
+            </label>
+            <label class="field">
+                <span>Правило</span>
+                <select name="fillAnswers[${index}].matchMode">${fillModeOptionsHtml('EXACT')}</select>
+            </label>
+            <label class="field">
+                <span>Tolerance</span>
+                <input name="fillAnswers[${index}].tolerance" placeholder="0.01">
+            </label>
+            <button class="button danger fill-delete-button" type="button" title="Удалить строку" aria-label="Удалить строку">
+                <svg class="lucide-icon" aria-hidden="true"><use href="/icons/lucide-sprite.svg#trash-2"></use></svg>
+            </button>
+        `;
+        fillAnswersList.appendChild(row);
+        bindFillRow(row);
+    }
+
+    function bindFillRow(row) {
+        const del = row.querySelector('.fill-delete-button');
+        if (del) {
+            del.addEventListener('click', () => {
+                if (!fillAnswersList) {
+                    return;
+                }
+                if (fillAnswersList.querySelectorAll('.fill-row').length <= 1) {
+                    window.alert('Нужна минимум одна строка для FILL_IN.');
+                    return;
+                }
+                row.remove();
+                reindexFillRows();
+            });
+        }
+    }
+
+    if (fillAnswersList) {
+        fillAnswersList.querySelectorAll('.fill-row').forEach(bindFillRow);
+    }
+
+    if (fillAnswerAddButton) {
+        fillAnswerAddButton.addEventListener('click', () => {
+            appendFillRow();
+            reindexFillRows();
+        });
+    }
+
     function setQuestionTopicHint(message, isError) {
         const hint = document.getElementById('question-topic-hint');
         if (!hint) {
@@ -486,7 +567,12 @@
         } else if (field === 'softDeleted') {
             target[collection][index][field] = value === 'true';
         } else if (field === 'tolerance') {
-            target[collection][index][field] = value === '' ? null : Number(value);
+            if (value === '' || value === undefined) {
+                target[collection][index][field] = null;
+            } else {
+                const n = Number(value);
+                target[collection][index][field] = Number.isNaN(n) ? null : n;
+            }
         } else {
             target[collection][index][field] = value;
         }
@@ -569,16 +655,57 @@
         return payload;
     }
 
+    function preGenerateCheck(payload) {
+        if (!payload.topicId) {
+            return 'Выберите тему.';
+        }
+        if (!String(payload.bodyRu || '').trim() || !String(payload.bodyKk || '').trim()) {
+            return 'Заполните текст вопроса на RU и KK.';
+        }
+        const t = payload.type;
+        if (t === 'SCQ' || t === 'MCQ') {
+            const opts = (payload.options || []).filter((o) => !o.softDeleted);
+            const anyCorrect = opts.some((o) => o.correct);
+            if (!anyCorrect) {
+                return 'Отметьте хотя бы один правильный вариант (SCQ/MCQ).';
+            }
+        }
+        if (t === 'MATCHING') {
+            const pairs = (payload.matchingPairs || []).filter((p) =>
+                    String(p.leftRu || '').trim() || String(p.rightRu || '').trim());
+            if (pairs.length < 2) {
+                return 'Для сопоставления заполните минимум две пары.';
+            }
+        }
+        if (t === 'FILL_IN') {
+            const rows = (payload.fillAnswers || []).filter((r) =>
+                    String(r.placeholder || '').trim() && String(r.answer || '').trim());
+            if (rows.length < 1) {
+                return 'Для FILL_IN укажите минимум одну пару «метка + ответ» в ключе.';
+            }
+        }
+        return null;
+    }
+
     async function generateMiniLectureDraft() {
         if (!generateMiniLectureButton || !questionForm) {
             return;
         }
+        reindexVisibleOptions();
+        reindexFillRows();
         const tokenInput = questionForm.querySelector('input[name="_csrf"]');
         const csrfToken = tokenInput ? tokenInput.value : '';
         const payload = buildQuestionPayload();
+        const check = preGenerateCheck(payload);
+        if (check) {
+            lectureGenerationStatus.textContent = check;
+            lectureGenerationStatus.classList.add('field-error');
+            lectureGenerationStatus.classList.remove('muted-line');
+            return;
+        }
 
         generateMiniLectureButton.disabled = true;
-        lectureGenerationStatus.textContent = 'Генерируем мини-лекцию и объяснение...';
+        lectureGenerationStatus.textContent = 'Генерируем объяснение...';
         lectureGenerationStatus.classList.remove('field-error');
         lectureGenerationStatus.classList.add('muted-line');
 
@@ -592,15 +719,29 @@
                 },
                 body: JSON.stringify(payload)
             });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'generation_failed');
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                throw new Error('Некорректный ответ сервера');
             }
-            if (explanationRuInput) explanationRuInput.value = data.explanationRu || '';
-            if (explanationKkInput) explanationKkInput.value = data.explanationKk || '';
-            if (miniLectureRuInput) miniLectureRuInput.value = data.miniLectureRu || '';
-            if (miniLectureKkInput) miniLectureKkInput.value = data.miniLectureKk || '';
-            lectureGenerationStatus.textContent = 'Черновик мини-лекции и объяснения заполнен.';
+            if (!response.ok) {
+                const code = data.error || 'generation_failed';
+                const human = {
+                    topic_not_found: 'Тема не найдена — выберите тему из списка.',
+                    question_body_required: 'Заполните текст вопроса RU и KK.',
+                    question_correct_answer_required: 'Сначала задайте правильный ответ для этого типа (варианты, пары или пропуски).',
+                    fill_in_answer_required: 'Для FILL_IN заполните метку и ответ в каждой используемой строке.',
+                    matching_pair_required: 'Заполните пары сопоставления полностью.',
+                    question_type_required: 'Выберите тип вопроса.'
+                };
+                throw new Error(human[code] || code);
+            }
+            const textRu = data.miniLectureRu || data.explanationRu || '';
+            const textKk = data.miniLectureKk || data.explanationKk || '';
+            if (miniLectureRuInput) miniLectureRuInput.value = textRu;
+            if (miniLectureKkInput) miniLectureKkInput.value = textKk;
+            lectureGenerationStatus.textContent = 'Черновик объяснения для ученика заполнен (RU + KK). Проверьте и отредактируйте при необходимости.';
             lectureGenerationStatus.classList.remove('field-error');
             lectureGenerationStatus.classList.add('muted-line');
         } catch (error) {
@@ -636,6 +777,7 @@
     if (questionForm) {
         questionForm.addEventListener('submit', (event) => {
             reindexVisibleOptions();
+            reindexFillRows();
             if (fillValidation) {
                 fillValidation.hidden = true;
                 fillValidation.textContent = '';
