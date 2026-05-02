@@ -6,6 +6,9 @@ public record QuestionEditView(
         String status,
         Long subjectId,
         Long gradeId,
-        QuestionForm form
+        QuestionForm form,
+        boolean hasPendingDraft,
+        Integer draftVersionNo,
+        Integer liveVersionNo
 ) {
 }

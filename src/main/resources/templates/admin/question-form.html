@@ -20,15 +20,30 @@
                         <span th:text="${'Q-' + questionId + ' · v' + questionVersionNo + ' · ' + questionCurrentStatus}">Q-1 · v1 · draft</span>
                     </p>
                 </div>
-                <a class="button" th:href="@{/admin/questions}">К списку</a>
+                <a class="button" th:href="@{/admin/questions(
+                        subjectId=${filterSubjectId},
+                        gradeId=${filterGradeId},
+                        topicId=${filterTopicId},
+                        status=${filterStatus},
+                        type=${filterType},
+                        query=${filterQuery},
+                        quality=${filterQuality})}">К списку</a>
             </div>
 
             <form id="question-form"
                   class="form wide-form"
-                  method="post"
+                  th:method="${mode == 'edit'} ? 'put' : 'post'"
                   th:action="${mode == 'edit'} ? @{/admin/questions/{id}(id=${questionId})} : @{/admin/questions}"
                   th:object="${questionForm}">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <input type="hidden" name="filterSubjectId" th:if="${filterSubjectId != null}" th:value="${filterSubjectId}">
+                <input type="hidden" name="filterGradeId" th:if="${filterGradeId != null}" th:value="${filterGradeId}">
+                <input type="hidden" name="filterTopicId" th:if="${filterTopicId != null}" th:value="${filterTopicId}">
+                <input type="hidden" name="filterStatus" th:if="${filterStatus != null}" th:value="${filterStatus}">
+                <input type="hidden" name="filterType" th:if="${filterType != null}" th:value="${filterType}">
+                <input type="hidden" name="filterQuery" th:if="${filterQuery != null and !#strings.isEmpty(filterQuery)}" th:value="${filterQuery}">
+                <input type="hidden" name="filterQuality" th:if="${filterQuality != null}" th:value="${filterQuality}">
 
                 <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}">
                     Ошибка
@@ -39,7 +54,14 @@
                     <strong>Порядок выбора</strong>
                     <span>Сначала выберите предмет и класс. После этого список тем обновится автоматически; если тем нет, добавьте их в разделе "Темы".</span>
                 </div>
-                <div class="notice" th:if="${mode == 'edit' and (questionCurrentStatus == 'published' or questionCurrentStatus == 'approved')}">
+                <div class="notice" th:if="${mode == 'edit' and hasPendingDraft}">
+                    <strong>Это черновик v<span th:text="${draftVersionNo}">2</span></strong>
+                    <span>
+                        Опубликованная версия v<span th:text="${liveVersionNo}">1</span> по-прежнему показывается ученикам.
+                        Изменения сохраняются в этом черновике, пока вы не отправите его на review и не опубликуете.
+                    </span>
+                </div>
+                <div class="notice" th:if="${mode == 'edit' and not hasPendingDraft and (questionCurrentStatus == 'published' or questionCurrentStatus == 'approved')}">
                     <strong>Версионирование</strong>
                     <span>Редактирование published/approved вопроса сохраняет новую версию для review, не ломая уже опубликованный контент в student flow.</span>
                 </div>
@@ -242,7 +264,14 @@
 
                 <div class="actions">
                     <button class="button primary" type="submit" th:text="${mode == 'edit'} ? 'Сохранить изменения' : 'Сохранить вопрос'">Сохранить вопрос</button>
-                    <a class="button" th:href="@{/admin/questions}">Отмена</a>
+                    <a class="button" th:href="@{/admin/questions(
+                            subjectId=${filterSubjectId},
+                            gradeId=${filterGradeId},
+                            topicId=${filterTopicId},
+                            status=${filterStatus},
+                            type=${filterType},
+                            query=${filterQuery},
+                            quality=${filterQuality})}">Отмена</a>
                 </div>
             </form>
         </section>

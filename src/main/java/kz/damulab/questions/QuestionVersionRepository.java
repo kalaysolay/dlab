@@ -1,6 +1,7 @@
 package kz.damulab.questions;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,8 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
     boolean existsByTopicId(Long topicId);
 
     boolean existsByAtomicSkillId(Long atomicSkillId);
+
+    Optional<QuestionVersion> findTopByQuestionIdOrderByVersionNoDesc(Long questionId);
 
     @Query("""
             select coalesce(max(v.versionNo), 0)

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -73,11 +74,17 @@ public class AdminQuestionPageController {
     String newQuestion(
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) QuestionStatus status,
+            @RequestParam(required = false) QuestionType type,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) QuestionQualityFilter quality,
             Model model
     ) {
         Long resolvedSubjectId = resolveSubjectId(subjectId);
         Long resolvedGradeId = resolveGradeId(gradeId);
         addReferenceModel(model, resolvedSubjectId, resolvedGradeId);
+        addFilterModel(model, subjectId, gradeId, topicId, status, type, query, quality);
         model.addAttribute("activeAdminNav", "questions");
         model.addAttribute("mode", "create");
         if (!model.containsAttribute("questionForm")) {
@@ -87,14 +94,28 @@ public class AdminQuestionPageController {
     }
 
     @GetMapping("/admin/questions/{id}/edit")
-    String editQuestion(@PathVariable Long id, Model model) {
+    String editQuestion(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) QuestionStatus status,
+            @RequestParam(required = false) QuestionType type,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) QuestionQualityFilter quality,
+            Model model
+    ) {
         QuestionEditView edit = questionBank.getQuestionEditView(id);
         addReferenceModel(model, edit.subjectId(), edit.gradeId());
+        addFilterModel(model, subjectId, gradeId, topicId, status, type, query, quality);
         model.addAttribute("activeAdminNav", "questions");
         model.addAttribute("mode", "edit");
         model.addAttribute("questionId", edit.questionId());
         model.addAttribute("questionVersionNo", edit.versionNo());
         model.addAttribute("questionCurrentStatus", edit.status());
+        model.addAttribute("hasPendingDraft", edit.hasPendingDraft());
+        model.addAttribute("draftVersionNo", edit.draftVersionNo());
+        model.addAttribute("liveVersionNo", edit.liveVersionNo());
         if (!model.containsAttribute("questionForm")) {
             model.addAttribute("questionForm", edit.form());
         }
@@ -114,6 +135,13 @@ public class AdminQuestionPageController {
     String createQuestion(
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) Long gradeId,
+            @RequestParam(name = "filterSubjectId", required = false) Long filterSubjectId,
+            @RequestParam(name = "filterGradeId", required = false) Long filterGradeId,
+            @RequestParam(name = "filterTopicId", required = false) Long filterTopicId,
+            @RequestParam(name = "filterStatus", required = false) QuestionStatus filterStatus,
+            @RequestParam(name = "filterType", required = false) QuestionType filterType,
+            @RequestParam(name = "filterQuery", required = false) String filterQuery,
+            @RequestParam(name = "filterQuality", required = false) QuestionQualityFilter filterQuality,
             @Valid @ModelAttribute("questionForm") QuestionForm form,
             BindingResult bindingResult,
             Model model,
@@ -121,6 +149,7 @@ public class AdminQuestionPageController {
     ) {
         if (bindingResult.hasErrors()) {
             addReferenceModel(model, resolveSubjectId(subjectId), resolveGradeId(gradeId));
+            addFilterModel(model, filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
             model.addAttribute("activeAdminNav", "questions");
             model.addAttribute("mode", "create");
             return "admin/question-form";
@@ -128,21 +157,30 @@ public class AdminQuestionPageController {
         try {
             QuestionResponse created = questionBank.createQuestion(form);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос создан");
-            return "redirect:/admin/questions?topicId=" + created.topicId();
+            Long topicForRedirect = filterTopicId != null ? filterTopicId : created.topicId();
+            return "redirect:/admin/questions" + buildFilterQuery(filterSubjectId, filterGradeId, topicForRedirect, filterStatus, filterType, filterQuery, filterQuality);
         } catch (QuestionBankException ex) {
             bindingResult.reject("question", humanError(ex.getCode()));
             addReferenceModel(model, resolveSubjectId(subjectId), resolveGradeId(gradeId));
+            addFilterModel(model, filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
             model.addAttribute("activeAdminNav", "questions");
             model.addAttribute("mode", "create");
             return "admin/question-form";
         }
     }
 
-    @PostMapping("/admin/questions/{id}")
+    @PutMapping("/admin/questions/{id}")
     String updateQuestion(
             @PathVariable Long id,
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) Long gradeId,
+            @RequestParam(name = "filterSubjectId", required = false) Long filterSubjectId,
+            @RequestParam(name = "filterGradeId", required = false) Long filterGradeId,
+            @RequestParam(name = "filterTopicId", required = false) Long filterTopicId,
+            @RequestParam(name = "filterStatus", required = false) QuestionStatus filterStatus,
+            @RequestParam(name = "filterType", required = false) QuestionType filterType,
+            @RequestParam(name = "filterQuery", required = false) String filterQuery,
+            @RequestParam(name = "filterQuality", required = false) QuestionQualityFilter filterQuality,
             @Valid @ModelAttribute("questionForm") QuestionForm form,
             BindingResult bindingResult,
             Model model,
@@ -153,25 +191,33 @@ public class AdminQuestionPageController {
         Long resolvedGradeId = resolveGradeId(gradeId != null ? gradeId : existing.gradeId());
         if (bindingResult.hasErrors()) {
             addReferenceModel(model, resolvedSubjectId, resolvedGradeId);
+            addFilterModel(model, filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
             model.addAttribute("activeAdminNav", "questions");
             model.addAttribute("mode", "edit");
             model.addAttribute("questionId", existing.questionId());
             model.addAttribute("questionVersionNo", existing.versionNo());
             model.addAttribute("questionCurrentStatus", existing.status());
+            model.addAttribute("hasPendingDraft", existing.hasPendingDraft());
+            model.addAttribute("draftVersionNo", existing.draftVersionNo());
+            model.addAttribute("liveVersionNo", existing.liveVersionNo());
             return "admin/question-form";
         }
         try {
             questionBank.updateQuestion(id, form);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос обновлен");
-            return "redirect:/admin/questions";
+            return "redirect:/admin/questions" + buildFilterQuery(filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
         } catch (QuestionBankException ex) {
             bindingResult.reject("question", humanError(ex.getCode()));
             addReferenceModel(model, resolvedSubjectId, resolvedGradeId);
+            addFilterModel(model, filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
             model.addAttribute("activeAdminNav", "questions");
             model.addAttribute("mode", "edit");
             model.addAttribute("questionId", existing.questionId());
             model.addAttribute("questionVersionNo", existing.versionNo());
             model.addAttribute("questionCurrentStatus", existing.status());
+            model.addAttribute("hasPendingDraft", existing.hasPendingDraft());
+            model.addAttribute("draftVersionNo", existing.draftVersionNo());
+            model.addAttribute("liveVersionNo", existing.liveVersionNo());
             return "admin/question-form";
         }
     }
@@ -234,6 +280,61 @@ public class AdminQuestionPageController {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }
         return "redirect:/admin/questions/health";
+    }
+
+    private void addFilterModel(
+            Model model,
+            Long subjectId,
+            Long gradeId,
+            Long topicId,
+            QuestionStatus status,
+            QuestionType type,
+            String query,
+            QuestionQualityFilter quality
+    ) {
+        model.addAttribute("filterSubjectId", subjectId);
+        model.addAttribute("filterGradeId", gradeId);
+        model.addAttribute("filterTopicId", topicId);
+        model.addAttribute("filterStatus", status);
+        model.addAttribute("filterType", type);
+        model.addAttribute("filterQuery", query);
+        model.addAttribute("filterQuality", quality);
+        model.addAttribute("filterQueryString", buildFilterQuery(subjectId, gradeId, topicId, status, type, query, quality));
+    }
+
+    private String buildFilterQuery(
+            Long subjectId,
+            Long gradeId,
+            Long topicId,
+            QuestionStatus status,
+            QuestionType type,
+            String query,
+            QuestionQualityFilter quality
+    ) {
+        StringBuilder builder = new StringBuilder();
+        appendFilterParam(builder, "subjectId", subjectId);
+        appendFilterParam(builder, "gradeId", gradeId);
+        appendFilterParam(builder, "topicId", topicId);
+        appendFilterParam(builder, "status", status == null ? null : status.name());
+        appendFilterParam(builder, "type", type == null ? null : type.name());
+        appendFilterParam(builder, "query", query);
+        appendFilterParam(builder, "quality", quality == null ? null : quality.name());
+        return builder.length() == 0 ? "" : "?" + builder;
+    }
+
+    private void appendFilterParam(StringBuilder builder, String name, Object value) {
+        if (value == null) {
+            return;
+        }
+        String stringValue = String.valueOf(value);
+        if (stringValue.isBlank()) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append('&');
+        }
+        builder.append(name).append('=')
+                .append(java.net.URLEncoder.encode(stringValue, java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private void addReferenceModel(Model model, Long subjectId, Long gradeId) {

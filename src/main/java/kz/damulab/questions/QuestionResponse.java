@@ -16,6 +16,7 @@ public record QuestionResponse(
         String bodyRu,
         String bodyKk,
         String source,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        Integer pendingDraftVersionNo
 ) {
 }

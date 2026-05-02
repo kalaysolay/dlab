@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -268,7 +269,8 @@ class QuestionBankIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.versionNo").value(1))
                 .andExpect(jsonPath("$.status").value("published"))
-                .andExpect(jsonPath("$.bodyRu").value("Найдите 20% от 350"));
+                .andExpect(jsonPath("$.bodyRu").value("Найдите 20% от 350"))
+                .andExpect(jsonPath("$.pendingDraftVersionNo").value(2));
     }
 
     @Test
@@ -323,6 +325,16 @@ class QuestionBankIntegrationTest {
 
     @Test
     void adminCanSubmitQuestionEditPage() throws Exception {
+        Long filterSubjectId = subjects.findAllByOrderByTitleRuAsc().stream()
+                .filter(subject -> "math".equals(subject.getCode()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        Long filterGradeId = grades.findAllByOrderByGradeNoAsc().stream()
+                .filter(grade -> Integer.valueOf(4).equals(grade.getGradeNo()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
         Long topicId = createTopic("question-edit-submit-topic-");
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -334,9 +346,12 @@ class QuestionBankIntegrationTest {
                 .getResponse()
                 .getContentAsString());
 
-        mockMvc.perform(post("/admin/questions/{id}", questionId)
+        mockMvc.perform(put("/admin/questions/{id}", questionId)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
+                        .param("filterSubjectId", String.valueOf(filterSubjectId))
+                        .param("filterGradeId", String.valueOf(filterGradeId))
+                        .param("filterTopicId", String.valueOf(topicId))
                         .param("topicId", String.valueOf(topicId))
                         .param("type", "SCQ")
                         .param("difficulty", "2")
@@ -365,7 +380,10 @@ class QuestionBankIntegrationTest {
                         .param("options[3].correct", "false")
                         .param("options[3].softDeleted", "false"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(header().string("Location", "/admin/questions"));
+                .andExpect(header().string("Location", containsString("/admin/questions?")))
+                .andExpect(header().string("Location", containsString("subjectId=" + filterSubjectId)))
+                .andExpect(header().string("Location", containsString("gradeId=" + filterGradeId)))
+                .andExpect(header().string("Location", containsString("topicId=" + topicId)));
 
         mockMvc.perform(get("/api/admin/questions/{id}", questionId)
                         .with(user("admin@damulab.kz").roles("ADMIN")))

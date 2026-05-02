@@ -93,18 +93,33 @@ public class QuestionBankService {
     @Transactional(readOnly = true)
     public QuestionEditView getQuestionEditView(Long id) {
         Question question = findQuestion(id);
-        QuestionVersion version = question.getCurrentVersion();
-        if (version == null) {
+        QuestionVersion currentVersion = question.getCurrentVersion();
+        if (currentVersion == null) {
             throw new QuestionBankException("question_version_not_found");
         }
+        java.util.Optional<QuestionVersion> pending = pendingDraft(question);
+        QuestionVersion source = pending.orElse(currentVersion);
         return new QuestionEditView(
                 question.getId(),
-                version.getVersionNo(),
+                source.getVersionNo(),
                 question.getStatus().apiValue(),
-                version.getTopic().getSubject().getId(),
-                version.getTopic().getGrade().getId(),
-                toEditForm(question, version)
+                source.getTopic().getSubject().getId(),
+                source.getTopic().getGrade().getId(),
+                toEditForm(question, source),
+                pending.isPresent(),
+                pending.map(QuestionVersion::getVersionNo).orElse(null),
+                currentVersion.getVersionNo()
         );
+    }
+
+    private java.util.Optional<QuestionVersion> pendingDraft(Question question) {
+        QuestionVersion current = question.getCurrentVersion();
+        if (current == null) {
+            return java.util.Optional.empty();
+        }
+        return versions.findTopByQuestionIdOrderByVersionNoDesc(question.getId())
+                .filter(latest -> latest.getVersionNo() > current.getVersionNo())
+                .filter(latest -> latest.getPublishedAt() == null);
     }
 
     @Transactional(readOnly = true)
@@ -280,14 +295,22 @@ public class QuestionBankService {
         if (current == null) {
             throw new QuestionBankException("question_version_not_found");
         }
-        QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
         if (question.getStatus() == QuestionStatus.PUBLISHED) {
-            versions.save(replacement);
+            QuestionVersion existingDraft = pendingDraft(question).orElse(null);
+            if (existingDraft != null) {
+                QuestionVersion replacement = buildVersion(question, existingDraft.getVersionNo(), form);
+                existingDraft.replaceContent(replacement);
+            } else {
+                QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
+                versions.save(replacement);
+            }
         } else if (question.getStatus() == QuestionStatus.APPROVED) {
+            QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
             versions.save(replacement);
             question.setCurrentVersion(replacement);
             question.changeStatus(QuestionStatus.NEEDS_REVIEW);
         } else {
+            QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
             current.replaceContent(replacement);
             question.changeStatus(initialStatus(form.getStatus()));
         }
@@ -912,6 +935,9 @@ public class QuestionBankService {
 
     private QuestionResponse toResponse(Question question) {
         QuestionVersion version = question.getCurrentVersion();
+        Integer pendingVersionNo = version == null
+                ? null
+                : pendingDraft(question).map(QuestionVersion::getVersionNo).orElse(null);
         return new QuestionResponse(
                 question.getId(),
                 question.getStatus().apiValue(),
@@ -926,7 +952,8 @@ public class QuestionBankService {
                 version == null ? null : version.getBodyRu(),
                 version == null ? null : version.getBodyKk(),
                 version == null ? null : version.getSource(),
-                question.getUpdatedAt()
+                question.getUpdatedAt(),
+                pendingVersionNo
         );
     }
 

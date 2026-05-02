@@ -27,7 +27,14 @@
                         Импорт JSON
                     </a>
                     <a class="button primary"
-                       th:href="@{/admin/questions/new}">
+                       th:href="@{/admin/questions/new(
+                               subjectId=${selectedSubjectId},
+                               gradeId=${selectedGradeId},
+                               topicId=${selectedTopicId},
+                               status=${selectedStatus},
+                               type=${selectedType},
+                               query=${query},
+                               quality=${selectedQuality})}">
                         Добавить вопрос
                     </a>
                 </div>
@@ -167,6 +174,8 @@
                             <span class="badge"
                                   th:classappend="${question.status == 'published' || question.status == 'approved'} ? 'success' : (${question.status == 'archived'} ? 'danger' : 'warning')"
                                   th:text="${question.status}">draft</span>
+                            <span class="badge warning" th:if="${question.pendingDraftVersionNo != null}"
+                                  th:text="${'draft v' + question.pendingDraftVersionNo}">draft v2</span>
                         </td>
                         <td th:with="item=${healthByQuestionId[question.id]}">
                             <span class="badge"
@@ -177,7 +186,15 @@
                         </td>
                         <td th:text="${question.source}">Источник</td>
                         <td class="row-actions">
-                            <a class="button" th:href="@{/admin/questions/{id}/edit(id=${question.id})}">Редактировать</a>
+                            <a class="button" th:href="@{/admin/questions/{id}/edit(
+                                    id=${question.id},
+                                    subjectId=${selectedSubjectId},
+                                    gradeId=${selectedGradeId},
+                                    topicId=${selectedTopicId},
+                                    status=${selectedStatus},
+                                    type=${selectedType},
+                                    query=${query},
+                                    quality=${selectedQuality})}">Редактировать</a>
                             <form method="post" th:if="${question.status != 'archived'}"
                                   th:action="@{/admin/questions/{id}/flag(id=${question.id})}">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
