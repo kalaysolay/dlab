@@ -1,0 +1,406 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Damulab.kz | Главная (Index 4 Codex)</title>
+  <meta name="description" content="Сборный вариант главной Damulab.kz: плотный контент, капсульное меню и обновленная визуальная подача.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Nunito", "Manrope", "ui-sans-serif", "system-ui", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .app-surface {
+      background:
+        radial-gradient(circle at 15% 20%, rgba(99, 102, 241, 0.14) 0, transparent 38%),
+        radial-gradient(circle at 82% 5%, rgba(16, 185, 129, 0.16) 0, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(245, 158, 11, 0.15) 0, transparent 42%),
+        #f8fafc;
+    }
+
+    .lift {
+      transition: transform .25s ease, box-shadow .25s ease;
+    }
+
+    .lift:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, .10);
+    }
+
+    .lang-select {
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .menu-wrap {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      border: 1px solid #e2e8f0;
+      background: rgba(255, 255, 255, .95);
+      padding: .35rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+    }
+
+    .menu-link {
+      padding: .55rem .9rem;
+      border-radius: 10px;
+      font-size: .84rem;
+      font-weight: 800;
+      color: #475569;
+      transition: all .2s ease;
+      white-space: nowrap;
+    }
+
+    .menu-link:hover {
+      color: #312e81;
+      background: #eef2ff;
+    }
+
+    .menu-link.active {
+      color: #3730a3;
+      background: #e0e7ff;
+    }
+
+    .lang-select-wrap {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #fff;
+      padding: 2px 6px;
+    }
+
+    .warm-card {
+      background: linear-gradient(145deg, #ffffff 0%, rgba(255, 251, 235, .98) 100%);
+    }
+
+    .cool-card {
+      background: linear-gradient(140deg, #eef2ff 0%, #ffffff 52%, #ecfeff 100%);
+    }
+  </style>
+</head>
+<body class="app-surface min-h-screen text-slate-800 antialiased">
+  <div class="mx-auto min-h-screen max-w-7xl px-4 py-5 sm:px-6 lg:px-10">
+    <div class="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-6xl flex-col rounded-[2rem] border border-white/70 bg-white/80 shadow-2xl shadow-indigo-100 backdrop-blur">
+
+      <header class="sticky top-0 z-20 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
+        <div class="flex items-center justify-between gap-3">
+          <a href="index.html" class="flex items-center gap-3">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white">
+              <i data-lucide="graduation-cap" class="h-5 w-5"></i>
+            </span>
+            <span>
+              <span class="block text-sm font-extrabold tracking-tight text-slate-900">Damulab.kz</span>
+              <span class="block text-xs text-slate-500">Платформа для семьи и ученика</span>
+            </span>
+          </a>
+
+          <nav class="menu-wrap hidden lg:flex">
+            <a href="#hero" class="menu-link active">Главная</a>
+            <a href="#why" class="menu-link">Почему мы</a>
+            <a href="#programs" class="menu-link">Программы</a>
+            <a href="#flow" class="menu-link">Как это работает</a>
+            <a href="#reviews" class="menu-link">Отзывы</a>
+          </nav>
+
+          <div class="flex items-center gap-2">
+            <div class="lang-select-wrap hidden items-center gap-2 sm:flex">
+              <i data-lucide="languages" class="h-4 w-4 text-slate-500"></i>
+              <label for="lang-select" class="sr-only">Язык интерфейса</label>
+              <select id="lang-select" class="lang-select rounded-lg border border-transparent bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100">
+                <option value="ru">Русский</option>
+                <option value="kk">Қазақша</option>
+              </select>
+            </div>
+            <a href="auth.html" class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-bold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700">
+              Вход
+              <i data-lucide="log-in" class="h-4 w-4"></i>
+            </a>
+          </div>
+        </div>
+
+        <nav class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          <a href="#hero" class="whitespace-nowrap rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Главная</a>
+          <a href="#why" class="whitespace-nowrap rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600">Почему мы</a>
+          <a href="#programs" class="whitespace-nowrap rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600">Программы</a>
+          <a href="#flow" class="whitespace-nowrap rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600">Как работает</a>
+          <a href="#reviews" class="whitespace-nowrap rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600">Отзывы</a>
+        </nav>
+      </header>
+
+      <main class="flex-1 px-4 pb-10 pt-6 sm:px-6 lg:px-8 lg:pt-8">
+        <section id="hero" class="grid items-center gap-8 lg:grid-cols-[1.05fr_.95fr]">
+          <div>
+            <span class="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <i data-lucide="shield-check" class="h-3.5 w-3.5"></i>
+              Подготовка без перегруза и хаоса
+            </span>
+            <h1 class="mt-4 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl lg:text-5xl">
+              Подготовьте ребенка к <span class="text-indigo-600">СОР, СОЧ и МОДО</span> в понятном темпе
+            </h1>
+            <p class="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+              Сборный концепт: меню в стиле капсулы, визуал с мягкими градиентами и плотный лендинг как в текущей главной. Фокус не на гонке за тестами, а на системном росте по школьной программе.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href="auth.html" class="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700">
+                Начать бесплатно
+                <i data-lucide="arrow-right" class="h-4 w-4"></i>
+              </a>
+              <a href="connect.html" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
+                Как подключить ребенка
+              </a>
+            </div>
+          </div>
+
+          <div class="relative">
+            <div class="absolute -left-8 top-8 hidden h-24 w-24 rounded-full bg-emerald-300/40 blur-2xl sm:block"></div>
+            <div class="lift overflow-hidden rounded-3xl border border-white/70 bg-white p-4 shadow-xl shadow-slate-200">
+              <div class="cool-card rounded-2xl p-3">
+                <svg viewBox="0 0 540 320" class="h-72 w-full rounded-xl bg-white" aria-label="Иллюстрация обучения">
+                  <rect x="0" y="0" width="540" height="320" fill="#ffffff"/>
+                  <circle cx="112" cy="86" r="52" fill="#e0e7ff"/>
+                  <circle cx="430" cy="72" r="42" fill="#d1fae5"/>
+                  <rect x="58" y="124" width="180" height="130" rx="20" fill="#eef2ff"/>
+                  <rect x="302" y="98" width="182" height="148" rx="20" fill="#ecfeff"/>
+                  <rect x="84" y="150" width="130" height="10" rx="5" fill="#6366f1" opacity=".85"/>
+                  <rect x="84" y="170" width="108" height="10" rx="5" fill="#94a3b8" opacity=".55"/>
+                  <rect x="84" y="190" width="118" height="10" rx="5" fill="#94a3b8" opacity=".45"/>
+                  <circle cx="352" cy="145" r="18" fill="#10b981" opacity=".85"/>
+                  <path d="M344 145l6 6 12-13" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="330" y="176" width="126" height="9" rx="4.5" fill="#10b981" opacity=".35"/>
+                  <rect x="330" y="194" width="98" height="9" rx="4.5" fill="#94a3b8" opacity=".42"/>
+                  <circle cx="254" cy="250" r="30" fill="#fef3c7"/>
+                  <path d="M240 250h28M254 236v28" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"/>
+                  <rect x="184" y="42" width="170" height="34" rx="17" fill="#eef2ff"/>
+                  <text x="206" y="64" font-size="14" fill="#4338ca" font-family="Nunito, Manrope, sans-serif" font-weight="700">СОР / СОЧ / МОДО</text>
+                </svg>
+              </div>
+              <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-xl bg-indigo-50 px-2 py-2">
+                  <p class="text-xs text-slate-500">План</p>
+                  <p class="text-sm font-bold text-indigo-700">Адаптивный</p>
+                </div>
+                <div class="rounded-xl bg-emerald-50 px-2 py-2">
+                  <p class="text-xs text-slate-500">Прогресс</p>
+                  <p class="text-sm font-bold text-emerald-600">+18%</p>
+                </div>
+                <div class="rounded-xl bg-amber-50 px-2 py-2">
+                  <p class="text-xs text-slate-500">Поддержка</p>
+                  <p class="text-sm font-bold text-amber-600">24/7</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-10 grid gap-4 md:grid-cols-3">
+          <a href="auth.html" class="lift warm-card rounded-3xl border border-amber-100 p-5 shadow-sm">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <i data-lucide="rocket" class="h-5 w-5"></i>
+            </div>
+            <h3 class="mt-4 text-lg font-extrabold text-slate-900">Быстрый старт</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">Большая CTA-карточка с теплым градиентом: от белого к мягкому янтарному тону.</p>
+          </a>
+          <a href="connect.html" class="lift warm-card rounded-3xl border border-amber-100 p-5 shadow-sm">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <i data-lucide="link-2" class="h-5 w-5"></i>
+            </div>
+            <h3 class="mt-4 text-lg font-extrabold text-slate-900">Связка родитель-ученик</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">Подключайте ребенка за пару минут и сразу получайте прозрачную аналитику.</p>
+          </a>
+          <a href="analytics.html" class="lift warm-card rounded-3xl border border-amber-100 p-5 shadow-sm">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <i data-lucide="bar-chart-3" class="h-5 w-5"></i>
+            </div>
+            <h3 class="mt-4 text-lg font-extrabold text-slate-900">Аналитика семьи</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">Видно, где идет прогресс, а где нужна дополнительная практика.</p>
+          </a>
+        </section>
+
+        <section id="why" class="mt-10">
+          <div class="mb-4 flex items-center gap-2">
+            <i data-lucide="sparkles" class="h-5 w-5 text-indigo-600"></i>
+            <h2 class="text-2xl font-extrabold text-slate-900">Почему мы</h2>
+          </div>
+          <div class="grid gap-4 md:grid-cols-3">
+            <article class="lift rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <i data-lucide="route" class="h-7 w-7 text-indigo-600"></i>
+              <h3 class="mt-3 text-lg font-bold text-slate-900">Адаптивный план</h3>
+              <p class="mt-2 text-sm leading-relaxed text-slate-600">Задания подстраиваются под уровень ребенка и усложняются постепенно.</p>
+            </article>
+            <article class="lift rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <i data-lucide="languages" class="h-7 w-7 text-emerald-600"></i>
+              <h3 class="mt-3 text-lg font-bold text-slate-900">Отчеты RU/KK</h3>
+              <p class="mt-2 text-sm leading-relaxed text-slate-600">Родитель получает понятную картину без перегруженных таблиц и терминов.</p>
+            </article>
+            <article class="lift rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <i data-lucide="gamepad-2" class="h-7 w-7 text-amber-500"></i>
+              <h3 class="mt-3 text-lg font-bold text-slate-900">Игровая подача</h3>
+              <p class="mt-2 text-sm leading-relaxed text-slate-600">Мини-челленджи и визуальные цели помогают удерживать интерес к учебе.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="programs" class="mt-10 rounded-3xl border border-indigo-100 bg-indigo-50/50 p-6">
+          <div class="mb-4 flex items-center gap-2">
+            <i data-lucide="book-copy" class="h-5 w-5 text-indigo-600"></i>
+            <h2 class="text-2xl font-extrabold text-slate-900">Программы и треки</h2>
+          </div>
+          <div class="grid gap-4 md:grid-cols-3">
+            <article class="lift rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
+              <p class="text-xs font-bold uppercase tracking-wide text-indigo-600">Трек</p>
+              <h3 class="mt-2 text-lg font-extrabold text-slate-900">СОР/СОЧ База</h3>
+              <p class="mt-2 text-sm text-slate-600">Еженедельный цикл: теория, короткая практика, контроль и исправление слабых мест.</p>
+            </article>
+            <article class="lift rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+              <p class="text-xs font-bold uppercase tracking-wide text-emerald-600">Трек</p>
+              <h3 class="mt-2 text-lg font-extrabold text-slate-900">МОДО 2026</h3>
+              <p class="mt-2 text-sm text-slate-600">Отдельный формат тренировок с метрикой готовности и фокусом на 4 классы.</p>
+            </article>
+            <article class="lift rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+              <p class="text-xs font-bold uppercase tracking-wide text-amber-600">Трек</p>
+              <h3 class="mt-2 text-lg font-extrabold text-slate-900">Интенсив выходного дня</h3>
+              <p class="mt-2 text-sm text-slate-600">Короткие спринты по проблемным темам перед проверочными работами.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="flow" class="mt-10 rounded-3xl border border-slate-200 bg-white p-6">
+          <div class="mb-4 flex items-center gap-2">
+            <i data-lucide="workflow" class="h-5 w-5 text-indigo-600"></i>
+            <h2 class="text-2xl font-extrabold text-slate-900">Как это работает</h2>
+          </div>
+          <div class="grid gap-4 md:grid-cols-4">
+            <div class="lift warm-card rounded-2xl border border-amber-100 p-4 shadow-sm"><p class="text-xs font-bold uppercase tracking-wide text-indigo-600">Шаг 1</p><p class="mt-2 text-base font-bold text-slate-900">Регистрация</p></div>
+            <div class="lift warm-card rounded-2xl border border-amber-100 p-4 shadow-sm"><p class="text-xs font-bold uppercase tracking-wide text-indigo-600">Шаг 2</p><p class="mt-2 text-base font-bold text-slate-900">Диагностика</p></div>
+            <div class="lift warm-card rounded-2xl border border-amber-100 p-4 shadow-sm"><p class="text-xs font-bold uppercase tracking-wide text-indigo-600">Шаг 3</p><p class="mt-2 text-base font-bold text-slate-900">Личный план</p></div>
+            <div class="lift warm-card rounded-2xl border border-amber-100 p-4 shadow-sm"><p class="text-xs font-bold uppercase tracking-wide text-indigo-600">Шаг 4</p><p class="mt-2 text-base font-bold text-slate-900">Рост результата</p></div>
+          </div>
+        </section>
+
+        <section id="reviews" class="mt-10">
+          <div class="mb-4 flex items-center gap-2">
+            <i data-lucide="message-square-heart" class="h-5 w-5 text-indigo-600"></i>
+            <h2 class="text-2xl font-extrabold text-slate-900">Отзывы родителей</h2>
+          </div>
+          <div class="grid gap-4 md:grid-cols-3">
+            <article class="lift rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p class="text-sm leading-relaxed text-slate-600">"Через месяц сын сам начал заходить в задания. Раньше приходилось уговаривать."</p>
+              <p class="mt-3 text-sm font-bold text-slate-900">Алия, мама 4-классника</p>
+            </article>
+            <article class="lift rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p class="text-sm leading-relaxed text-slate-600">"Отчеты реально читаемые. Я вижу, что конкретно проседает, и что делать дальше."</p>
+              <p class="mt-3 text-sm font-bold text-slate-900">Руслан, отец 5-классницы</p>
+            </article>
+            <article class="lift rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p class="text-sm leading-relaxed text-slate-600">"Нравится ритм занятий: не тяжело, но стабильно. Появилась уверенность перед СОЧ."</p>
+              <p class="mt-3 text-sm font-bold text-slate-900">Екатерина, мама 6-классника</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="mt-10 overflow-hidden rounded-3xl border border-amber-100 warm-card">
+          <div class="grid items-center gap-6 p-6 lg:grid-cols-[1.1fr_.9fr] lg:p-8">
+            <div>
+              <span class="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                <i data-lucide="megaphone" class="h-3.5 w-3.5"></i>
+                Спец-фокус 2026
+              </span>
+              <h2 class="mt-3 text-3xl font-extrabold text-slate-900">МОДО 2026 для 4 классов</h2>
+              <p class="mt-3 text-sm leading-relaxed text-slate-700 sm:text-base">Теория, тренажеры и еженедельные отчеты о готовности. Блок сделан более теплым по цвету, чтобы визуально выделять спец-направления.</p>
+              <a href="auth.html" class="mt-5 inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-amber-600">
+                Подключить подготовку
+                <i data-lucide="rocket" class="h-4 w-4"></i>
+              </a>
+            </div>
+            <div class="lift rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
+              <svg viewBox="0 0 420 240" class="h-64 w-full rounded-xl bg-amber-50" aria-label="Иллюстрация МОДО">
+                <rect width="420" height="240" fill="#fffbeb"/>
+                <rect x="38" y="46" width="164" height="148" rx="16" fill="#fff"/>
+                <rect x="220" y="34" width="160" height="172" rx="16" fill="#fff"/>
+                <rect x="58" y="70" width="124" height="10" rx="5" fill="#f59e0b" opacity=".8"/>
+                <rect x="58" y="90" width="94" height="9" rx="4.5" fill="#94a3b8" opacity=".5"/>
+                <rect x="58" y="108" width="110" height="9" rx="4.5" fill="#94a3b8" opacity=".4"/>
+                <circle cx="278" cy="94" r="20" fill="#6366f1" opacity=".92"/>
+                <path d="M268 94l7 7 13-14" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="250" y="130" width="98" height="9" rx="4.5" fill="#10b981" opacity=".42"/>
+                <rect x="250" y="148" width="78" height="9" rx="4.5" fill="#94a3b8" opacity=".45"/>
+                <circle cx="196" cy="198" r="18" fill="#d1fae5"/>
+                <path d="M189 198h14" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-10 rounded-3xl border border-slate-200 bg-white p-6">
+          <div class="mb-4 flex items-center gap-2">
+            <i data-lucide="help-circle" class="h-5 w-5 text-indigo-600"></i>
+            <h2 class="text-2xl font-extrabold text-slate-900">Частые вопросы</h2>
+          </div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <article class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h3 class="text-base font-extrabold text-slate-900">Сколько времени в день нужно?</h3>
+              <p class="mt-2 text-sm text-slate-600">Обычно 20-35 минут: короткий, но регулярный ритм дает лучший результат, чем редкие длинные сессии.</p>
+            </article>
+            <article class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h3 class="text-base font-extrabold text-slate-900">Подходит ли для разных уровней?</h3>
+              <p class="mt-2 text-sm text-slate-600">Да, диагностика стартового уровня помогает собрать индивидуальный маршрут и темп.</p>
+            </article>
+            <article class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h3 class="text-base font-extrabold text-slate-900">Родитель видит прогресс?</h3>
+              <p class="mt-2 text-sm text-slate-600">Да, отчеты показывают динамику по темам, зону риска и конкретные рекомендации.</p>
+            </article>
+            <article class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h3 class="text-base font-extrabold text-slate-900">Есть ли поддержка на двух языках?</h3>
+              <p class="mt-2 text-sm text-slate-600">Интерфейс и ключевые сообщения доступны на русском и қазақша.</p>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="border-t border-slate-100 bg-white/90 px-4 py-4 sm:px-6">
+        <div class="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>© 2026 Damulab.kz. СОР/СОЧ и школьная теория без стресса.</p>
+          <div class="flex items-center gap-3">
+            <a href="index.html" class="transition hover:text-indigo-600">Главная</a>
+            <a href="auth.html" class="transition hover:text-indigo-600">Кабинет</a>
+            <a href="connect.html" class="transition hover:text-indigo-600">Связка аккаунтов</a>
+            <a href="profile.html" class="transition hover:text-indigo-600">Настройки</a>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const langSelect = document.getElementById("lang-select");
+    const savedLang = localStorage.getItem("damulab-lang");
+
+    if (langSelect && savedLang) {
+      langSelect.value = savedLang;
+      document.documentElement.lang = savedLang;
+    }
+
+    if (langSelect) {
+      langSelect.addEventListener("change", () => {
+        localStorage.setItem("damulab-lang", langSelect.value);
+        document.documentElement.lang = langSelect.value;
+      });
+    }
+  </script>
+</body>
+</html>

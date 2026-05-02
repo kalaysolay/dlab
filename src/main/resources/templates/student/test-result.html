@@ -1,0 +1,331 @@
+﻿<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Р РµР·СѓР»СЊС‚Р°С‚ С‚РµСЃС‚Р°</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page student-test-result-page">
+        <section class="panel result-hero">
+            <div>
+                <p class="section-kicker">РС‚РѕРі</p>
+                <h1 class="page-title">Р РµР·СѓР»СЊС‚Р°С‚С‹ СЃРµСЃСЃРёРё #<span th:text="${result.sessionId}">1</span></h1>
+                <p class="lede">РџСЂРѕРІРµСЂРєР° РІС‹РїРѕР»РЅРµРЅР° РЅР° СЃРµСЂРІРµСЂРµ РїРѕ СЃРѕС…СЂР°РЅРµРЅРЅС‹Рј РѕС‚РІРµС‚Р°Рј.</p>
+            </div>
+            <div class="result-hero-score">
+                <strong th:text="${result.percent + '%'}">80%</strong>
+                <span th:text="${result.correctAnswers + ' РёР· ' + result.totalQuestions}">4 РёР· 5</span>
+            </div>
+        </section>
+
+        <section class="panel result-metrics">
+            <article class="result-metric-card">
+                <span>РђР±СЃРѕР»СЋС‚РЅС‹Р№ Р±Р°Р»Р»</span>
+                <strong th:text="${result.score + ' / ' + result.maxScore}">4 / 5</strong>
+            </article>
+            <article class="result-metric-card">
+                <span>Р’РµСЂРЅРѕ</span>
+                <strong th:text="${result.correctAnswers}">4</strong>
+            </article>
+            <article class="result-metric-card">
+                <span>РћС€РёР±РєРё</span>
+                <strong th:text="${result.totalQuestions - result.correctAnswers}">1</strong>
+            </article>
+        </section>
+
+        <section class="panel result-nav-panel">
+            <div class="page-head compact-head">
+                <h2 class="section-title">РќР°РІРёРіР°С†РёСЏ РїРѕ РѕС‚РІРµС‚Р°Рј</h2>
+                <button class="button" id="nextWrongQuestion" type="button">РЎР»РµРґСѓСЋС‰Р°СЏ РѕС€РёР±РєР°</button>
+            </div>
+            <div class="test-nav result-nav" th:if="${!#lists.isEmpty(result.questions)}">
+                <button type="button"
+                        th:each="question : ${result.questions}"
+                        th:attr="data-correct=${question.correct},data-target=${'result-q-' + question.sessionQuestionId}"
+                        th:text="${question.orderNo}">1</button>
+            </div>
+        </section>
+
+        <section class="panel result-focus-panel">
+            <h2 class="section-title">Р”РµС‚Р°Р»РёР·Р°С†РёСЏ</h2>
+            <div class="result-list result-focus-list" id="resultList">
+                <th:block th:each="question : ${result.questions}">
+                    <th:block th:replace="~{fragments/question-renderer :: resultQuestion(${question})}"></th:block>
+                </th:block>
+            </div>
+            <div class="actions result-actions">
+                <a class="button primary" th:href="@{/student/tests}">РџСЂРѕР№С‚Рё РµС‰Рµ С‚РµСЃС‚</a>
+                <a class="button" th:href="@{/student/analytics}">РћС‚РєСЂС‹С‚СЊ Р°РЅР°Р»РёС‚РёРєСѓ</a>
+                <a class="button" th:href="@{/student}">Р’ РєР°Р±РёРЅРµС‚</a>
+            </div>
+        </section>
+    </main>
+</div>
+<script>
+    const resultRows = Array.from(document.querySelectorAll("#resultList .result-row"));
+    const navButtons = Array.from(document.querySelectorAll(".result-nav button"));
+    const wrongButtons = navButtons.filter((button) => button.dataset.correct === "false");
+    const nextWrongButton = document.getElementById("nextWrongQuestion");
+    let currentIndex = 0;
+
+    const normalizeValue = (value) => {
+        if (value == null) return "";
+        if (typeof value === "object") {
+            try {
+                return JSON.stringify(value).trim();
+            } catch {
+                return String(value).trim();
+            }
+        }
+        return String(value).trim();
+    };
+    const unquote = (value) => normalizeValue(value).replace(/^['\"]|['\"]$/g, "");
+    const escapeHtml = (value) => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+
+    const tryParseJson = (text) => {
+        const raw = normalizeValue(text);
+        if (!raw) return null;
+        if (!(raw.startsWith("{") || raw.startsWith("[") || raw.startsWith("\""))) return null;
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
+    };
+
+    const splitTopLevel = (text, delimiter) => {
+        const result = [];
+        let depth = 0;
+        let current = "";
+        for (let index = 0; index < text.length; index++) {
+            const char = text[index];
+            if (char === "{" || char === "[" || char === "(") depth++;
+            if (char === "}" || char === "]" || char === ")") depth = Math.max(0, depth - 1);
+            if (char === delimiter && depth === 0) {
+                result.push(current);
+                current = "";
+                continue;
+            }
+            current += char;
+        }
+        if (current) result.push(current);
+        return result;
+    };
+
+    const parseJavaList = (rawText) => {
+        const text = normalizeValue(rawText);
+        if (!text.startsWith("[") || !text.endsWith("]")) return [];
+        const body = text.slice(1, -1).trim();
+        if (!body) return [];
+        return splitTopLevel(body, ",").map((entry) => unquote(entry)).filter((entry) => entry);
+    };
+
+    const answerLabels = (rawText) => {
+        const parsed = tryParseJson(rawText);
+        if (Array.isArray(parsed)) {
+            return parsed.map((value) => normalizeValue(value).toUpperCase()).filter((value) => value);
+        }
+        if (parsed && Array.isArray(parsed.selected)) {
+            return parsed.selected.map((value) => normalizeValue(value).toUpperCase()).filter((value) => value);
+        }
+        if (parsed && parsed.selected != null) {
+            return [normalizeValue(parsed.selected).toUpperCase()].filter((value) => value);
+        }
+        if (parsed && parsed.answer != null) {
+            return [normalizeValue(parsed.answer).toUpperCase()].filter((value) => value);
+        }
+        return parseJavaList(rawText).map((value) => normalizeValue(value).toUpperCase()).filter((value) => value);
+    };
+
+    const toFillMap = (rawText) => {
+        const parsed = tryParseJson(rawText);
+        const result = {};
+        const normalizeFillValue = (value) => {
+            if (value == null) return "";
+            if (typeof value === "object") {
+                if (value.answer != null) {
+                    return normalizeValue(value.answer);
+                }
+                return normalizeValue(value);
+            }
+            return normalizeValue(value);
+        };
+        const addEntries = (source) => {
+            if (!source || typeof source !== "object" || Array.isArray(source)) return;
+            Object.entries(source).forEach(([key, value]) => {
+                result[normalizeValue(key)] = normalizeFillValue(value);
+            });
+        };
+        if (parsed && typeof parsed === "object") {
+            if (parsed.answers && typeof parsed.answers === "object" && !Array.isArray(parsed.answers)) {
+                addEntries(parsed.answers);
+            } else {
+                addEntries(parsed);
+            }
+        }
+        const raw = normalizeValue(rawText);
+        const matches = raw.matchAll(/(\[\[\d+]])\s*[:=]\s*("[^"]*"|'[^']*'|[^,}\]]+)/g);
+        for (const match of matches) {
+            result[normalizeValue(match[1])] = normalizeValue(unquote(match[2]));
+        }
+        return result;
+    };
+
+    const stringifyMatching = (parsed) => {
+        if (!parsed || typeof parsed !== "object") return null;
+        if (Array.isArray(parsed.pairs)) {
+            return parsed.pairs
+                .map((pair) => `${normalizeValue(pair.left)} -> ${normalizeValue(pair.right ?? pair.value)}`)
+                .filter((line) => line !== "->")
+                .join("\n");
+        }
+        const entries = Object.entries(parsed);
+        if (entries.length > 0) {
+            return entries.map(([left, right]) => `${left} -> ${normalizeValue(right)}`).join("\n");
+        }
+        return null;
+    };
+
+    const formatAnswerText = (rawText, questionType) => {
+        const parsed = tryParseJson(rawText);
+        if (!parsed) {
+            return normalizeValue(rawText) || "—";
+        }
+        const type = normalizeValue(questionType).toUpperCase();
+        if (type === "MATCHING") {
+            const pretty = stringifyMatching(parsed);
+            if (pretty) return pretty;
+        }
+        if (type === "FILL_IN") {
+            const entries = Object.entries(toFillMap(rawText));
+            if (entries.length > 0) {
+                return entries.map(([key, value]) => `${key}: ${value || "—"}`).join("\n");
+            }
+        }
+        if (typeof parsed === "string") return parsed || "—";
+        return normalizeValue(rawText) || "—";
+    };
+
+    const renderChoiceResultState = () => {
+        document.querySelectorAll(".result-choice-list").forEach((list) => {
+            const selectedSet = new Set(answerLabels(list.dataset.studentAnswer));
+            const correctSet = new Set(answerLabels(list.dataset.correctAnswer));
+            list.querySelectorAll(".result-choice-item").forEach((item) => {
+                const label = normalizeValue(item.dataset.optionLabel).toUpperCase();
+                const selected = selectedSet.has(label);
+                const correct = correctSet.has(label);
+                const meta = item.querySelector(".result-choice-meta");
+                item.classList.remove("is-selected-correct", "is-selected-wrong", "is-correct-missed");
+                if (selected && correct) {
+                    item.classList.add("is-selected-correct");
+                    if (meta) meta.textContent = "Выбрано • Верно";
+                } else if (selected && !correct) {
+                    item.classList.add("is-selected-wrong");
+                    if (meta) meta.textContent = "Выбрано • Неверно";
+                } else if (!selected && correct) {
+                    item.classList.add("is-correct-missed");
+                    if (meta) meta.textContent = "Правильный вариант";
+                } else if (meta) {
+                    meta.textContent = "";
+                }
+            });
+        });
+    };
+
+    const fillItemMarkup = (placeholder, value, cssClass) => {
+        return `<div class="result-fill-item ${cssClass}"><span class="result-fill-key">${escapeHtml(placeholder)}</span><span class="result-fill-value">${escapeHtml(value || "—")}</span></div>`;
+    };
+
+    const renderFillResultState = () => {
+        document.querySelectorAll(".result-detail[data-student-answer][data-correct-answer]").forEach((block) => {
+            const studentContainer = block.querySelector(".result-fill-student");
+            const correctContainer = block.querySelector(".result-fill-correct");
+            if (!studentContainer || !correctContainer) return;
+            const student = toFillMap(block.dataset.studentAnswer);
+            const correct = toFillMap(block.dataset.correctAnswer);
+            const placeholders = [...Object.keys(correct), ...Object.keys(student).filter((key) => !(key in correct))];
+
+            studentContainer.innerHTML = placeholders.map((placeholder) => {
+                const studentValue = student[placeholder] ?? "";
+                const correctValue = correct[placeholder] ?? "";
+                const matches = normalizeValue(studentValue).toLowerCase() === normalizeValue(correctValue).toLowerCase();
+                const cssClass = studentValue
+                    ? (matches ? "is-selected-correct" : "is-selected-wrong")
+                    : "is-empty";
+                return fillItemMarkup(placeholder, studentValue, cssClass);
+            }).join("");
+
+            correctContainer.innerHTML = placeholders
+                .map((placeholder) => fillItemMarkup(placeholder, correct[placeholder] ?? "", "is-correct-missed"))
+                .join("");
+        });
+    };
+
+    const bindMiniLectureToggles = () => {
+        document.querySelectorAll(".result-mini-lecture").forEach((block) => {
+            const button = block.querySelector(".result-mini-lecture-toggle");
+            const body = block.querySelector(".result-mini-lecture-body");
+            if (!button || !body) return;
+            button.addEventListener("click", () => {
+                const hidden = body.hasAttribute("hidden");
+                if (hidden) {
+                    body.removeAttribute("hidden");
+                    button.textContent = "Скрыть мини-лекцию";
+                } else {
+                    body.setAttribute("hidden", "hidden");
+                    button.textContent = "Мини-лекция";
+                }
+            });
+        });
+    };
+
+    document.querySelectorAll(".result-answer").forEach((pre) => {
+        pre.textContent = formatAnswerText(pre.textContent, pre.dataset.questionType);
+    });
+    renderChoiceResultState();
+    renderFillResultState();
+    bindMiniLectureToggles();
+
+    const showResultRow = (index) => {
+        if (resultRows.length === 0) return;
+        currentIndex = Math.max(0, Math.min(index, resultRows.length - 1));
+        resultRows.forEach((row, rowIndex) => {
+            row.hidden = rowIndex !== currentIndex;
+        });
+        navButtons.forEach((button, buttonIndex) => {
+            button.classList.toggle("active", buttonIndex === currentIndex);
+            button.classList.toggle("answered", button.dataset.correct === "true");
+        });
+    };
+
+    navButtons.forEach((button, index) => {
+        button.addEventListener("click", () => showResultRow(index));
+    });
+
+    if (nextWrongButton) {
+        nextWrongButton.disabled = wrongButtons.length === 0;
+        if (wrongButtons.length === 0) {
+            nextWrongButton.textContent = "Ошибок нет";
+        }
+        nextWrongButton.addEventListener("click", () => {
+            if (wrongButtons.length === 0) return;
+            const currentWrongIndex = wrongButtons.findIndex((button) => navButtons.indexOf(button) > currentIndex);
+            const nextButton = currentWrongIndex === -1 ? wrongButtons[0] : wrongButtons[currentWrongIndex];
+            const targetIndex = navButtons.indexOf(nextButton);
+            showResultRow(targetIndex);
+        });
+    }
+
+    showResultRow(0);
+</script>
+</body>
+</html>
+

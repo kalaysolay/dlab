@@ -1,0 +1,1501 @@
+# Damulab.kz: progress log and gap report
+
+Статус: накопительный handoff между чатами и агентами.
+Последнее обновление: 30 апреля 2026.
+
+## Current State
+
+- Этап 13 stabilization / MVP hardening начат и закрыт в текущем MVP scope: template/mockup inventory зафиксирован, question renderer/result navigation консолидированы, admin sidebar active state исправлен, mobile table overflow hardening добавлен, published question/lecture edit больше не снимает опубликованный контент из student flow, release checklist подготовлен.
+- Этап 12 content health/import закрыт в текущем engineering scope: health dashboard/API по текущим версиям вопросов, JSON и Excel `.xlsx` import jobs/errors, сохранение import source metadata, флаги/жалобы качества, discriminative power, quality-фильтры, карточки проблемных вопросов и явный перевод вопроса в `needs_review`; materialized aggregates и object-storage retention остаются масштабированием.
+- Этап 11 Quiz Arena закрыт в текущем MVP-срезе: DB-backed quiz rooms до 4 игроков, REST API, STOMP live events, server-side round timeout, student Thymeleaf + vanilla JS UI, live progress, mobile-safe room layout и серверная проверка ответов через `AnswerChecker`; полный `gradlew test` проходит.
+
+- Создан базовый Spring Boot проект для этапа 0.
+- Backend каркас: Java 21, Spring Boot 3.3.7, Gradle, Spring MVC, Thymeleaf, Spring Security, Validation, Spring Data JPA, Flyway, PostgreSQL.
+- Добавлены профили `local`, `test`, `prod`; тестовый профиль использует H2 в PostgreSQL compatibility mode.
+- Добавлены Dockerfile и `docker-compose.yml` для приложения и PostgreSQL.
+- Добавлены базовые Thymeleaf pages/fragments: public home, login, admin dashboard, student dashboard, parent dashboard, header, language switch, alerts, admin sidebar, modal shell.
+- Добавлена базовая RBAC-заготовка через in-memory demo users: `admin@damulab.kz`, `student@damulab.kz`, `parent@damulab.kz`, пароль `password`.
+- Добавлена baseline Flyway migration для справочников `subjects`, `grades`, `topics` с seed-данными.
+- Добавлены smoke-тесты для context load, публичных `/`, `/login` и защиты `/admin`.
+- Gradle wrapper добавлен, `gradlew test` и `gradlew build` успешно выполнены без Docker.
+- Этап 1 auth foundation реализован: БД-модель пользователей/ролей/профилей, регистрация без email confirmation, login через Spring Security, `GET /api/me`.
+- Этап 1 дозакрыт: `GET/PATCH /api/student/profile`, `GET/PATCH /api/parent/profile`, server-rendered profile pages and tests.
+- Начат этап 2: добавлены `ParentStudentLink`, одноразовые `LinkCode`, создание ребенка родителем, привязка по коду, parent dashboard и карточка ребенка.
+- Этап 2 дозакрыт по QR/UI: link-code возвращает QR SVG, карточка ребенка показывает код и QR, добавлен минимальный PWA baseline.
+- Этап 3 закрыт для перехода к банку вопросов: добавлена модель `Subject/Grade/Topic/AtomicSkill`, CRUD тем и навыков, дерево тем, admin UI, audit log и справочные endpoints для будущих фильтров вопросов/лекций.
+- Начат этап 4: добавлен первый вертикальный срез банка вопросов с `Question/QuestionVersion`, типами `SCQ/MCQ/MATCHING/FILL_IN`, серверной validation, REST endpoints, admin UI списка/создания и защитой удаления тем/навыков, если на них ссылаются вопросы.
+- Начат этап 5: добавлен первый вертикальный срез Testing Hub с моделями сессии/ответов/оценки/результата, подбором published questions, серверной проверкой `SCQ/MCQ/MATCHING/FILL_IN`, student UI и API.
+- Начат этап 6: `test_results` и `answer_evaluations` подключены к `SkillMastery`, knowledge map, timeline, last errors, базовой trajectory/prediction и parent visibility.
+- Этап 7 закрыт первым вертикальным срезом: добавлены `Streak`, `Achievement`, `StudentAchievement`, базовая миссия дня, последнее занятие, виджет прогресса, галерея достижений, dashboard API, header language persistence и настройки уведомлений профиля ученика.
+- Этап 8 дозакрыт по remainder QA: lecture pages прошли desktop/mobile проверку на 1366px, 390px и 360px; исправлены mobile overflow, direct create defaults, пустые attachment rows и высота textarea; rich editor оставлен как осознанный safe fallback без CDN до отдельного asset task.
+- Этап 10 push-уведомления дозакрыт в текущем MVP-срезе: ручное планирование из админки, DB-backed outbox, `PushProvider` + `StubPushProvider`, scheduler worker, delivery log, server-side validation, browser/mobile QA и UI polish для `/admin/push-notifications`.
+- `01_SYSTEM_SPECIFICATION.md` обновлен под актуальные границы MVP: без email confirmation, без обязательных AI/Arena/LMS checkpoint модулей в первой реализации; базовый streak/achievements включен как этап 7 без расширенной игровой экономики.
+- `03_ARCHITECTURE_VISION.md` уже фиксирует модульный Spring Boot монолит, PostgreSQL, Thymeleaf и отсутствие email confirmation в MVP.
+- `02_IMPLEMENTATION_PLAN.md` синхронизирован по auth: email confirmation исключен из этапа 1.
+- `Damulab_Vision_Scope.md` помечен как широкий продуктовый vision; MVP scope определяется `01_SYSTEM_SPECIFICATION.md` и `02_IMPLEMENTATION_PLAN.md`.
+
+## Completed Work
+
+### 2026-04-30 - Lecture module production hardening (rich editor smoke, sanitization audit, attachments UX)
+
+- Agent/task: close lecture module to production-grade in three tracks: e2e/smoke for rich editor + formulas, sanitization/render hardening for pasted/unsafe content, and consistent attachment UX with validation and preview.
+- Files changed:
+  - `src/main/java/kz/damulab/lectures/LectureService.java`
+  - `src/main/java/kz/damulab/lectures/AdminLecturePageController.java`
+  - `src/main/resources/templates/admin/lecture-form.html`
+  - `src/main/resources/templates/admin/lectures.html`
+  - `src/main/resources/templates/student/lecture.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/LectureIntegrationTest.java`
+  - `scripts/smoke/lecture-rich-editor-smoke.js`
+  - `package.json`
+  - `docs/CONTENT_ENTRY_QA_PLAN.md`
+  - `docs/MVP_RELEASE_CHECKLIST.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Hardened lecture sanitization pipeline:
+    - expanded safe rich-text tags for common Word/Google Docs structures (headings/lists/tables/basic inline semantics),
+    - strict link normalization (`href` allowlist + safe `target`/`rel` policy),
+    - formula span normalization for Quill (`ql-formula`) with unsafe command filtering.
+  - Hardened attachment validation:
+    - max 8 attachments,
+    - allowed media types only (`link/pdf/video/image`),
+    - URL safety checks and media-type/URL consistency checks.
+  - Lecture editor/list UI brought closer to mockups:
+    - refactored lecture list structure (header, metrics, filter rhythm, action table),
+    - refactored lecture editor flow (metadata, RU/KK editor tabs, attachments area, control mode panel, consistent action bars),
+    - improved responsive behavior for desktop/tablet/mobile.
+  - Attachment UX polish:
+    - inline client validation messages,
+    - contextual previews for image/video/pdf/link,
+    - non-technical user-facing error copy.
+  - Added reusable smoke script:
+    - `npm run smoke:lectures`
+    - covers admin create -> reopen/edit -> publish and student visibility,
+    - checks plain text + inline/block formula + persistence and visibility,
+    - produces screenshots + JSON report in `.run-logs/lecture-rich-smoke/`.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.LectureIntegrationTest` passed.
+  - `.\gradlew.bat test --tests kz.damulab.PageSecuritySmokeTest` passed.
+  - `npm run smoke:lectures` passed against `http://localhost:18091`.
+  - Smoke artifacts:
+    - `.run-logs/lecture-rich-smoke/lecture-rich-editor-smoke-report.json`
+    - `.run-logs/lecture-rich-smoke/01-admin-editor-filled.png`
+    - `.run-logs/lecture-rich-smoke/02-admin-editor-reopened.png`
+    - `.run-logs/lecture-rich-smoke/03-admin-lecture-published.png`
+    - `.run-logs/lecture-rich-smoke/04-student-lecture-visible.png`
+- Notes:
+  - Reopen/edit check in smoke uses admin edit page for UI verification and API patch for deterministic edit persistence assertion under test automation.
+
+### 2026-04-30 - Manual content-entry smoke pass (topic -> question -> lecture -> student visibility)
+
+- Agent/task: execute manual smoke from `docs/CONTENT_ENTRY_QA_PLAN.md` in running app, validate latest question-form decisions (`/admin/questions/new` without query params, SCQ/MCQ row delete confirm + soft-delete, min-two active options), and record outcomes in release docs.
+- Runtime:
+  - app profile/port: `test` on `http://localhost:18090`
+  - smoke script: `.run-logs/manual-content-smoke/content-entry-smoke.js`
+  - report: `.run-logs/manual-content-smoke/content-entry-smoke-report.json`
+- Verified flow:
+  - admin login -> topic creation (`topicId=13`, subject `2`, grade `1`);
+  - direct open `/admin/questions/new` (no `subjectId/gradeId` required in URL);
+  - SCQ creation with row-level delete via trash icon + confirm, min-two active guard, publish (`questionId=17`);
+  - MCQ validation guard (`at least one correct`) confirmed;
+  - lecture created/published on same topic (`lectureId=5`);
+  - student visibility confirmed: lecture visible, no answer keys in active session or pre-finish API, correct answers visible on result page after finish.
+- Documentation updated:
+  - `docs/MVP_RELEASE_CHECKLIST.md`
+  - `docs/CONTENT_ENTRY_QA_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Notes / gaps:
+  - Raw `options_json` / `answer_key_json` were validated indirectly via UI/API behavior; a dedicated read-only admin payload view is still absent for direct visual inspection of stored version JSON.
+
+### 2026-04-30 - Stage 13 final parity closure pass (fonts self-host + seeded smoke)
+
+- Agent/task: close remaining Stage 13 visual parity items across student/public/parent/admin, move fonts to self-host, run final release checklist verification with seeded browser smoke.
+- Files changed:
+  - `src/main/resources/static/fonts/manrope/Manrope-wght.ttf`
+  - `src/main/resources/static/fonts/nunito/Nunito-wght.ttf`
+  - `src/main/resources/static/css/fonts.css`
+  - `src/main/resources/templates/fragments/pwa-head.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/templates/student/analytics.html`
+  - `src/main/resources/templates/student/quiz-hub.html`
+  - `src/main/resources/templates/student/quiz-room.html`
+  - `src/main/resources/templates/student/quiz-results.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/templates/admin/question-form.html`
+  - `src/main/resources/templates/admin/question-ai-generate.html`
+  - `src/main/resources/templates/index.html`
+  - `src/main/resources/templates/auth/login.html`
+  - `src/main/resources/templates/auth/register.html`
+  - `src/main/resources/templates/parent/dashboard.html`
+  - `src/main/resources/templates/parent/child-details.html`
+  - `src/main/resources/templates/fragments/header.html`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+  - `docs/MVP_RELEASE_CHECKLIST.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Switched typography from external Google Fonts to local self-host Nunito/Manrope assets.
+  - Final strict typography overrides applied (smaller headings, stricter weight/line-height) to remove airy/over-bold look.
+  - Student analytics/quiz pages moved closer to reference structures while preserving backend flow/contracts.
+  - Admin deep screens and public/parent/auth screens received parity polish in templates and CSS.
+  - Final release checklist statuses updated with actual verification results.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.QuestionBankIntegrationTest --tests kz.damulab.LectureIntegrationTest --tests kz.damulab.TestingHubIntegrationTest --tests kz.damulab.AnalyticsIntegrationTest --tests kz.damulab.ParentLinkIntegrationTest --tests kz.damulab.PageSecuritySmokeTest` passed.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+  - Seeded browser smoke: `57 total`, `0 failed`.
+  - Smoke artifacts: `.run-logs/stage13-visual-pass/browser-smoke/report.json` and screenshots in same folder.
+- Open visual gaps:
+  - Quiz host/guest/question references remain implemented as one backend-driven template (`quiz-room.html`) with state splits, not three independent route templates.
+  - Some card-level decorative details remain simplified relative to raw mockup SVG aesthetics.
+
+### 2026-04-30 - Stage 13 continued parity pass (remaining screens, strict typography, smoke-green)
+
+- Agent/task: continue Stage 13 UI parity on remaining pages after user feedback, preserving backend flows/routes/forms/CSRF and server-side answer checking.
+- Files changed:
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/templates/student/test-session.html`
+  - `src/main/resources/templates/student/test-result.html`
+  - `src/main/resources/templates/fragments/question-renderer.html`
+  - `src/main/resources/templates/fragments/student-header.html`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/auth/login.html`
+  - `src/main/resources/templates/auth/register.html`
+  - `src/main/resources/templates/index.html`
+  - `src/main/resources/templates/parent/dashboard.html`
+  - `src/main/resources/templates/parent/child-details.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/templates/admin/question-ai-generate.html`
+  - `src/main/resources/templates/admin/question-form.html`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+- Implemented:
+  - Student test session page moved to mockup-like flow (question nav, one-question display, finish/exit modals, clearer Fill-In hints) without changing backend submission contract.
+  - Student result page hierarchy aligned closer to reference (hero/metrics/nav/actions) with helper navigation for wrong answers.
+  - Achievements modal script isolated (`student-header`) to avoid global JS collisions; outside-click/escape close kept.
+  - Global style tightened to stricter typography and smaller headings, reducing overly airy/bold appearance.
+  - Login/register tab alignment corrected; star brand mark unified in shared header.
+  - Parent dashboard/child card structure improved toward reference while keeping existing backend forms.
+  - Admin IA cleaned: removed duplicate AI action in question list header, kept single sidebar entry; topic refresh logic hardened for AI/manual forms with loading/empty/error states.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.TestingHubIntegrationTest --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.AuthFlowIntegrationTest --tests kz.damulab.ParentLinkIntegrationTest` passed.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+  - Browser smoke (desktop + 390 + 360): `57 total`, `0 failed`.
+  - Screenshots/report copied to `.run-logs/stage13-ui-parity/browser-smoke-latest/`.
+- Open gaps:
+  - Some deep card-level parity still open (quiz split host/guest screens, analytics cloud richness, parent modal-heavy interactions, public home footer/reviews/FAQ depth).
+  - Fonts still depend on Google Fonts (no local/self-host assets yet).
+
+### 2026-04-30 - Stage 13 UI correction pass (typography/modal/auth/admin topic flow)
+
+- Agent/task: fix remaining visual/UX issues reported after prior Stage 13 parity updates.
+- Files changed:
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/fragments/student-header.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/admin/question-ai-generate.html`
+  - `src/main/resources/templates/admin/question-form.html`
+  - `src/main/java/kz/damulab/ai/AdminAiPageController.java`
+  - `src/main/java/kz/damulab/questions/AdminQuestionPageController.java`
+- Implemented:
+  - Switched visible brand mark to sparkles icon in shared header/admin sidebar (removed `DL` text mark in those shells).
+  - Tightened typography: stricter base font priority (`Manrope` first), reduced oversized title scales (`page-title`, hero and student greeting), normalized section heading size.
+  - Fixed auth tab misalignment (`/login` and `/register`) by making tab controls consistently `inline-flex`.
+  - Reworked achievements modal interaction: added smooth open/close transitions and reduced backdrop intensity; backdrop starts below sticky student header to avoid darkening top menu area.
+  - Admin AI generate page: topic list now updates live when subject/grade changes via `/api/content/references`.
+  - Admin manual question form: added explicit subject/grade selectors and live topic reload; server rerender now preserves chosen subject/grade on validation errors.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.QuestionBankIntegrationTest --tests kz.damulab.AiContentFactoryIntegrationTest` passed.
+  - `.\gradlew.bat build` passed.
+
+### 2026-04-29 - Stage 13 visual parity hotfix pass (fonts/fill-in UX/register/admin IA)
+
+- Agent/task: fix residual UI defects reported after Stage 13 reopen.
+- Files changed:
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/templates/fragments/pwa-head.html`
+  - `src/main/resources/templates/admin/question-form.html`
+  - `src/main/java/kz/damulab/questions/AdminQuestionPageController.java`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/templates/fragments/student-header.html`
+  - `src/main/resources/templates/auth/register.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/java/kz/damulab/ai/AdminAiPageController.java`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+- Implemented:
+  - Reduced heavy typographic weights in Stage 13 layer (removed 850/900 usage, softened nav/profile/dashboard heading weights) to match Nunito/Manrope reference feel.
+  - Added explicit FILL_IN authoring guidance for `[[...]]`, expanded fill rows to 4 placeholders, and added client-side pre-submit checks for placeholder/body consistency while preserving backend validation and answer-key flow.
+  - Added fallback achievement cards (locked state) in student dashboard and global student achievements modal so achievements section remains visible even when backend list is empty.
+  - Fixed register form alignment with two-column grid rhythm + mobile fallback and normalized inline validation block spacing.
+  - Removed duplicate admin IA pattern: AI generation is now an action inside `Вопросы`; separate sidebar entry removed. AI page still works on `/admin/questions/ai-generate` and highlights `Вопросы`.
+- Verification:
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+  - `.\gradlew.bat test build` passed after final template/CSS pass.
+- Open gaps:
+  - Google Fonts are still external (`fonts.googleapis.com`); local/self-host font assets are not yet present in repo.
+  - Full pixel-level parity for all remaining screens (especially deep admin/student subpages) is still incremental work.
+
+### 2026-04-29 - Stage 13 follow-up fixes (achievements/register/profile/admin AI entry)
+
+- Agent/task: address post-pass UI defects reported after Stage 13 reopen.
+- Files changed:
+  - `src/main/java/kz/damulab/web/NavigationModelAdvice.java`
+  - `src/main/resources/templates/fragments/student-header.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/templates/auth/register.html`
+  - `src/main/resources/templates/student/profile.html`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/static/css/app.css`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+- Implemented:
+  - Student achievements are now available on all student pages through shared modal in student header (data comes from backend via model advice).
+  - Student dashboard keeps achievements section and now has explicit empty-state fallback.
+  - Register page was aligned to the same auth grid/card/tab rhythm as login to remove misaligned fields.
+  - Student profile received profile-specific Nunito/Manrope typography/weights for closer reference parity.
+  - Duplicate AI generation entry was removed from admin question list actions; dedicated AI generation page remains in sidebar.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.StudentEngagementIntegrationTest` passed.
+- Gaps:
+  - Active test session remains non-carousel by backend design; full visual split of quiz host/guest/question is still open.
+
+### 2026-04-29 - Stage 13 reopened: UI visual parity by role shell
+
+- Agent/task: reopened Stage 13 as UI visual parity against the prepared HTML mockups, preserving Spring MVC + Thymeleaf backend flow.
+- Files changed:
+  - `src/main/resources/templates/fragments/student-header.html`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/fragments/language-switch.html`
+  - `src/main/resources/static/icons/lucide-sprite.svg`
+  - `src/main/resources/static/css/app.css`
+  - `src/main/java/kz/damulab/web/NavigationModelAdvice.java`
+  - `src/main/resources/templates/student/*.html`
+  - `src/main/resources/templates/admin/*.html`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+- Implemented:
+  - Student pages now use a dedicated student shell: brand row with subtitle, compact backend-backed language select, logout, and a 6-item icon nav grid matching `student-home.html` structure.
+  - Removed student navigation from the generic public/parent header so student pages no longer inherit a cross-role/shared nav.
+  - Added a local lucide-style SVG sprite and replaced dashboard CSS pseudo-icons with real SVG icons.
+  - Admin pages now use explicit `app-shell admin-shell` and no longer render the public header hidden by CSS; admin sidebar is the admin shell.
+  - Added request-based `activeStudentNav`/`activeParentNav` model advice for active navigation state.
+  - Rebuilt `docs/STAGE13_TEMPLATE_INVENTORY.md` as an actionable screen matrix with reference file, template, missing visual pieces, backend constraints, applied/planned changes and after-change status.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.StudentEngagementIntegrationTest` passed.
+  - Browser smoke on local `test` profile server `http://localhost:18088` passed 54 checks across desktop, 390px and 360px for public `/`, `/login`; student `/student`, `/student/tests`, `/student/analytics`, `/student/quiz`, `/student/lectures`, `/student/profile`; parent `/parent`, `/parent/profile`; admin `/admin`, topics, questions, health, import, AI, lectures, push.
+  - Browser smoke checks included no page-level horizontal overflow, no console errors, student nav without admin/parent links, admin sidebar present, and computed font family capture. Screenshots/report saved under `.run-logs/stage13-ui-parity/`.
+- Gaps:
+  - Clean `test` profile has no published questions, so browser active session/result smoke is blocked by `published_questions_not_found`; screenshot/report saved in `.run-logs/stage13-ui-parity/`.
+  - Remaining visual gaps are now explicit in `docs/STAGE13_TEMPLATE_INVENTORY.md`: carousel-style active test, deeper card-level parity for some student screens, public/auth/parent polish, admin interaction polish, local font assets, and local rich editor/math assets.
+- Decisions:
+  - Achievements nav item links to the dashboard achievements section instead of a dead modal button on every student page; the dashboard keeps the modal.
+  - Google Fonts remain an external asset risk because no local Nunito/Manrope font files exist in the repository.
+
+### 2026-04-29 - Stage 13 UI finish: student header, fonts, role redirect
+
+- Agent/task: finish the remaining visible UI mismatches called out after the visual parity pass.
+- Files changed:
+  - `src/main/resources/templates/fragments/pwa-head.html`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/fragments/language-switch.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/java/kz/damulab/quiz/QuizTimeoutScheduler.java`
+  - `src/main/resources/application-test.yml`
+  - `src/test/java/kz/damulab/AuthFlowIntegrationTest.java`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Shared head now loads `Nunito` and `Manrope`, so the reference typography is actually applied instead of falling back to system fonts.
+  - Removed the public role switcher from the authenticated topbar. Student sees student navigation only; parent sees parent navigation only; admin pages continue to use the admin sidebar shell.
+  - Rebuilt the language switch as the mockup-style compact select instead of nested nav links.
+  - Reworked `student/dashboard.html` against `student-home.html`: greeting hero, mission/day word, last activity, streak, progress stats, route cards and achievements modal.
+  - Login success now redirects by role directly to `/admin`, `/student` or `/parent`; `/dashboard` remains a fallback redirect endpoint.
+  - Test profile disables the scheduled quiz timeout worker to prevent cross-context H2 interference; API/service timeout enforcement remains covered by integration tests.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.StudentEngagementIntegrationTest` passed.
+  - `.\gradlew.bat test --tests kz.damulab.QuizArenaIntegrationTest` passed.
+  - Browser smoke on local `test` profile server `http://localhost:18087` passed in Chrome at 390px: admin login redirects to `/admin`, student login redirects to `/student`, student header does not expose `Админка`/`Родитель`, no page-level horizontal overflow, computed font includes `Nunito, Manrope`. Screenshot saved to `.run-logs/stage13-ui-finish/student-390.png`.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+- Risks:
+  - Google Fonts are an external dependency like the reference HTML. If production must be fully self-hosted, add a separate local font asset task.
+- Gaps:
+  - Lucide icons from the HTML mockups are still not copied because no local icon library is present; CSS markers are used as a no-CDN compromise.
+- Next:
+  - Continue pixel-level parity on remaining student/profile/parent pages only if product acceptance needs stricter visual matching.
+
+### 2026-04-29 - Stage 13 visual parity pass
+
+- Agent/task: close Stage 13 visual parity pass against root HTML and `admin/mockups` while preserving the MVP backend flow.
+- Files changed:
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/fragments/pwa-head.html`
+  - `src/main/resources/templates/index.html`
+  - `src/main/resources/templates/auth/login.html`
+  - `src/main/resources/templates/admin/dashboard.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/templates/parent/dashboard.html`
+  - `src/main/java/kz/damulab/quiz/QuizService.java`
+  - `src/main/java/kz/damulab/quiz/QuizTimeoutScheduler.java`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Added a shared Stage 13 visual layer: branded topbar, admin sidebar shell, rounded cards, CTA/buttons, form/table/filter styling, alert treatment, responsive grids, question/result blocks and mobile overflow hardening.
+  - Brought public home and login closer to the root HTML visual direction without adding email confirmation or a separate SPA.
+  - Reworked admin dashboard and admin shell presentation to match the mockup direction while keeping existing Spring MVC routes and forms.
+  - Polished student and parent dashboards with mockup-aligned cards, spacing and typography while preserving the content -> test -> result -> analytics -> parent flow.
+  - Kept backend answer validation intact. During full verification, hardened Quiz Arena timeout/answer insertion against cross-context scheduled worker races and added scheduler initial delay support from the existing timeout worker property.
+  - Rebuilt `docs/STAGE13_TEMPLATE_INVENTORY.md` with actual screen status after the visual pass.
+- Verification:
+  - Targeted tests passed: `.\gradlew.bat test --tests kz.damulab.QuestionBankIntegrationTest --tests kz.damulab.LectureIntegrationTest --tests kz.damulab.TestingHubIntegrationTest --tests kz.damulab.AnalyticsIntegrationTest --tests kz.damulab.ParentLinkIntegrationTest --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.QuizArenaIntegrationTest`.
+  - Quiz guard regression passed separately: `.\gradlew.bat test --tests kz.damulab.QuizArenaIntegrationTest`.
+  - Browser/mobile smoke passed on local `test` profile server `http://localhost:18086`: 57 checks, 0 failures, 0 console errors. Covered public `/`, `/login`; admin dashboard/topics/questions/health/import/ai/lectures/push; student dashboard/tests/active session/result/analytics/quiz/lectures; parent dashboard/child progress at desktop, 390px and 360px. Screenshots/report saved under `.run-logs/stage13-visual-pass/browser-smoke/`.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+- Risks:
+  - Visual parity is a pragmatic MVP pass, not pixel-perfect reproduction. The live app preserves backend-safe forms and server-rendered flows where mockups imply richer modal/carousel behavior.
+  - The visual system is implemented as CSS/template hardening over existing Thymeleaf screens. A later design-system pass can reduce more duplication if the product keeps evolving.
+- Gaps:
+  - Remaining partial parity items are documented in `docs/STAGE13_TEMPLATE_INVENTORY.md`: no external icon CDN, active test remains a full server form, parent link actions stay inline rather than full modal flow, and lecture rich editor/assets remain post-MVP.
+  - Post-MVP gaps remain: production push provider, object storage, full LMS checkpoint attempts, advanced AI/Arena/gamification and local rich editor/math assets.
+- Next:
+  - Use `docs/MVP_RELEASE_CHECKLIST.md` for release environment checks; only do a pixel-perfect design pass if product acceptance requires it.
+
+### 2026-04-29 - Stage 13 stabilization and MVP hardening
+
+- Agent/task: закрыть этап 13 stabilization / MVP hardening, включая перенос/сверку HTML-макетов из раздела 16 плана, UI QA prep, MVP flow review, published/history hardening и release checklist.
+- Files changed:
+  - `src/main/java/kz/damulab/questions/QuestionBankService.java`
+  - `src/main/java/kz/damulab/questions/QuestionVersionRepository.java`
+  - `src/main/java/kz/damulab/questions/AdminQuestionPageController.java`
+  - `src/main/java/kz/damulab/questions/AdminQuestionImportPageController.java`
+  - `src/main/java/kz/damulab/ai/AdminAiPageController.java`
+  - `src/main/java/kz/damulab/lectures/LectureService.java`
+  - `src/main/java/kz/damulab/lectures/LectureVersionRepository.java`
+  - `src/main/resources/application.yml`
+  - `.env.example`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/fragments/question-renderer.html`
+  - `src/main/resources/templates/student/test-session.html`
+  - `src/main/resources/templates/student/test-result.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/QuestionBankIntegrationTest.java`
+  - `src/test/java/kz/damulab/LectureIntegrationTest.java`
+  - `docs/STAGE13_TEMPLATE_INVENTORY.md`
+  - `docs/MVP_RELEASE_CHECKLIST.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Сверен root/admin mockup inventory и текущее покрытие Thymeleaf MVP screens; результат зафиксирован в `docs/STAGE13_TEMPLATE_INVENTORY.md`.
+  - Вынесен общий `fragments/question-renderer.html` для active test questions и result question rows; `student/test-session.html` больше не дублирует question renderer, `student/test-result.html` получил навигацию по вопросам результата.
+  - Исправлен sidebar active state для `/admin/questions/health`, `/admin/questions/import`, `/admin/questions/ai-generate`.
+  - Убран mobile override, который отключал horizontal scroll у `.table-wrap` и мог давать page-level overflow на generic admin tables.
+  - Published question edit теперь сохраняет новую версию как историю/черновик, но оставляет текущую published version live до явного promote; прямой publish draft/needs_review запрещен до approve.
+  - Published lecture edit больше не переводит лекцию в draft и не снимает опубликованную версию из student pages.
+  - OpenAI connection проверен через configured model endpoint; секрет удален из default `application.yml`, `.env.example` дополнен env-only AI settings.
+  - Подготовлен `docs/MVP_RELEASE_CHECKLIST.md` с build/test, migrations, seed users, smoke routes, known gaps и production config reminders.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.QuestionBankIntegrationTest --tests kz.damulab.LectureIntegrationTest --tests kz.damulab.TestingHubIntegrationTest --tests kz.damulab.AnalyticsIntegrationTest --tests kz.damulab.ParentLinkIntegrationTest --tests kz.damulab.PageSecuritySmokeTest` passed.
+  - `.\gradlew.bat test --tests kz.damulab.QuizArenaIntegrationTest` passed after removing duplicate timeout enforcement in late-answer flow.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+  - Browser/mobile QA passed on local `test` profile server `http://localhost:18086`: 38 checks, 0 failures, 0 console errors. Covered public `/`, `/login`; admin dashboard/topics/questions/health/import/lectures/push; student dashboard/tests/active session/result/analytics/quiz/lectures; parent dashboard/child card at desktop, 390px and 360px for critical routes. Screenshots/report saved under `.run-logs/stage13-browser-qa/`.
+- Risks:
+  - Published edit now preserves live content without a full review queue UI for pending replacement versions; this is safer for MVP availability, but a future content workflow should expose pending versions explicitly.
+  - Browser/mobile QA still needs saved screenshot evidence for the final route set after full build if release acceptance requires artifacts.
+- Gaps:
+  - No blocking MVP hardening gaps remain in this slice.
+  - Post-MVP gaps remain: production push provider, object storage, materialized aggregates, full LMS checkpoint attempts, advanced AI/Arena/gamification, local rich editor/math assets.
+- Next:
+  - Use `docs/MVP_RELEASE_CHECKLIST.md` for pre-release environment/config verification and production smoke.
+
+### 2026-04-29 - Stage 12 content health and import closure
+
+- Agent/task: закрыть этап 12 по порядку плана: DTO/API границы, content health dashboard, JSON/Excel import, флаги качества, тесты и документация без отдельного SPA и без раскрытия answer keys.
+- Files changed:
+  - `src/main/java/kz/damulab/questions/**`
+  - `src/main/resources/db/migration/V14__content_health_import.sql`
+  - `src/main/resources/db/migration/V15__content_health_completion.sql`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/templates/admin/question-health.html`
+  - `src/main/resources/templates/admin/question-import.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/QuestionImportHealthIntegrationTest.java`
+  - `docs/CONTENT_HEALTH_IMPORT.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `03_ARCHITECTURE_VISION.md`
+  - `ADMIN_USE_CASES.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Added DB-backed `QuestionImportJob`, `QuestionImportError` and `QuestionFlag` with Flyway migrations `V14`/`V15`.
+  - Added JSON import `POST /api/admin/question-imports`, Excel `.xlsx` import `POST /api/admin/question-imports/excel` and alias `POST /api/admin/questions/imports`; payload reuses `QuestionForm`, imported rows are forced into `needs_review`, row errors are saved and returned.
+  - Import jobs now store `originalFilename` and compact `sourcePayload` metadata.
+  - Added `GET /api/admin/questions/health` with current-version metrics from `AnswerEvaluation -> TestSessionQuestion -> QuestionVersion`: attempts, incorrect answers, error rate, discriminative power, open flag count and quality signal.
+  - Added quality flags/complaints via `GET/POST /api/admin/questions/{id}/flags`.
+  - Added explicit `POST /api/admin/questions/{id}/flag` to send a problematic question to `needs_review` with audit log.
+  - Added server-rendered `/admin/questions/health`, `/admin/questions/import`, Excel upload UI, problem cards and quality filters in `/admin/questions`.
+  - Documented DTO/API boundaries and non-blocking scaling items in `docs/CONTENT_HEALTH_IMPORT.md`.
+- Verification:
+  - `.\gradlew.bat compileJava` passed.
+  - `.\gradlew.bat test --tests kz.damulab.QuestionImportHealthIntegrationTest` passed.
+  - `.\gradlew.bat test --tests kz.damulab.QuestionBankIntegrationTest` passed.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+- Risks:
+  - Health metrics are live queries; for a large bank this should move to a materialized aggregate table or scheduled snapshot.
+  - Excel source file retention stores metadata/summary, not raw binary; object storage remains a future policy/scale decision.
+- Gaps:
+  - No blocking Stage 12 gaps remain in current engineering scope.
+  - Future scale work: materialized health aggregates, object storage for raw import files, richer flag resolution workflow and bulk actions.
+- Next:
+  - Move to the next implementation-plan stage or run browser/mobile QA for `/admin/questions/health` and `/admin/questions/import` if visual acceptance evidence is required before handoff.
+
+### 2026-04-29 - Stage 11 Quiz Arena live UI and timeout closure
+
+- Agent/task: завершить этап 11 end-to-end: добавить live UI без SPA/CDN, STOMP room events, server-side round timing/timeout contract, current-round answer submit и проверить весь test suite.
+- Files changed:
+  - `src/main/java/kz/damulab/config/QuizWebSocketConfig.java`
+  - `src/main/java/kz/damulab/quiz/**`
+  - `src/main/resources/templates/student/quiz-room.html`
+  - `src/main/resources/static/js/quiz-room.js`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/QuizArenaIntegrationTest.java`
+  - `docs/QUIZ_ARENA.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлен STOMP endpoint `/ws/quiz` и публикация room events в `/topic/quiz.rooms.{code}`: `lobby.updated`, `ready.updated`, `room.started`, `answer.progress`, `round.timeout`, `room.finished`.
+  - Room event payload остается минимальным `{type, code, status, occurredAt}`; frontend после события перечитывает `GET /api/quiz/rooms/{code}`.
+  - `QuizRoomResponse` дополнен `serverTime` и `activeRoundId`; `QuizRoundResponse` дополнен `startsAt`, `endsAt`, `timedOut`.
+  - Реализована server-side проверка окна раунда и late-answer rejection; timeout enforcement создает нулевые ответы и защищен от duplicate `quiz_answers` через locked enforcement.
+  - `student/quiz-room.html` оставлен Thymeleaf page с обычной form fallback, но получил progressive enhancement hooks и подключение `/js/quiz-room.js`.
+  - `quiz-room.js` реализует vanilla JS live room refresh, нативный STOMP-over-WebSocket client без CDN, выбор одного текущего раунда по server time, fetch submit текущего ответа с CSRF и redirect/link на results при finish.
+  - Live participants/progress обновляются из REST room state; correct answers и `answer_key_json` не читаются и не раскрываются.
+  - Quiz room CSS дозакрыт для 360/390px: участники, варианты ответа, progress и round nav не должны создавать page-level horizontal overflow.
+- Verification:
+  - `node --check src/main/resources/static/js/quiz-room.js` passed.
+  - `.\gradlew.bat test --tests kz.damulab.QuizArenaIntegrationTest` passed.
+  - `.\gradlew.bat test` passed.
+  - `.\gradlew.bat build` passed.
+  - Browser/mobile QA passed on local `test` profile server `http://localhost:18084`: `/student/quiz`, `/student/quiz/rooms/{code}` lobby/active, `/student/quiz/rooms/{code}/results` at 1366px, 390px and 360px. Screenshots and metrics saved under `.run-logs/stage11-browser-qa/`; no page-level horizontal overflow, no `answer_key_json`/answerKey text, no JS console errors.
+- Risks:
+  - Real multi-browser/manual two-device WebSocket QA не сохранялся отдельным screenshot отчетом; контракт покрыт integration tests и frontend syntax/static contract review.
+  - Parent analytics/gamification integration для quiz results остается продуктовым решением вне Stage 11 closure.
+- Gaps:
+  - Решить, должны ли quiz results попадать в parent analytics и gamification achievements.
+- Next:
+  - Можно переходить к Stage 12 или к отдельному product slice по parent analytics/gamification для Quiz Arena.
+
+### 2026-04-28 - Stage 11 quiz Arena first vertical slice
+
+- Agent/task: начать этап 11 викторины/Arena первым end-to-end срезом до 4 игроков, без отдельного SPA и без раскрытия answer keys до результатов.
+- Files changed:
+  - `src/main/java/kz/damulab/quiz/**`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/java/kz/damulab/testing/AnswerChecker.java`
+  - `src/main/resources/db/migration/V13__quiz_arena.sql`
+  - `src/main/resources/templates/student/quiz-hub.html`
+  - `src/main/resources/templates/student/quiz-room.html`
+  - `src/main/resources/templates/student/quiz-results.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/QuizArenaIntegrationTest.java`
+  - `docs/QUIZ_ARENA.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `03_ARCHITECTURE_VISION.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены `QuizRoom`, `QuizParticipant`, `QuizRound`, `QuizAnswer`, `QuizResult` и Flyway migration `V13__quiz_arena.sql`.
+  - Реализованы REST endpoints `/api/quiz/rooms`: create, get room, join, ready, start, answer, results.
+  - Хост автоматически входит в комнату и готов по умолчанию; участники входят по короткому коду `QZ....`; лимит игроков 2-4.
+  - Вопросы выбираются из опубликованного банка через `QuestionVersionRepository.findPublishedForTest`; варианты/поля ответа отдаются без `answer_key_json`.
+  - Ответы проверяются на backend через `AnswerChecker`; результаты создаются только когда все участники ответили на все раунды.
+  - Добавлен student UI `/student/quiz`, `/student/quiz/rooms/{code}`, `/student/quiz/rooms/{code}/results`.
+- Verification:
+  - `./gradlew.bat compileJava` passed.
+  - `./gradlew.bat test --tests kz.damulab.QuizArenaIntegrationTest` passed.
+  - `./gradlew.bat test` passed.
+  - `./gradlew.bat build` passed.
+  - Local `bootRun --spring.profiles.active=test --server.port=18082` started; `GET /login` returned HTTP 200.
+- Risks:
+  - Первый срез не использует WebSocket/STOMP, поэтому live presence/round sync работают через server-rendered refresh/forms, не real-time.
+  - Round timer пока UI-oriented; строгий server-side timeout enforcement не реализован.
+- Gaps:
+  - Добавить WebSocket/STOMP live updates для lobby/ready/round progress/results.
+  - Добавить server-side round timeout enforcement и защиту поздних ответов.
+  - Добавить browser/mobile QA для quiz pages.
+  - Решить, нужны ли quiz results в parent analytics и gamification achievements.
+- Next:
+  - После full test/build дозакрыть Stage 11 live slice или перейти к Stage 12 по приоритету.
+
+### 2026-04-28 - Stage 10 push notifications browser/mobile QA closure
+
+- Agent/task: дозакрыть этап 10 через browser/mobile QA ручных push-уведомлений и UI polish, без production FCM/Web Push/APNs provider и без перехода к этапу 11.
+- Files changed:
+  - `src/main/resources/templates/admin/push-notifications.html`
+  - `src/main/resources/static/js/admin-push-notifications.js`
+  - `src/main/resources/static/css/app.css`
+  - `docs/PUSH_NOTIFICATIONS.md`
+  - `pushNotification.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Проведен browser QA на локальном `bootRun --spring.profiles.active=test --server.port=18081`.
+  - Проверены сценарии: admin login через `admin@damulab.kz`/`password`, открытие `/admin/push-notifications`, создание `quiz_create_room`, создание `subject_test` с предметом, ошибка `subject_test` без предмета, counter `N/120`, preview, server time label, edit/cancel для `scheduled`, read-only после `sent`.
+  - Inline edit вынесен в полноширинную строку таблицы, чтобы форма не уходила за правый край.
+  - Mobile таблица push на 390px и 360px переведена в stacked layout без page-level horizontal overflow.
+  - Live counter и показ/скрытие subject field работают и для основной, и для inline edit форм.
+- Verification:
+  - UI form login `admin@damulab.kz` / `password` verified on fresh local `test` profile server.
+  - Browser QA screenshots/metrics saved under `.run-logs/stage10-browser-qa-after/`.
+  - `./gradlew.bat test --tests kz.damulab.PushNotificationIntegrationTest` passed.
+  - `./gradlew.bat test` passed.
+  - `./gradlew.bat build` passed.
+- Risks:
+  - Production provider, real device-token registration and real PWA permission/delivery QA are still intentionally outside this slice.
+  - Browser Use in-app runtime could not start because local `node_repl` reported Node `v22.21.0` while it requires `>= v22.22.0`; QA used bundled Node `v24.14.0` with system Chrome via Playwright.
+- Gaps:
+  - Уточнить production push provider: Web Push/FCM/APNs and final `DeviceToken` format.
+  - Провести PWA/browser QA реальных push permission and delivery flows after provider choice.
+- Next:
+  - Не начинать Stage 11 до отдельного запроса; следующий push-срез должен начинаться с provider/device-token format decision.
+
+### 2026-04-28 - Stage 10 push notifications first vertical slice
+
+- Agent/task: начать этап 10 push-уведомления первым вертикальным срезом, без production FCM/Web Push/APNs integration.
+- Files changed:
+  - `src/main/java/kz/damulab/notifications/**`
+  - `src/main/java/kz/damulab/DamulabApplication.java`
+  - `src/main/resources/db/migration/V12__push_notifications.sql`
+  - `src/main/resources/templates/admin/push-notifications.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/fragments/alerts.html`
+  - `src/main/resources/static/js/admin-push-notifications.js`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/PushNotificationIntegrationTest.java`
+  - `docs/PUSH_NOTIFICATIONS.md`
+  - `pushNotification.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены `PushNotification`, `PushDeliveryLog`, `DeviceToken` и миграция `V12__push_notifications.sql`.
+  - Реализованы REST endpoints из `pushNotification.md`: create/list/update/cancel.
+  - Добавлен `PushProvider` и `StubPushProvider` без внешних network calls.
+  - Scheduler worker обрабатывает due `scheduled` notifications, переводит их в `sent` или `failed` и пишет delivery log.
+  - Admin UI `/admin/push-notifications` поддерживает live counter `N/120`, server time label, preview, таблицу, фильтр статусов, edit/cancel до отправки.
+  - Backend validation блокирует пустой/длинный текст, прошлое время, отсутствие `subject_id` для `subject_test`, редактирование/отмену не-`scheduled`.
+- Verification:
+  - `./gradlew.bat test --tests kz.damulab.PushNotificationIntegrationTest` passed.
+- Risks:
+  - Production provider, real device-token registration and delivery semantics are not implemented yet.
+  - Scheduler is a simple Spring `@Scheduled` worker; clustered locking/retry/backoff remain future hardening.
+- Gaps:
+  - Уточнить production push provider: Web Push/FCM/APNs and final `DeviceToken` format.
+  - Провести browser/mobile QA для `/admin/push-notifications`.
+  - Провести PWA/browser QA реальных push permission and delivery flows after provider choice.
+- Next:
+  - Запустить полный `test/build`; затем либо browser QA push admin, либо следующий этап 11 quiz/Arena depending on priority.
+
+### 2026-04-27 - Stage 9 AI Content Factory first vertical slice
+
+- Agent/task: начать этап 9 AI Content Factory первым вертикальным срезом, не production AI integration.
+- Files changed:
+  - `src/main/java/kz/damulab/ai/**`
+  - `src/main/resources/db/migration/V11__ai_content_factory.sql`
+  - `src/main/resources/templates/admin/question-ai-generate.html`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/AiContentFactoryIntegrationTest.java`
+  - `docs/AI_CONTENT_FACTORY.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Зафиксирован backend DTO boundary: `AiQuestionGenerationRequest` содержит только subject/grade/topic/skill/type/difficulty/count/language/sanitized instruction.
+  - Добавлены `AiProvider` и `StubAiProvider` без внешних network calls.
+  - Добавлены `AiGenerationJob`, `AiGeneratedQuestionBatch`, `AiGeneratedQuestionItem` со статусами, retry count, provider/model metadata и review metadata.
+  - Admin UI `/admin/questions/ai-generate` создает job, показывает failed/retry и review batch.
+  - Human-in-the-loop: approve переносит AI item в банк вопросов только как `needs_review`; edit правит draft item; delete помечает item deleted.
+  - Добавлена базовая redaction free-form instruction для email, phone, direct ids и link code перед provider DTO/storage.
+- Verification:
+  - `./gradlew.bat test --tests kz.damulab.AiContentFactoryIntegrationTest` passed.
+  - `./gradlew.bat test --tests kz.damulab.QuestionBankIntegrationTest` passed.
+- Risks:
+  - Stub генерирует только SCQ; MCQ/MATCHING/FILL_IN AI drafts и schema validation для real provider остаются отдельным расширением.
+  - Free-form PII redaction покрывает common direct identifiers, но production adapters для OpenAI/DeepSeek перед подключением потребуют более строгий policy/filter и подтверждение договорных/юридических условий.
+- Gaps:
+  - Production AI adapters для OpenAI/DeepSeek не подключены.
+  - AI quality-check пока stub metadata, не отдельный second-pass provider flow.
+  - AI mini-lectures и personalized AI breakdowns не реализованы.
+- Next:
+  - Расширить schema validation AI drafts и подготовить config/feature flag для real provider adapter без включения внешних calls по умолчанию.
+
+### 2026-04-27 - Stage 9 AI Content Factory closure
+
+- Agent/task: дозакрыть этап 9 после выбора OpenAI primary и DeepSeek fallback.
+- Files changed:
+  - `src/main/java/kz/damulab/ai/**`
+  - `src/main/resources/application.yml`
+  - `src/test/java/kz/damulab/AiContentFactoryIntegrationTest.java`
+  - `src/test/java/kz/damulab/AiProviderConfigurationIntegrationTest.java`
+  - `src/test/java/kz/damulab/AiDraftSchemaValidatorTest.java`
+  - `docs/AI_CONTENT_FACTORY.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлен `AiProviderRouter`: default `stub`, primary direction `openai`, fallback `deepseek`.
+  - Добавлены server-side adapters `OpenAiProvider` и `DeepSeekProvider`; real calls заблокированы `damulab.ai.real-providers-enabled=false` по умолчанию.
+  - Добавлен `AiPromptBuilder` и strict draft schema validation перед сохранением review batch.
+  - Stub расширен на `SCQ`, `MCQ`, `MATCHING`, `FILL_IN`; approve сохраняет все типы через существующий `QuestionBankService`.
+  - Admin UI теперь позволяет выбрать все четыре типа AI-генерируемых вопросов.
+- Verification:
+  - `./gradlew.bat test --tests kz.damulab.AiDraftSchemaValidatorTest --tests kz.damulab.AiProviderConfigurationIntegrationTest --tests kz.damulab.AiContentFactoryIntegrationTest` passed.
+- Risks:
+  - OpenAI/DeepSeek adapters требуют live sandbox QA с реальными ключами и юридически подтвержденными условиями обработки данных перед включением.
+  - DeepSeek JSON mode менее строгий, чем OpenAI structured outputs, поэтому backend schema validation остается обязательным hard gate.
+- Gaps:
+  - Personalized AI breakdowns по результатам конкретного ученика остаются вне этого этапа до отдельного privacy-reviewed slice.
+  - Live provider cost/rate-limit monitoring еще не реализован.
+- Next:
+  - После юридического подтверждения включить staging-only live smoke для OpenAI и отдельно проверить DeepSeek fallback на обезличенных учебных payloads.
+
+### 2026-04-26 - Documentation alignment for MVP scope
+
+- Agent/task: обновить системную спецификацию с учетом последних изменений в плане/архитектуре и решения убрать email confirmation из MVP.
+- Files changed:
+  - `01_SYSTEM_SPECIFICATION.md`
+- Implemented:
+  - Добавлены явные границы MVP.
+  - Email confirmation исключен из MVP и API MVP.
+  - AI Content Factory, Arena, streak/достижения, LMS checkpoints помечены как post-MVP.
+  - Карта экранов уточнена как целевой UI, а не список блокеров MVP.
+- Verification:
+  - Проверено, что `verify-email` и старые формулировки про обязательное подтверждение email отсутствуют.
+- Risks:
+  - `02_IMPLEMENTATION_PLAN.md` еще содержит старую формулировку `email verification stub`.
+- Gaps:
+  - Синхронизировать `02_IMPLEMENTATION_PLAN.md` по auth.
+  - При необходимости добавить ремарку в `Damulab_Vision_Scope.md`, что SPA - стратегическая возможность, а MVP делается через Thymeleaf.
+- Next:
+  - Перед началом реализации обновить план или явно дать агенту инструкцию игнорировать email verification в этапе 1.
+
+### 2026-04-26 - Agent workflow created
+
+- Agent/task: создать протокол работы агентов и накопительный gap report.
+- Files changed:
+  - `AGENT_WORKFLOW.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлен стартовый промпт для новых агентов.
+  - Добавлены правила handoff, финального отчета, progress log и Definition of Done.
+- Verification:
+  - Документы созданы в корне проекта.
+- Risks:
+  - Если агенты не будут обновлять `AGENT_PROGRESS_LOG.md`, контекст снова начнет теряться.
+- Gaps:
+  - Нужно договориться, обновляем ли `02_IMPLEMENTATION_PLAN.md` прямо сейчас.
+- Next:
+  - Синхронизировать оставшиеся документы или начинать этап 0 с явным промптом из `AGENT_WORKFLOW.md`.
+
+### 2026-04-26 - Remaining documentation sync before implementation
+
+- Agent/task: синхронизировать `02_IMPLEMENTATION_PLAN.md` и `Damulab_Vision_Scope.md` перед стартом реализации.
+- Files changed:
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `Damulab_Vision_Scope.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - В плане этап 1 Auth больше не содержит `email verification stub`.
+  - Риск по email заменен на принятое решение: без SMTP/email confirmation в MVP.
+  - В vision добавлена пометка, что документ описывает широкий scope, а MVP определяется спецификацией и планом.
+  - В vision уточнено, что SPA - стратегическая возможность, а MVP идет через Spring MVC + Thymeleaf.
+- Verification:
+  - Проверить поиском отсутствие `email verification stub` и `verify-email` в плане.
+- Risks:
+  - Vision все еще содержит долгосрочные AI/Arena/streak сценарии; агенты должны сверяться с MVP-документами.
+- Gaps:
+  - Остаются открытые решения по UI-подходу, push provider, timezone, предметам, родительской связке и AI-провайдерам.
+- Next:
+  - Инициализировать git и начинать этап 0.
+
+### 2026-04-26 - Admin use cases review
+
+- Agent/task: проверить `ADMIN_USE_CASES.md` на актуальность после добавления push-уведомлений и изменений в admin mockups.
+- Files changed:
+  - `ADMIN_USE_CASES.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены ссылки на актуальные документы, включая `pushNotification.md`.
+  - Добавлена текущая карта `admin/mockups`.
+  - Зафиксировано, что `index — копия.html` является служебной копией, а не отдельным экраном.
+  - В таблицу use cases добавлен MVP-статус.
+  - UC-ADM-06/07 по push явно помечены как MVP.
+  - UC-ADM-03 AI и LMS viewer/checkpoints помечены как post-MVP или частичный MVP.
+- Verification:
+  - Сверены файлы в `admin/mockups` и содержание `pushNotification.md`.
+- Risks:
+  - В документе остаются post-MVP сценарии AI и лекционного viewer; агентам нужно смотреть колонку MVP и статусы внутри use case.
+- Gaps:
+  - Нет новых блокирующих gaps.
+- Next:
+  - Можно начинать этап 0 после первого git commit.
+
+### 2026-04-26 - Stage 0 Spring Boot foundation
+
+- Agent/task: начать реализацию с `02_IMPLEMENTATION_PLAN.md`, раздел 3 "Этап 0: подготовка проекта".
+- Files changed:
+  - `build.gradle`
+  - `settings.gradle`
+  - `Dockerfile`
+  - `docker-compose.yml`
+  - `.env.example`
+  - `.gitignore`
+  - `README.md`
+  - `docs/CODE_STYLE.md`
+  - `src/main/java/kz/damulab/**`
+  - `src/main/resources/application*.yml`
+  - `src/main/resources/db/migration/V1__baseline_schema.sql`
+  - `src/main/resources/templates/**`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/**`
+- Implemented:
+  - Создан Gradle/Spring Boot каркас на Java 21.
+  - Подключены Spring MVC, Thymeleaf, Security, Validation, Data JPA, Flyway, PostgreSQL, H2 для тестов.
+  - Настроены профили `local`, `test`, `prod`.
+  - Добавлены базовые страницы `/`, `/login`, `/admin`, `/student`, `/parent`.
+  - `/admin` требует роль `ADMIN`; `/student` и `/parent` требуют соответствующие роли.
+  - Добавлены demo users через in-memory auth как временная заготовка до этапа 1.
+  - Добавлена baseline migration со справочниками предметов, классов и demo-темой.
+  - Добавлены Dockerfile и Docker Compose.
+  - Добавлены smoke-тесты и README с командами запуска.
+- Verification:
+  - `gradle test` не запущен: Gradle не установлен в PATH окружения.
+  - `docker compose build app` не завершился: Docker CLI есть, но Docker daemon не запущен (`docker_engine` pipe отсутствует).
+  - Код и конфигурации проверены статически в рамках доступного окружения.
+- Risks:
+  - Реальная компиляция и Flyway/H2 compatibility еще требуют запуска `mvn test` после установки Maven или запуска Docker Desktop.
+  - In-memory пользователи являются временной заготовкой этапа 0 и должны быть заменены реальной моделью `User/Role/Profile` на этапе 1.
+- Gaps:
+  - Нет локально выполненной сборки из-за отсутствия Gradle и неработающего Docker daemon.
+  - CRUD тем, банк вопросов, Testing Hub, аналитика и parent-link еще не реализованы; это следующие этапы плана.
+- Next:
+  - Запустить `gradle test` в окружении с Gradle или поднятым Docker Desktop.
+
+### 2026-04-26 - Stage 0 build tool switched to Gradle
+
+- Agent/task: исправить build tool этапа 0 с Maven на Gradle по уточнению владельца проекта.
+- Files changed:
+  - `pom.xml` удален
+  - `build.gradle`
+  - `settings.gradle`
+  - `Dockerfile`
+  - `README.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Maven-конфигурация заменена на Gradle build.
+  - Docker build переведен на образ `gradle:8.11-jdk21` и `gradle --no-daemon bootJar`.
+  - README переведен на команды `gradle bootRun` и `gradle test`.
+- Verification:
+  - `docker run --rm --memory=3g -v "${PWD}:/workspace" -w /workspace gradle:8.11-jdk21 gradle --no-daemon --console plain test` - успешно.
+  - `docker run --rm --memory=3g -v "${PWD}:/workspace" -w /workspace gradle:8.11-jdk21 gradle --no-daemon --console plain build` - успешно.
+- Risks:
+  - В проекте пока нет Gradle wrapper, поэтому локальная разработка зависит от установленного Gradle или Docker.
+- Gaps:
+  - Добавить Gradle wrapper после появления Gradle в окружении или через Docker.
+- Next:
+  - Добавить wrapper командой `gradle wrapper --gradle-version 8.11`.
+  - После успешной сборки перейти к этапу 1: Auth, роли и профили с БД-моделью.
+
+### 2026-04-26 - Gradle wrapper and local build flow
+
+- Agent/task: перейти на разработческий workflow без Docker для ежедневных команд `test`, `build`, `bootRun`.
+- Files changed:
+  - `gradlew`
+  - `gradlew.bat`
+  - `gradle/wrapper/gradle-wrapper.jar`
+  - `gradle/wrapper/gradle-wrapper.properties`
+  - `.gitignore`
+  - `README.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлен Gradle wrapper версии 8.11.1.
+  - README переведен на wrapper-команды.
+  - Добавлен ignore для локального cache `.gradle-user/`, который используется в sandbox окружении.
+- Verification:
+  - `.\gradlew.bat --no-daemon --console plain test` с `GRADLE_USER_HOME=.gradle-user` - успешно.
+  - `.\gradlew.bat --no-daemon --console plain build` с `GRADLE_USER_HOME=.gradle-user` - успешно.
+- Risks:
+  - Первый запуск wrapper на новой машине скачивает Gradle distribution из `services.gradle.org`.
+  - В этой sandbox-сессии нужно задавать `GRADLE_USER_HOME=.gradle-user`, потому что стандартный home недоступен.
+- Gaps:
+  - Локальный `bootRun` потребует PostgreSQL, если запускать профиль `local`.
+- Next:
+  - Начать этап 1: Auth, роли и профили.
+
+### 2026-04-26 - Stage 1 Auth, roles and profiles foundation
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 4 "Этап 1: Auth, роли и профили".
+- Files changed:
+  - `src/main/resources/db/migration/V2__auth_users_profiles.sql`
+  - `src/main/java/kz/damulab/auth/**`
+  - `src/main/java/kz/damulab/users/**`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/java/kz/damulab/web/PageController.java`
+  - `src/main/resources/templates/auth/register.html`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/fragments/alerts.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/AuthFlowIntegrationTest.java`
+  - `gradle/wrapper/gradle-wrapper.properties`
+  - `.gitignore`
+  - `README.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены таблицы `roles`, `app_users`, `user_roles`, `student_profiles`, `parent_profiles`.
+  - Добавлены JPA entities/repositories для пользователей, ролей и профилей.
+  - Spring Security переключен с in-memory users на `DatabaseUserDetailsService`.
+  - Добавлен `RegistrationService` с запретом self-registration в `ADMIN`.
+  - Добавлена web-регистрация `/register`.
+  - Добавлены API `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/me`.
+  - Email confirmation не добавлялся; email используется как login.
+  - Demo users теперь создаются через БД-seed в приложении: `admin@damulab.kz`, `student@damulab.kz`, `parent@damulab.kz`, пароль `password`.
+  - Wrapper timeout увеличен до 120 секунд для стабильной первичной загрузки Gradle.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+- Risks:
+  - `DemoUserSeeder` временный для stage 0/1; перед production нужно заменить на управляемый seed/admin bootstrap.
+  - `POST /api/auth/login` использует session-based auth, не token API; это соответствует текущему server-rendered MVP, но нужно держать контракт явным.
+  - `bootRun` под `local` profile требует локальный PostgreSQL.
+- Gaps:
+  - Нет password reset/email confirmation, и это намеренно вне MVP до SMTP.
+  - Нет полноценной страницы профиля с редактированием данных; это следующий слой этапа 1.
+  - Нет родительской привязки ребенка; это этап 2.
+- Next:
+  - Доработать профильные страницы ученика/родителя и PATCH profile endpoints либо перейти к этапу 2 после уточнения объема этапа 1.
+
+### 2026-04-26 - Stage 1 profile completion
+
+- Agent/task: докончить `02_IMPLEMENTATION_PLAN.md`, раздел 4 "Этап 1: Auth, роли и профили", чтобы следующий чат мог начать этап 2.
+- Files changed:
+  - `src/main/java/kz/damulab/users/AppUser.java`
+  - `src/main/java/kz/damulab/users/StudentProfile.java`
+  - `src/main/java/kz/damulab/users/ParentProfile.java`
+  - `src/main/java/kz/damulab/users/StudentProfileRepository.java`
+  - `src/main/java/kz/damulab/users/ParentProfileRepository.java`
+  - `src/main/java/kz/damulab/users/ProfileService.java`
+  - `src/main/java/kz/damulab/users/ProfileApiController.java`
+  - `src/main/java/kz/damulab/users/ProfilePageController.java`
+  - `src/main/java/kz/damulab/users/StudentProfileForm.java`
+  - `src/main/java/kz/damulab/users/ParentProfileForm.java`
+  - `src/main/java/kz/damulab/users/StudentProfileResponse.java`
+  - `src/main/java/kz/damulab/users/ParentProfileResponse.java`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/resources/templates/student/profile.html`
+  - `src/main/resources/templates/parent/profile.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/templates/parent/dashboard.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/ProfileIntegrationTest.java`
+  - `docs/AUTH_AND_PROFILE_API.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены `GET/PATCH /api/student/profile`.
+  - Добавлены `GET/PATCH /api/parent/profile`.
+  - Добавлены web-страницы `GET/POST /student/profile` и `GET/POST /parent/profile`.
+  - Серверная валидация профилей: имя обязательно, класс 1-5, язык `ru|kk`, длины полей ограничены.
+  - Security routing ограничивает `/api/student/**` ролью `STUDENT`, `/api/parent/**` ролью `PARENT`.
+  - Добавлена документация auth/profile API.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+- Risks:
+  - `DemoUserSeeder` все еще временный bootstrap.
+  - `bootRun` под `local` profile требует локальный PostgreSQL.
+  - JSON profile PATCH требует CSRF в browser session; тесты это покрывают.
+- Gaps:
+  - Parent-child link не реализован; это этап 2.
+  - Настройки уведомлений профиля пока не реализованы; они ближе к push/profile settings этапам.
+- Next:
+  - Начать этап 2: `ParentStudentLink`, создание ребенка родителем, link code/QR, доступ родителя только к своим детям.
+
+### 2026-04-26 - Stage 2 parent-child link foundation
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 5 "Этап 2: родительская связка".
+- Files changed:
+  - `src/main/resources/db/migration/V3__parent_student_links.sql`
+  - `src/main/java/kz/damulab/parentlink/**`
+  - `src/main/java/kz/damulab/config/TimeConfig.java`
+  - `src/main/java/kz/damulab/web/PageController.java`
+  - `src/main/resources/templates/parent/dashboard.html`
+  - `src/main/resources/templates/parent/child-details.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/ParentLinkIntegrationTest.java`
+  - `docs/PARENT_LINK_API.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены таблицы `parent_student_links` и `link_codes`.
+  - Родитель может создать demo-ребенка через API и server-rendered форму.
+  - Родитель видит список только своих детей и открывает карточку ребенка.
+  - Ученик или родитель для уже привязанного ребенка может создать одноразовый link-code.
+  - Родитель может привязать ребенка по коду; код после использования помечается consumed.
+  - Истекший или повторно использованный код отклоняется.
+  - Ownership-проверки находятся в `ParentLinkService`.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+- Risks:
+  - QR пока не отрисовывается; есть backend-код, который можно кодировать в QR на следующем UI-срезе.
+  - Parent-created child без email получает технический login `@child.damulab.local`; production UX для детского входа нужно уточнить.
+  - Схема сейчас допускает несколько родителей у одного ученика, пока продуктовая политика не уточнена.
+- Gaps:
+  - Реальные progress/analytics данные в карточке ребенка появятся после Testing Hub и analytics этапов.
+  - QR-визуализация кода не реализована.
+  - Нужно подтвердить, разрешены ли несколько родителей на одного ребенка.
+- Next:
+  - Закрыть оставшиеся части этапа 2 при необходимости: QR UI и более детальные состояния карточки.
+  - Затем переходить к этапу 3: граф знаний и справочники.
+
+### 2026-04-26 - Stage 2 QR/UI completion and PWA baseline
+
+- Agent/task: дозакрыть QR и UI-детали этапа 2, проверить тестовое покрытие и добавить проверяемую PWA-базу.
+- Files changed:
+  - `build.gradle`
+  - `src/main/java/kz/damulab/parentlink/LinkCodeResponse.java`
+  - `src/main/java/kz/damulab/parentlink/QrCodeSvgRenderer.java`
+  - `src/main/java/kz/damulab/parentlink/ParentLinkService.java`
+  - `src/main/java/kz/damulab/parentlink/ParentLinkPageController.java`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/resources/templates/fragments/pwa-head.html`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/templates/**`
+  - `src/main/resources/static/manifest.webmanifest`
+  - `src/main/resources/static/service-worker.js`
+  - `src/main/resources/static/js/pwa.js`
+  - `src/main/resources/static/icons/damulab-icon.svg`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/ParentLinkIntegrationTest.java`
+  - `src/test/java/kz/damulab/PwaSmokeTest.java`
+  - `docs/PARENT_LINK_API.md`
+  - `docs/PWA_BASELINE.md`
+  - `README.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлена server-side генерация QR SVG для одноразового link-code через ZXing.
+  - `LinkCodeResponse` теперь возвращает `code`, `expiresAt`, `qrSvg`.
+  - Карточка ребенка показывает текстовый код и QR после генерации.
+  - Добавлен PWA baseline: manifest, service worker, registration script, icon, head fragment.
+  - Security публично отдает PWA static assets.
+  - Основные Thymeleaf страницы подключают manifest; header подключает service worker registration.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+- Risks:
+  - PWA проверена автоматическими smoke-тестами static assets, но install/offline поведение требует browser QA на localhost.
+  - Service worker кэширует только публичный shell; authenticated offline flows не заявлены для этапа 2.
+  - Parent-created child без email все еще получает технический login `@child.damulab.local`; production UX нужно уточнить.
+- Gaps:
+  - Реальные progress/analytics данные в карточке ребенка появятся после Testing Hub и analytics этапов.
+  - Нужно подтвердить, разрешены ли несколько родителей на одного ребенка.
+- Next:
+  - Этап 2 можно считать закрытым для перехода к этапу 3: граф знаний и справочники.
+
+### 2026-04-26 - Stage 3 content graph and references completion
+
+- Agent/task: начать и довести до закрытого состояния `02_IMPLEMENTATION_PLAN.md`, раздел 6 "Этап 3: граф знаний и справочники".
+- Files changed:
+  - `src/main/resources/db/migration/V4__content_graph.sql`
+  - `src/main/resources/db/migration/V5__content_graph_completion.sql`
+  - `src/main/java/kz/damulab/audit/**`
+  - `src/main/java/kz/damulab/content/**`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/java/kz/damulab/web/PageController.java`
+  - `src/main/resources/templates/admin/topics.html`
+  - `src/main/resources/templates/admin/topic-tree.html`
+  - `src/main/resources/templates/admin/dashboard.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/ContentGraphIntegrationTest.java`
+  - `docs/CONTENT_GRAPH_API.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлена таблица `atomic_skills`, `updated_at` для `topics`, индексы и seed-цепочка `Математика -> 4 класс -> Проценты -> Нахождение процента от числа -> Вычислять процент от числа`.
+  - Добавлены JPA entities/repositories для `Subject`, `Grade`, `Topic`, `AtomicSkill`.
+  - Добавлены `GET /api/admin/subjects`, `GET /api/admin/grades`, `GET/POST/PATCH/DELETE /api/admin/topics`, `GET /api/admin/topics/tree`, `GET /api/admin/topics/{id}/skills`.
+  - Добавлен `GET /api/content/references` как общий справочник для будущих фильтров вопросов и лекций.
+  - Добавлен CRUD атомарных навыков: `POST /api/admin/topics/{id}/skills`, `PATCH/DELETE /api/admin/skills/{id}` и UI в дереве тем.
+  - Добавлен простой `admin_content_audit_logs` для создания, изменения и удаления тем/навыков.
+  - `/api/admin/**` теперь требует роль `ADMIN`.
+  - Admin UI получил страницы `/admin/topics` и `/admin/topics/tree` с фильтрами, созданием, редактированием, деревом, навыками и ошибками.
+  - Серверная проверка блокирует дубли тем в одной ветке и удаление темы с дочерними темами или атомарными навыками.
+  - Серверная проверка блокирует дубли атомарных навыков внутри темы.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+- Risks:
+  - Запрет удаления темы пока проверяет дочерние темы и атомарные навыки; зависимости от вопросов, лекций и результатов добавятся после реализации этих модулей.
+  - Audit log минимальный и покрывает content graph операции; расширение до полного audit dashboard остается будущей задачей.
+- Gaps:
+  - При этапах 4/8 добавить внешние ключи вопросов/лекций на `topics`/`atomic_skills` и расширить защиту удаления.
+- Next:
+  - Переходить к этапу 4: банк вопросов с привязкой к `topics` и `atomic_skills`.
+
+### 2026-04-26 - Stage 4 question bank first vertical slice
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 7 "Этап 4: банк вопросов" через первый вертикальный срез: DTO-контракт, модель, validation, endpoints, admin UI, тесты и документация.
+- Files changed:
+  - `src/main/resources/db/migration/V6__question_bank.sql`
+  - `src/main/java/kz/damulab/questions/**`
+  - `src/main/java/kz/damulab/content/ContentDependencyChecker.java`
+  - `src/main/java/kz/damulab/content/ContentGraphService.java`
+  - `src/main/java/kz/damulab/content/ContentGraphExceptionHandler.java`
+  - `src/main/java/kz/damulab/content/AdminTopicPageController.java`
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/templates/admin/question-form.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/QuestionBankIntegrationTest.java`
+  - `docs/QUESTION_BANK_API.md`
+  - `docs/CONTENT_GRAPH_API.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены таблицы `questions` и `question_versions` с FK на `topics`, `atomic_skills` и автора.
+  - Добавлены статусы `draft`, `needs_review`, `approved`, `published`, `archived`.
+  - Добавлены типы `SCQ`, `MCQ`, `MATCHING`, `FILL_IN` и общий `QuestionForm`.
+  - Серверная validation блокирует некорректный answer key: SCQ ровно один правильный, MCQ минимум один, MATCHING минимум две полные пары, FILL_IN минимум один ответ и правило проверки.
+  - Добавлены `GET/POST/PATCH /api/admin/questions`, `GET /api/admin/questions/{id}`, `POST /api/admin/questions/{id}/approve|publish|archive`.
+  - Редактирование `approved/published` вопроса создает новую версию и переводит вопрос в `needs_review`.
+  - Admin UI получил `/admin/questions` и `/admin/questions/new` с фильтрами, действиями модерации и панелями типов вопросов.
+  - Защита удаления тем/атомарных навыков расширена на зависимости от question versions.
+  - Audit log пишет операции создания, обновления, approve, publish и archive вопросов.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+- Risks:
+  - UI пока покрывает создание и модерацию, но не полноценное редактирование существующего вопроса через отдельную карточку.
+  - `MATCHING` в текущем DTO хранит ключ по строкам; если нужен отдельный набор правых вариантов с произвольным ключом, контракт придется расширить до Testing Hub.
+- Gaps:
+  - Использование `published` вопросов в тестовой сессии будет реализовано на этапе 5.
+  - Массовый импорт, content health и аналитика качества вопросов остаются post-slice задачами.
+  - Защита удаления тем по лекциям и результатам появится после этапов 5/8.
+- Next:
+  - Переходить к этапу 5: Testing Hub, выбор published questions, серверная проверка ответов и результат.
+
+### 2026-04-26 - Stage 5 Testing Hub first vertical slice
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 8 "Этап 5: Testing Hub" через первый вертикальный срез: БД-модель тестовой сессии, published question selection, сохранение ответов, server-side answer checking, результат, student UI, тесты и документация.
+- Files changed:
+  - `src/main/resources/db/migration/V7__testing_hub.sql`
+  - `src/main/java/kz/damulab/testing/**`
+  - `src/main/java/kz/damulab/questions/QuestionVersionRepository.java`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/resources/templates/student/tests.html`
+  - `src/main/resources/templates/student/test-session.html`
+  - `src/main/resources/templates/student/test-result.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/TestingHubIntegrationTest.java`
+  - `docs/TESTING_HUB_API.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены таблицы `test_templates`, `test_sessions`, `test_session_questions`, `student_answers`, `answer_evaluations`, `test_results`.
+  - Добавлен seed первого subject template и четырех published demo questions по процентам.
+  - Published questions подбираются по subject/grade/difficulty и фиксируются в `test_session_questions`.
+  - Активная сессия отдает student-facing DTO без `answer_key_json` и без `correctAnswer`.
+  - `PATCH /api/test-sessions/{id}/answers` сохраняет/заменяет ответ.
+  - `POST /api/test-sessions/{id}/finish` идемпотентно считает `AnswerEvaluation` и `TestResult`.
+  - Server-side checker покрывает `SCQ`, `MCQ`, `MATCHING`, `FILL_IN` с exact/normalized/numeric tolerance/regexp для fill-in.
+  - Student UI получил `/student/tests`, `/student/test-sessions/{id}`, `/student/test-sessions/{id}/result` с таймером, навигацией, confirm перед выходом/finish и детализацией результата.
+  - `/api/tests/**` и `/api/test-sessions/**` закрыты ролью `STUDENT`.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.TestingHubIntegrationTest` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+  - `bootRun --spring.profiles.active=test` не поднят для ручного браузерного QA: H2 доступен только в test runtime; локальный `bootRun` требует PostgreSQL из `local` profile.
+- Risks:
+  - UI сохраняет ответы при отправке формы/finish; полноценное autosave после каждого изменения через `PATCH` API остается следующим улучшением.
+  - Demo seed вопросов нужен для локальной проверяемости первого flow; production content должен идти через admin question bank.
+  - `MATCHING` пока использует строку левого элемента как ключ ответа, как зафиксировано в этапе 4.
+- Gaps:
+  - Этап 6 должен подключить `TestResult` к mastery, knowledge map, timeline, last errors и parent visibility.
+  - Strict Mode МОДО/СОР/СОЧ, сложные шаблоны тестов и шкалы оценивания остаются после базового subject slice.
+  - Browser QA на реальном localhost/mobile width еще не проведен.
+- Next:
+  - После полного `test/build` переходить к этапу 6: аналитика и цифровой профиль знаний на основе `test_results` и `answer_evaluations`.
+
+### 2026-04-27 - Stage 6 analytics first vertical slice
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 9 "Этап 6: аналитика и цифровой профиль знаний" на базе `test_results` и `answer_evaluations`.
+- Files changed:
+  - `src/main/resources/db/migration/V8__analytics_mastery.sql`
+  - `src/main/java/kz/damulab/analytics/**`
+  - `src/main/java/kz/damulab/testing/TestingHubService.java`
+  - `src/main/java/kz/damulab/testing/AnswerEvaluationRepository.java`
+  - `src/main/java/kz/damulab/testing/TestResultRepository.java`
+  - `src/main/java/kz/damulab/parentlink/ParentLinkPageController.java`
+  - `src/main/java/kz/damulab/config/SecurityConfig.java`
+  - `src/main/resources/templates/student/analytics.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/templates/student/test-result.html`
+  - `src/main/resources/templates/parent/child-details.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/AnalyticsIntegrationTest.java`
+  - `docs/ANALYTICS_API.md`
+  - `docs/TESTING_HUB_API.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлена таблица `skill_mastery` для агрегатов по теме и атомарному навыку.
+  - `POST /api/test-sessions/{id}/finish` после сохранения `TestResult` обновляет mastery на основе `AnswerEvaluation`.
+  - Добавлены REST endpoints `/api/analytics/student/{studentId}/timeline`, `/knowledge-map`, `/last-errors`, `/trajectory`, `/prediction`.
+  - Доступ к analytics разрешен ролям `STUDENT` и `PARENT`, но сервис проверяет ownership: ученик видит себя, родитель только привязанного ребенка.
+  - Добавлена server-rendered страница `/student/analytics`, переход из результата теста и аналитика в parent child card.
+  - Базовая trajectory/prediction реализована без ML как объяснимый агрегат последних результатов.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.AnalyticsIntegrationTest` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.TestingHubIntegrationTest --tests kz.damulab.ParentLinkIntegrationTest` - успешно.
+- Risks:
+  - Backfill mastery для результатов, созданных до этапа 6, не реализован.
+  - Prediction пока является простым средним по последним результатам, а не полноценным predictive scoring.
+  - `skill_mastery` не участвует в защите удаления тем/навыков; FK стоит `restrict`, но UI/ошибка удаления будут дорабатываться отдельно.
+- Gaps:
+  - Нужны рекомендации/spaced repetition после накопления mastery.
+  - Browser QA на localhost/mobile width еще не проведен.
+- Next:
+  - Запустить полный `test/build`, затем переходить к следующему плановому этапу или дозакрытию UI/mobile QA аналитики.
+
+### 2026-04-27 - Stage 6 analytics browser QA and authenticated header fix
+
+- Agent/task: дозакрыть browser/mobile QA аналитики и исправить header, где после входа оставались anonymous links `Регистрация`/`Войти`.
+- Files changed:
+  - `build.gradle`
+  - `src/main/resources/templates/fragments/header.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/messages*.properties`
+  - `src/test/java/kz/damulab/PageSecuritySmokeTest.java`
+  - `docs/ANALYTICS_API.md`
+  - `README.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Подключен `thymeleaf-extras-springsecurity6`.
+  - Header теперь показывает `Регистрация`/`Войти` только anonymous user, а `Кабинет`/`Выйти` только authenticated user.
+  - Logout в header сделан POST form с CSRF.
+  - Добавлен тест на отсутствие `/login` и `Регистрация` в authenticated student header.
+  - Добавлен `developmentOnly` H2 для локального `bootRun` в `test` profile без PostgreSQL.
+  - Исправлен mobile overflow аналитики: nav переносит пункты на узкой ширине.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.PageSecuritySmokeTest --tests kz.damulab.AnalyticsIntegrationTest` - успешно.
+  - Local browser QA через Chrome fallback на `http://localhost:18080`: login, header auth-state, start/finish subject test, result -> analytics, desktop screenshot, mobile 390x844 screenshot, no horizontal overflow - успешно.
+- Risks:
+  - In-app browser plugin не удалось использовать из-за Node REPL runtime mismatch (`22.21.0`, требуется `>=22.22.0`); QA выполнен локальным Chrome/Playwright fallback.
+- Gaps:
+  - PWA install/offline browser QA остается отдельным gap.
+- Next:
+  - Запустить полный `test/build`; затем можно переходить к следующему этапу плана.
+
+### 2026-04-27 - Stage 7 student engagement first vertical slice and QA
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 10 "Этап 7: ученический дашборд, streak и достижения".
+- Files changed:
+  - `src/main/resources/db/migration/V9__student_engagement.sql`
+  - `src/main/java/kz/damulab/gamification/**`
+  - `src/main/resources/templates/fragments/language-switch.html`
+  - `src/main/java/kz/damulab/testing/TestingHubService.java`
+  - `src/main/java/kz/damulab/testing/TestResultRepository.java`
+  - `src/main/java/kz/damulab/users/StudentProfile.java`
+  - `src/main/java/kz/damulab/users/StudentProfileForm.java`
+  - `src/main/java/kz/damulab/users/StudentProfileResponse.java`
+  - `src/main/java/kz/damulab/users/ProfileService.java`
+  - `src/main/java/kz/damulab/users/ProfilePageController.java`
+  - `src/main/java/kz/damulab/web/PageController.java`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/templates/student/profile.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/StudentEngagementIntegrationTest.java`
+  - `docs/STUDENT_ENGAGEMENT.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлены таблицы `streaks`, `achievements`, `student_achievements` и seed базовых достижений.
+  - `TestingHubService.finishSession` после первого нового `TestResult` обновляет analytics и фиксирует полезную активность для streak/achievements.
+  - Streak обновляется один раз в UTC-день; повторный finish той же сессии и второй тест в тот же день не увеличивают серию повторно.
+  - Достижения выдаются один раз на ученика через unique constraint.
+  - `/student` показывает миссию дня, streak, последнее занятие, прогресс и достижения.
+  - `GET /api/student/dashboard` возвращает dashboard DTO текущего ученика.
+  - Профиль ученика сохраняет `lessonRemindersEnabled`, `weeklyParentReportEnabled`, `sessionResultPushEnabled`.
+  - Header language selector для ученика сохраняет `preferredLanguage` в профиле и возвращает пользователя в student area с `lang`.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.StudentEngagementIntegrationTest --tests kz.damulab.ProfileIntegrationTest` - успешно.
+  - Local browser QA через Chrome/Playwright fallback на `http://localhost:18081`: `/student` desktop/mobile 390x844 без horizontal overflow; `/student/profile` mobile без overflow, 3 notification toggles видны; header language selector сохранил `preferredLanguage=kk`, API подтвердил.
+- Risks:
+  - Streak считается по UTC-дате; production timezone policy для push/локального отображения все еще отдельный gap.
+  - Достижения пока покрывают только test-finish и streak; quiz/Arena/LMS events не подключены.
+  - Уведомительные флаги профиля сохраняются, но еще не применяются реальным push provider.
+- Gaps:
+  - Расширенная игровая экономика, streak freeze и spaced repetition остаются post-MVP.
+- Next:
+  - Запустить полный `test/build`; затем можно переходить к этапу 8.
+
+### 2026-04-27 - Stage 8 lectures and LMS first vertical slice
+
+- Agent/task: начать `02_IMPLEMENTATION_PLAN.md`, раздел 11 "Этап 8: лекции и LMS" через первый вертикальный срез без превращения полноценного checkpoint-flow в MVP-блокер.
+- Files changed:
+  - `src/main/resources/db/migration/V10__lectures_lms.sql`
+  - `src/main/java/kz/damulab/lectures/**`
+  - `src/main/java/kz/damulab/questions/QuestionVersionRepository.java`
+  - `src/main/java/kz/damulab/content/ContentGraphService.java`
+  - `src/main/java/kz/damulab/content/ContentGraphExceptionHandler.java`
+  - `src/main/resources/templates/admin/lectures.html`
+  - `src/main/resources/templates/admin/lecture-form.html`
+  - `src/main/resources/templates/student/lectures.html`
+  - `src/main/resources/templates/student/lecture.html`
+  - `src/main/resources/templates/fragments/admin-sidebar.html`
+  - `src/main/resources/templates/student/dashboard.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/test/java/kz/damulab/LectureIntegrationTest.java`
+  - `docs/LECTURES_LMS.md`
+  - `README.md`
+  - `01_SYSTEM_SPECIFICATION.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Лекции версионируются по той же логике, что и вопросы: логический `Lecture` указывает на текущую `LectureVersion`.
+  - Draft можно сохранить без темы или с одним языком; публикация требует тему, RU/KK название и RU/KK контент.
+  - Контент из textarea хранится как безопасный HTML: пользовательские HTML-теги экранируются, переносы строк становятся `<br>`.
+  - Вложения хранятся как metadata links; небезопасные `javascript:`/`data:` URL блокируются.
+  - `AUTO` checkpoints выбирают опубликованные `QuestionVersion` той же темы; `MANUAL` принимает только опубликованные вопросы той же темы.
+  - `/admin/lectures`, `/admin/lectures/new`, `/admin/lectures/{id}/edit`, `/admin/lectures/{id}/preview` перенесены в Thymeleaf.
+  - `/student/lectures` и `/student/lectures/{id}` показывают опубликованные лекции, вложения и checkpoint prompts без раскрытия answer key.
+  - Удаление темы с привязанными лекциями теперь блокируется кодом `topic_has_lectures`.
+- Verification:
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain testClasses` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.LectureIntegrationTest` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.ContentGraphIntegrationTest --tests kz.damulab.QuestionBankIntegrationTest` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+  - Local HTTP QA на `http://localhost:18083` с `test` profile: admin login, `/admin/lectures`, `/admin/lectures/new`, создание/publish лекции через API, student login, `/student/lectures`, `/student/lectures/{id}` с вложением - успешно.
+- Risks:
+  - Rich editor пока fallback textarea; локальный Quill/KaTeX bundle не подключен, чтобы не вносить CDN/SPA-зависимость в MVP.
+  - Вложения пока ссылки/метаданные, без object storage и upload pipeline.
+  - Student checkpoint prompts пока read-only; полноценная отправка ответов и серверная проверка checkpoint-ответов остается отдельным LMS gap.
+- Gaps:
+  - Добавить локальные Quill/KaTeX ассеты или другой контролируемый rich editor.
+  - Реализовать file upload/object storage для вложений лекций.
+  - Реализовать full LMS checkpoint attempt flow с server-side answer checking.
+  - Провести browser/mobile QA для `/admin/lectures` и `/student/lectures/{id}`.
+- Next:
+  - Переходить к этапу 9 или к дозакрытию визуального browser/mobile QA и rich-editor gaps этапа 8.
+
+### 2026-04-27 - Stage 8 remainder handoff for next chat
+
+- Agent/task: зафиксировать остаток этапа 8 перед переносом работы в новый чат из-за заполнения контекста примерно на 83%.
+- Files changed:
+  - `AGENT_PROGRESS_LOG.md`
+  - `docs/LECTURES_LMS.md`
+- Implemented:
+  - Следующий чат должен не начинать этап 9, а сначала дозакрыть остатки этапа 8.
+  - Приоритет 1: провести visual/mobile QA для `/admin/lectures`, `/admin/lectures/new`, `/admin/lectures/{id}/edit`, `/admin/lectures/{id}/preview`, `/student/lectures`, `/student/lectures/{id}` на desktop и mobile 360-390px.
+  - Приоритет 2: устранить найденные UI/mobile проблемы без отдельного SPA, в существующих Thymeleaf/CSS паттернах.
+  - Приоритет 3: закрыть rich-editor gap минимально безопасным способом: локальные контролируемые ассеты Quill/KaTeX или явно зафиксированное решение оставить textarea fallback до отдельного asset task. CDN не использовать как production-зависимость.
+  - Приоритет 4: обновить `docs/LECTURES_LMS.md`, `02_IMPLEMENTATION_PLAN.md` и этот progress log по результатам.
+- Verification:
+  - Не запускалась: это handoff/documentation update.
+- Risks:
+  - Full LMS checkpoint attempt flow, file upload/object storage и authenticated offline lecture cache остаются отдельными post-MVP gaps и не должны раздувать дозакрытие этапа 8.
+- Gaps:
+  - Нужен browser/mobile QA с фактическими скриншотами или явным HTTP/browser smoke.
+- Next:
+  - В новом чате закрыть remainder этапа 8, затем запускать полный `test/build` и только после этого переходить к этапу 9.
+
+### 2026-04-27 - Stage 8 lecture remainder QA and fallback decision
+
+- Agent/task: дозакрыть остатки этапа 8, не начиная этап 9: visual/mobile QA lecture routes, исправления UI/form issues, решение по rich-editor gap, документация.
+- Files changed:
+  - `src/main/java/kz/damulab/lectures/AdminLecturePageController.java`
+  - `src/main/java/kz/damulab/lectures/LectureForm.java`
+  - `src/main/java/kz/damulab/lectures/LectureService.java`
+  - `src/main/resources/static/css/app.css`
+  - `docs/LECTURES_LMS.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Direct `/admin/lectures/new` теперь по умолчанию использует math/grade-4 references, чтобы форма создания имела темы без query params.
+  - Пустая spare-строка вложения игнорируется даже при default `mediaType=link`; частично заполненное вложение остается validation error.
+  - `LectureForm` копирует списки вложений/checkpoint IDs в mutable lists, чтобы edit form мог добавлять spare rows.
+  - Mobile overflow на `/admin/lectures` исправлен через `min-width: 0` для panels/subpanels; wide table остается во внутреннем `.table-wrap` scroll.
+  - `lecture-textarea` теперь фактически получает 320px min-height; header link-button получил нормальную высоту тапа.
+  - Rich editor gap закрыт как stage-8 decision: production остается без CDN, safe textarea fallback сохраняется, локальный Quill/KaTeX перенесен в отдельный asset task.
+- Verification:
+  - Local Chrome/Playwright QA на `test` profile, `http://localhost:18083`: `/admin/lectures`, `/admin/lectures/new`, `/admin/lectures/{id}/edit`, `/admin/lectures/{id}/preview`, `/student/lectures`, `/student/lectures/{id}` на `1366x900`, `390x844`, `360x800`.
+  - QA результат: `bodyOverflow=0`, `buttonIssues=[]` для всех проверенных routes/widths; screenshots/report лежат в `.run-logs/stage8-lecture-qa/`.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test --tests kz.damulab.LectureIntegrationTest` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain test` - успешно.
+  - `$env:GRADLE_USER_HOME="$PWD\.gradle-run"; .\gradlew.bat --no-daemon --console plain build` - успешно.
+- Risks:
+  - Admin lecture table на mobile остается wide table с внутренней горизонтальной прокруткой, а не card-list; это соответствует текущему `.table-wrap` паттерну.
+  - Rich editor не подключен в stage 8, чтобы не вносить CDN или непроверенный asset bundle.
+- Gaps:
+  - Separate asset task: локальный Quill/KaTeX или другой контролируемый rich editor без production CDN.
+  - File upload/object storage, full checkpoint attempts и authenticated offline lecture cache остаются отдельными post-MVP gaps.
+- Next:
+  - Можно планировать следующий MVP этап без возвращения к stage-8 QA; не путать с отдельными post-MVP/asset gaps.
+
+### 2026-04-27 - AI safety baseline before stage 9
+
+- Agent/task: зафиксировать базовые AI safety/privacy правила, чтобы агенты читали их перед этапом 9 AI Content Factory.
+- Files changed:
+  - `docs/AI_SAFETY_BASELINE.md`
+  - `AGENT_WORKFLOW.md`
+  - `02_IMPLEMENTATION_PLAN.md`
+  - `AGENT_PROGRESS_LOG.md`
+- Implemented:
+  - Добавлен обязательный baseline: Damulab хранит персональные данные только в своей БД; внешним AI-провайдерам нельзя отправлять full name, email, phone, raw IDs, parent-child links, link codes, secrets или сырые связанные с конкретным ребенком результаты.
+  - Результаты тестов, связанные с конкретным учеником, считаются персональными данными внутри Damulab; перед AI допустим только минимизированный образовательный контекст.
+  - Для этапа 9 зафиксирован старт через `AiProvider` + `StubAiProvider`, server-side credentials/config flags, redacted logs и no-autopublish without human review.
+  - `AGENT_WORKFLOW.md` теперь явно требует читать `docs/AI_SAFETY_BASELINE.md` для AI-задач.
+- Verification:
+  - Documentation-only change; tests не запускались.
+- Risks:
+  - Точный production AI provider и договорные/юридические условия все еще надо выбрать отдельно перед реальными external calls.
+- Gaps:
+  - Добавить технические tests на outbound AI DTO уже в реализации этапа 9.
+- Next:
+  - Начинать stage 9 first vertical slice со stub provider и тестов на no PII/no autopublish.
+
+## Open Gaps
+
+### 2026-04-30 - Admin manual question form hardening
+
+- Agent/task: investigate `/admin/questions/new?subjectId=2&gradeId=4` 500 report, align manual question creation with `admin/mockups/question-create-manual.html`, and document the next content-entry QA pass.
+- Files changed:
+  - `src/main/resources/templates/admin/questions.html`
+  - `src/main/resources/templates/admin/question-form.html`
+  - `src/main/resources/static/css/app.css`
+  - `src/main/resources/static/icons/lucide-sprite.svg`
+  - `src/main/java/kz/damulab/questions/ChoiceOptionForm.java`
+  - `src/main/java/kz/damulab/questions/QuestionBankService.java`
+  - `src/test/java/kz/damulab/QuestionBankIntegrationTest.java`
+  - `admin/mockups/question-create-manual.html`
+  - `docs/QUESTION_BANK_API.md`
+  - `ADMIN_USE_CASES.md`
+  - `docs/MVP_RELEASE_CHECKLIST.md`
+  - `docs/CONTENT_ENTRY_QA_PLAN.md`
+- Implemented:
+  - `GET /admin/questions/new` no longer needs `subjectId`/`gradeId` in normal navigation; subject, grade and topic are selected during question creation.
+  - Question list "add question" link now points to `/admin/questions/new` without pre-binding filters.
+  - SCQ/MCQ variants in the Thymeleaf form are rendered from the actual form list, not hard-coded `options[0..3]`.
+  - Added row-level trash button for choice variants with confirmation and minimum two active variants.
+  - Added `softDeleted` / `soft_delete` support for choice options; backend ignores soft-deleted choices in validation, `options_json`, `answer_key_json`, and mini-lecture correct-answer text.
+  - Updated the static mockup to remove "delete last" and use per-row deletion.
+- Verification:
+  - `.\gradlew.bat test --tests kz.damulab.QuestionBankIntegrationTest` passed.
+  - Local `bootRun` on `8081` returned 200 for `/admin/questions/new` and `/admin/questions/new?subjectId=2&gradeId=4` behind the login redirect.
+- Risks:
+  - Existing edit UI for already-created questions is still not a complete parity editor.
+  - Manual browser QA for the full content-entry path is still pending.
+- Next:
+  - Run `docs/CONTENT_ENTRY_QA_PLAN.md`: create topic -> create/publish question -> create/publish lecture -> check student visibility.
+
+- [x] Stage 13 visual parity pass: root HTML and `admin/mockups` were compared against Thymeleaf templates, live UI was restyled without backend-flow changes, and desktop/390px/360px smoke passed.
+- [ ] Stage 13 residual visual parity: optional pixel-perfect follow-up for mockup-only interactions that were intentionally kept as backend-safe MVP compromises: icon system without CDN, active-test carousel/modal behavior, parent modal flow, and lecture rich editor assets.
+
+- [x] Stage 13: сверить root/admin HTML-макеты с перенесенными Thymeleaf MVP screens и зафиксировать inventory.
+- [x] Stage 13: консолидировать question renderer/result navigation без отдельного SPA и без раскрытия correct answers до результата.
+- [x] Stage 13: исправить critical MVP hardening для published question/lecture edit, чтобы admin/content actions не ломали published/history model.
+- [x] Stage 13: подготовить MVP release checklist.
+- [x] Stage 11: добавить WebSocket/STOMP live updates для quiz lobby/ready/round progress/results.
+- [x] Stage 11: добавить строгий server-side round timeout enforcement и правила поздних ответов.
+- [x] Stage 11: провести frontend/mobile QA для `/student/quiz/rooms/{code}` live UI на уровне CSS/static contract и полного integration test suite.
+- [ ] Stage 11: решить, должны ли quiz results попадать в parent analytics и gamification achievements.
+
+- [ ] Решить UI-подход для динамических форм: Thymeleaf + Alpine или Thymeleaf + HTMX.
+- [x] Запустить полноценную проверку `gradle test` после установки Gradle или запуска Docker Desktop.
+- [x] Добавить Gradle wrapper, чтобы не зависеть от локальной установки Gradle.
+- [x] Доработать редактирование профиля ученика/родителя в рамках этапа 1.
+- [ ] Уточнить production push provider и формат `DeviceToken`.
+- [ ] Уточнить production timezone policy для push.
+- [x] Провести browser/mobile QA для student dashboard/profile этапа 7.
+- [ ] Уточнить точный набор предметов и шкалы МОДО/СОР/СОЧ для MVP.
+- [ ] Уточнить, может ли один ребенок быть привязан к нескольким родителям.
+- [x] Добавить QR-визуализацию link-code в parent/student UI.
+- [ ] Провести browser QA для PWA install/offline на localhost.
+- [ ] Расширить защиту удаления тем на аналитические агрегаты и пользовательские сообщения удаления. Защита по вопросам добавлена в этапе 4; защита по лекциям добавлена в этапе 8; `skill_mastery` этапа 6 уже имеет FK restrict, но пользовательское сообщение удаления еще не доработано.
+- [x] Подключить `test_results` и `answer_evaluations` к mastery/analytics/parent visibility на этапе 6.
+- [ ] Separate asset task: подключить локальные Quill/KaTeX ассеты или другой контролируемый rich editor для лекций без CDN.
+- [ ] Реализовать file upload/object storage для вложений лекций.
+- [ ] Реализовать full LMS checkpoint attempt flow с server-side answer checking.
+- [x] Провести browser/mobile QA для lecture routes этапа 8: `/admin/lectures`, `/admin/lectures/new`, `/admin/lectures/{id}/edit`, `/admin/lectures/{id}/preview`, `/student/lectures`, `/student/lectures/{id}`.
+- [x] Зафиксировать AI safety baseline для этапа 9: no PII to external AI, minimized educational context, human review.
+- [x] Реализовать первый vertical slice Stage 9 AI Content Factory на `StubAiProvider` без external network calls.
+- [x] Закрыть Stage 9 provider boundary: OpenAI primary, DeepSeek fallback, adapters behind server-side feature flag, schema validation, no-autopublish.
+- [x] Реализовать первый vertical slice Stage 10 push notifications на `StubPushProvider` без production delivery provider.
+- [x] Провести browser/mobile QA для `/admin/push-notifications`.
+- [ ] Подтвердить договорные/юридические условия и правила хранения учебных/персональных данных для OpenAI и DeepSeek.
+
+## Decisions
+
+- 2026-04-29: Stage 13 published/history hardening keeps already published question and lecture versions live after admin edits. Replacement versions are stored, but not promoted into student flow until explicit workflow support is added; this avoids breaking MVP content -> test -> result -> analytics -> parent.
+- 2026-04-29: OpenAI/DeepSeek credentials must be env-only. `application.yml` no longer carries an OpenAI API key default; real providers remain disabled unless `AI_REAL_PROVIDERS_ENABLED=true` and production data policy is approved.
+- 2026-04-29: Stage 11 закрыт в MVP-scope: live UI реализован без отдельного SPA/CDN на Thymeleaf + vanilla JS, STOMP endpoint `/ws/quiz` используется только как invalidation signal, а authoritative room state всегда перечитывается через `GET /api/quiz/rooms/{code}`.
+- 2026-04-29: Stage 11 server-side timing является источником истины: `serverTime`, `activeRoundId`, `startsAt`, `endsAt`, `timedOut` управляют текущим раундом; поздние ответы отклоняются, timeout создает zero answers без duplicate `quiz_answers`.
+- 2026-04-28: Stage 11 первый срез был реализован без отдельного SPA; последующий closure добавил WebSocket/STOMP live updates и strict timeout.
+- 2026-04-28: Quiz module переиспользует `QuestionVersionRepository.findPublishedForTest` и `AnswerChecker`; публичные room/round DTO не отдают `answer_key_json` и correct answers до итогов комнаты.
+
+- 2026-04-26: Этап 0 реализован как Gradle/Spring Boot 3.3.7 проект на Java 21.
+- 2026-04-26: Для этапа 0 demo-доступ сделан через in-memory users; постоянная auth-модель остается задачей этапа 1.
+- 2026-04-26: Базовый UI этапа 0 использует Thymeleaf fragments и обычный CSS без отдельного SPA.
+- 2026-04-26: С этапа 1 demo-доступ создается в БД через `DemoUserSeeder`, а Spring Security читает пользователей из `app_users`.
+- 2026-04-26: Auth API остается session-based для MVP, потому что UI server-rendered и отдельный SPA не строится.
+- 2026-04-26: Этап 1 считается закрытым для перехода к этапу 2; notification settings профиля остаются отдельным gap рядом с push/settings.
+- 2026-04-26: В этапе 2 parent-created child может получить технический login `@child.damulab.local`, если родитель не указал email.
+- 2026-04-26: `ParentStudentLink` не запрещает несколько родителей на одного ученика на уровне БД; это оставлено как продуктовый gap до уточнения.
+- 2026-04-26: PWA baseline ограничен public shell cache и installability assets; authenticated offline flows не входят в этап 2.
+- 2026-04-26: MVP не включает подтверждение регистрации через email. Email используется как логин.
+- 2026-04-26: SMTP, password reset через email и email-рассылки относятся к последующим релизам.
+- 2026-04-26: MVP не должен блокироваться полноценной AI Content Factory, Arena real-time, streak/achievements и LMS checkpoints.
+- 2026-04-26: Для новых агентов обязательны `AGENT_WORKFLOW.md` и `AGENT_PROGRESS_LOG.md`.
+- 2026-04-26: `Damulab_Vision_Scope.md` является продуктовым vision; при конфликте MVP scope берется из `01_SYSTEM_SPECIFICATION.md` и `02_IMPLEMENTATION_PLAN.md`.
+- 2026-04-26: MVP frontend реализуется через Spring MVC + Thymeleaf; отдельный SPA является возможным будущим этапом.
+- 2026-04-26: Этап 3 закрыт с server-rendered admin UI, REST endpoints для тем и атомарных навыков, минимальным audit log; `GET /api/content/references` используется как общий источник справочников для будущих вопросов и лекций.
+- 2026-04-26: Этап 4 начат вертикальным срезом банка вопросов. Правильные ответы хранятся на backend в `question_versions.answer_key_json`; клиентская форма только собирает данные, а validation и будущая проверка ответов остаются серверными.
+- 2026-04-26: Этап 5 начат вертикальным срезом Testing Hub. Активная сессия не отдает правильные ответы; `answer_key_json` используется только серверным checker, а correct answers появляются в result DTO после идемпотентного finish.
+- 2026-04-27: Этап 6 начат вертикальным срезом analytics. `SkillMastery` обновляется из `AnswerEvaluation` после первого finish; parent analytics доступна только через `parent_student_links`; prediction в MVP остается простым объяснимым агрегатом, не ML.
+- 2026-04-27: Этап 7 начат вертикальным срезом student engagement. Полезная активность для streak/achievements пока равна первому успешному finish тестовой сессии; streak считается по UTC-дате; notification settings сохраняются в профиле, но реальный push provider еще не подключен.
+- 2026-04-27: Этап 7 считается закрытым для перехода к этапу 8: dashboard API, header language persistence, tests, build и browser/mobile QA выполнены; расширенная игровая экономика остается post-MVP.
+- 2026-04-27: Этап 8 начат вертикальным срезом lectures/LMS. Лекция публикуется только с темой и RU/KK контентом; textarea-контент хранится как экранированный HTML; auto/manual checkpoints ссылаются только на опубликованные вопросы той же темы; full checkpoint attempt flow остается post-MVP.
+- 2026-04-27: Для дозакрытия этапа 8 rich editor не подключается через CDN; safe textarea fallback остается production-путем, а локальный Quill/KaTeX выносится в отдельный asset task.
+- 2026-04-27: AI Content Factory не получает персональные данные или прямые идентификаторы внешним провайдерам; тестовые результаты, связанные с конкретным учеником, минимизируются/обезличиваются перед AI; AI output публикуется только после human review.
+- 2026-04-27: Stage 9 first slice использует только `StubAiProvider`; approve AI item создает вопрос в статусе `needs_review`, а не `published`; outbound provider DTO хранится/передается с sanitized methodist instruction и без raw internal IDs.
+- 2026-04-27: Для следующих срезов Stage 9 выбран provider direction: OpenAI основной, DeepSeek запасной/более дешевый; реальные вызовы остаются только через server-side adapter/config/feature flag.
+- 2026-04-27: Stage 9 считается закрытым в текущем engineering scope: real provider adapters присутствуют, но external calls выключены по умолчанию; backend schema validation и human review являются обязательными gates.
+- 2026-04-28: Stage 10 first slice использует `StubPushProvider`; ручные push хранятся в DB-backed outbox, input time интерпретируется через `damulab.ui.server-time-zone`, а production push provider/device-token registration остаются отдельным integration slice.
+- 2026-04-28: Stage 10 закрыт в текущем MVP-scope после browser/mobile QA и UI polish admin page; production push provider, real device-token registration и real PWA permission/delivery QA остаются отдельным provider integration slice.
+
+## Risks
+
+- Scope creep: vision содержит AI, Arena, predictive scoring и gamification; агенты могут ошибочно принять это за MVP. Митигация: всегда сверяться с `01_SYSTEM_SPECIFICATION.md` и `02_IMPLEMENTATION_PLAN.md`.
+- Auth drift: старый пункт `email verification stub` в плане может вернуть ненужную SMTP-зависимость. Митигация: синхронизировать план.
+- Frontend drift: vision упоминает SPA, но MVP должен идти через server-rendered Thymeleaf. Митигация: закрепить в prompt и архитектуре.
+- Context loss: без обновления progress log следующий чат будет повторно выяснять решения. Митигация: считать обновление `AGENT_PROGRESS_LOG.md` частью DoD.

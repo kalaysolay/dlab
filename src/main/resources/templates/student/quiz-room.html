@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Комната викторины</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page quiz-room-page"
+          data-quiz-room
+          th:attr="data-room-code=${room.code},data-room-status=${room.status},data-api-url=@{/api/quiz/rooms/{code}(code=${room.code})},data-results-url=@{/student/quiz/rooms/{code}/results(code=${room.code})},data-ws-url=@{/ws/quiz}">
+        <section class="panel quiz-room-head">
+            <div>
+                <span class="section-kicker">Комната <strong th:text="${room.code}">QZ7K2M</strong></span>
+                <h1 class="page-title">
+                    <span th:text="${room.subjectTitle}">Математика</span>
+                    <span class="muted-inline" th:text="${room.gradeTitle}">4 класс</span>
+                </h1>
+                <p class="lede">
+                    <span th:text="${room.questionCount}">5</span> вопросов ·
+                    <span th:text="${room.roundSeconds}">20</span> сек. на раунд ·
+                    <span th:text="${room.language}">ru</span>
+                </p>
+            </div>
+            <div class="quiz-code-box">
+                <span>Код</span>
+                <strong th:text="${room.code}">QZ7K2M</strong>
+                <span class="badge" id="quizStatus" th:text="${room.status}">waiting</span>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="page-head compact-head">
+                <h2 class="section-title">Участники</h2>
+                <span class="muted-line">До старта все игроки должны подтвердить готовность</span>
+            </div>
+            <div class="participant-list" id="quizParticipants" th:attr="data-round-count=${room.rounds.size()}">
+                <div class="participant-row" th:each="participant : ${room.participants}">
+                    <div>
+                        <strong th:text="${participant.displayName}">Demo Student</strong>
+                        <span class="muted-line" th:if="${participant.currentStudent}">Это вы</span>
+                    </div>
+                    <span class="badge warning" th:if="${participant.host}">Хост</span>
+                    <span class="badge success" th:if="${participant.ready}">Готов</span>
+                    <span class="badge" th:if="${!participant.ready}">Ожидает</span>
+                    <span class="muted-line" th:if="${room.status == 'active'}">
+                        Ответов: <span th:text="${participant.answeredRounds}">0</span>/<span th:text="${room.rounds.size()}">5</span>
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel quiz-lobby-panel" id="quizLobbyPanel" th:if="${room.status == 'waiting' and room.host}">
+            <h2 class="section-title">Лобби хоста</h2>
+            <p class="lede">Передайте код комнаты участникам и запустите игру, когда все отмечены как готовые.</p>
+            <div class="actions" id="quizWaitingActions">
+                <form th:action="@{/student/quiz/rooms/{code}/ready(code=${room.code})}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button class="button" type="submit">Я готов</button>
+                </form>
+                <form th:action="@{/student/quiz/rooms/{code}/start(code=${room.code})}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button class="button primary" type="submit">Начать игру</button>
+                </form>
+                <a class="button" th:href="@{/student/quiz}">Назад</a>
+            </div>
+        </section>
+
+        <section class="panel quiz-lobby-panel" id="quizGuestPanel" th:if="${room.status == 'waiting' and !room.host}">
+            <h2 class="section-title">Лобби игрока</h2>
+            <p class="lede">Отметьте готовность и дождитесь общего старта от хоста.</p>
+            <div class="actions" id="quizWaitingActions">
+                <form th:action="@{/student/quiz/rooms/{code}/ready(code=${room.code})}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button class="button primary" type="submit">Я готов</button>
+                </form>
+                <a class="button" th:href="@{/student/quiz}">Покинуть комнату</a>
+            </div>
+        </section>
+
+        <form th:if="${room.status == 'active'}" th:action="@{/student/quiz/rooms/{code}/answers(code=${room.code})}" method="post" id="quizForm">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <section class="panel quiz-progress-panel">
+                <div class="test-nav quiz-round-nav" id="quizRoundNav">
+                    <a th:each="round : ${room.rounds}" th:href="${'#round-' + round.id}" th:text="${round.orderNo}" th:attr="data-round-link=${round.id}">1</a>
+                </div>
+                <div class="timer-box compact-timer" th:attr="data-seconds=${room.roundSeconds}">
+                    <span>Раунд</span>
+                    <strong id="quizTimer">--:--</strong>
+                </div>
+            </section>
+
+            <section class="panel question-panel quiz-round-panel"
+                     th:each="round : ${room.rounds}"
+                     th:id="${'round-' + round.id}"
+                     th:attr="data-round-id=${round.id},data-round-order=${round.orderNo},data-round-type=${round.type},data-round-answered=${round.answered}">
+                <div class="question-kicker">
+                    <span class="badge" th:text="${round.type}">SCQ</span>
+                    <span>Раунд <span th:text="${round.orderNo}">1</span> из <span th:text="${room.rounds.size()}">5</span></span>
+                    <span class="badge success" th:if="${round.answered}">Ответ сохранен</span>
+                    <span class="muted-line" th:text="${round.topicTitle}">Тема</span>
+                </div>
+                <h2 th:text="${round.body}">Текст вопроса</h2>
+
+                <div class="answer-block" th:if="${round.type == 'SCQ'}">
+                    <label class="answer-option" th:each="option : ${round.options}">
+                        <input type="radio" th:name="${'answer_' + round.id}" th:value="${option.label}">
+                        <span>
+                            <strong th:text="${option.label}">A</strong>
+                            <span th:text="${option.text}">Вариант</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="answer-block" th:if="${round.type == 'MCQ'}">
+                    <label class="answer-option" th:each="option : ${round.options}">
+                        <input type="checkbox" th:name="${'answer_' + round.id}" th:value="${option.label}">
+                        <span>
+                            <strong th:text="${option.label}">A</strong>
+                            <span th:text="${option.text}">Вариант</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="matching-answer" th:if="${round.type == 'MATCHING'}">
+                    <label class="field" th:each="left,leftStat : ${round.matchingLeft}" th:attr="data-left-value=${left.value}">
+                        <span th:text="${left.text}">50%</span>
+                        <select th:name="${'match_' + round.id + '_' + leftStat.index}">
+                            <option value="">Выберите пару</option>
+                            <option th:each="right : ${round.matchingRight}" th:value="${right.value}" th:text="${right.text}">0.5</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="answer-block fill-answer" th:if="${round.type == 'FILL_IN'}">
+                    <label class="field" th:each="placeholder,fillStat : ${round.fillPlaceholders}" th:attr="data-placeholder=${placeholder}">
+                        <span th:text="${placeholder}">[[1]]</span>
+                        <input th:name="${'fill_' + round.id + '_' + fillStat.index}" autocomplete="off">
+                    </label>
+                </div>
+            </section>
+
+            <section class="panel">
+                <p class="notice quiz-submit-status" id="quizSubmitStatus" hidden></p>
+                <div class="actions">
+                    <button class="button primary" type="submit" id="quizSubmitButton">Отправить ответ</button>
+                    <a class="button" th:href="@{/student/quiz}">Выйти</a>
+                </div>
+            </section>
+        </form>
+
+        <section class="panel" id="quizFinishedPanel" th:if="${room.status == 'finished'}">
+            <h2 class="section-title">Викторина завершена</h2>
+            <a class="button primary" th:href="@{/student/quiz/rooms/{code}/results(code=${room.code})}">Показать результаты</a>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/quiz-room.js}" defer></script>
+</body>
+</html>

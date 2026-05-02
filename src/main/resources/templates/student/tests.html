@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Тесты Damulab.kz</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page student-tests-page">
+        <section class="tests-hero">
+            <p class="section-kicker">Testing Hub</p>
+            <h1>Выбери формат тестирования и запусти сессию</h1>
+            <p>Модуль объединяет классические тесты и интерактивные задания в единый поток: выбор категории, настройка параметров и запуск уникальной сессии.</p>
+        </section>
+
+        <section class="panel">
+            <h2 class="section-title">Типы тестов</h2>
+            <div class="test-type-grid mockup">
+                <article class="test-type-card mockup-active">
+                    <span class="badge">Активный</span>
+                    <h2>Тест по предметам</h2>
+                    <p>Сценарий, доступный сейчас в MVP.</p>
+                </article>
+                <article class="test-type-card">
+                    <h2>МОДО</h2>
+                    <p>Мониторинг образовательных достижений.</p>
+                </article>
+                <article class="test-type-card">
+                    <h2>СОР</h2>
+                    <p>Суммативное оценивание за раздел.</p>
+                </article>
+                <article class="test-type-card">
+                    <h2>СОЧ</h2>
+                    <p>Суммативное оценивание за четверть.</p>
+                </article>
+                <article class="test-type-card">
+                    <h2>Тест по казахскому языку</h2>
+                    <p>Для школ с русским языком обучения.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel test-flow">
+            <div class="page-head compact-head">
+                <h2 class="section-title">Flow: запуск предметного среза</h2>
+                <span class="badge success">Предметный срез</span>
+            </div>
+
+            <div class="test-flow-steps">
+                <article class="test-flow-step">
+                    <span class="section-kicker">Шаг 1</span>
+                    <strong>Тип</strong>
+                    <span class="muted-line">Выбор категории теста.</span>
+                </article>
+                <article class="test-flow-step">
+                    <span class="section-kicker">Шаг 2</span>
+                    <strong>Параметры</strong>
+                    <span class="muted-line">Фильтры: предмет -> класс -> язык.</span>
+                </article>
+                <article class="test-flow-step">
+                    <span class="section-kicker">Шаг 3</span>
+                    <strong>Инициализация</strong>
+                    <span class="muted-line">Подбор вопросов и запуск сессии.</span>
+                </article>
+            </div>
+
+            <div class="alert error" th:if="${error}" th:text="${error}">Ошибка</div>
+
+            <form class="form wide-form" th:action="@{/student/test-sessions}" th:object="${startTestSessionRequest}" method="post">
+                <input type="hidden" th:field="*{testType}" value="SUBJECT">
+                <div class="test-flow-filters">
+                    <label class="field">
+                        <span>Предмет</span>
+                        <select th:field="*{subjectId}">
+                            <option th:each="subject : ${subjects}" th:value="${subject.id}" th:text="${subject.titleRu}">Математика</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Класс</span>
+                        <select th:field="*{gradeId}">
+                            <option th:each="grade : ${grades}" th:value="${grade.id}" th:text="${grade.titleRu}">4 класс</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Язык</span>
+                        <select th:field="*{language}">
+                            <option value="ru">Русский</option>
+                            <option value="kk">Қазақша</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Сложность</span>
+                        <select th:field="*{difficulty}">
+                            <option value="">Любая</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Количество вопросов</span>
+                        <input type="number" min="1" max="30" th:field="*{questionCount}">
+                    </label>
+                </div>
+                <div class="test-flow-hint">
+                    <p><strong>Сессия создается как уникальный SessionID</strong> с вопросами по выбранным параметрам. Поддерживаемые типы: SCQ, MCQ, MATCHING, FILL_IN.</p>
+                </div>
+                <div class="actions">
+                    <button class="button primary" type="submit">Начать тестирование</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel" th:if="${!recentSessions.isEmpty()}">
+            <h2 class="section-title">Последние сессии</h2>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Тип</th>
+                        <th>Предмет</th>
+                        <th>Статус</th>
+                        <th>Действие</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="recent : ${recentSessions}">
+                        <td th:text="${recent.id}">1</td>
+                        <td th:text="${recent.testType}">SUBJECT</td>
+                        <td>
+                            <strong th:text="${recent.subjectTitle}">Математика</strong>
+                            <span class="muted-line" th:text="${recent.gradeTitle}">4 класс</span>
+                        </td>
+                        <td><span class="badge" th:text="${recent.status}">in_progress</span></td>
+                        <td>
+                            <a th:if="${recent.status == 'finished'}" th:href="@{/student/test-sessions/{id}/result(id=${recent.id})}">Результат</a>
+                            <a th:if="${recent.status != 'finished'}" th:href="@{/student/test-sessions/{id}(id=${recent.id})}">Продолжить</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

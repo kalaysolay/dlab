@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Дерево тем</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<ul class="topic-tree-list" th:fragment="topicNodes(nodes)">
+    <li th:each="node : ${nodes}">
+        <details open>
+            <summary>
+                <a th:href="@{/admin/topics/tree(subjectId=${selectedSubjectId},gradeId=${selectedGradeId},topicId=${node.id})}"
+                   th:text="${node.titleRu}">Проценты</a>
+                <span th:text="${node.titleKk}">Пайыздар</span>
+            </summary>
+            <div th:if="${!#lists.isEmpty(node.children)}"
+                 th:replace="~{admin/topic-tree :: topicNodes(${node.children})}"></div>
+        </details>
+    </li>
+</ul>
+
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title">Дерево тем</h1>
+                    <p class="lede">Иерархия предмет -> класс -> тема -> подтема для вопросов и аналитики.</p>
+                </div>
+                <a class="button" th:href="@{/admin/topics(subjectId=${selectedSubjectId},gradeId=${selectedGradeId})}">
+                    К списку
+                </a>
+            </div>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <form class="filter-bar" method="get" th:action="@{/admin/topics/tree}">
+                <label class="field compact">
+                    <span>Предмет</span>
+                    <select name="subjectId">
+                        <option th:each="subject : ${subjects}"
+                                th:value="${subject.id}"
+                                th:selected="${subject.id == selectedSubjectId}"
+                                th:text="${subject.titleRu}">Математика</option>
+                    </select>
+                </label>
+                <label class="field compact">
+                    <span>Класс</span>
+                    <select name="gradeId">
+                        <option th:each="grade : ${grades}"
+                                th:value="${grade.id}"
+                                th:selected="${grade.id == selectedGradeId}"
+                                th:text="${grade.titleRu}">4 класс</option>
+                    </select>
+                </label>
+                <button class="button" type="submit">Показать</button>
+            </form>
+
+            <section class="split-layout">
+                <article class="subpanel">
+                    <h2 class="section-title">Темы</h2>
+                    <div class="empty-state" th:if="${#lists.isEmpty(tree)}">
+                        <strong>Дерево пустое</strong>
+                        <span>Создайте корневую тему в списке или через форму справа.</span>
+                    </div>
+                    <div th:if="${!#lists.isEmpty(tree)}" th:replace="~{admin/topic-tree :: topicNodes(${tree})}"></div>
+                </article>
+
+                <article class="subpanel">
+                    <h2 class="section-title" th:text="${selectedTopic == null ? 'Новая тема' : 'Редактирование темы'}">
+                        Редактирование темы
+                    </h2>
+                    <form class="form wide-form"
+                          method="post"
+                          th:action="${selectedTopic == null} ? @{/admin/topics} : @{/admin/topics/{id}(id=${selectedTopic.id})}"
+                          th:object="${topicForm}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" th:field="*{subjectId}">
+                        <input type="hidden" th:field="*{gradeId}">
+                        <label class="field">
+                            <span>Родительская тема</span>
+                            <select th:field="*{parentId}">
+                                <option value="">Без родителя</option>
+                                <option th:each="topic : ${topics}"
+                                        th:value="${topic.id}"
+                                        th:text="${topic.titleRu}">Проценты</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Код</span>
+                            <input th:field="*{code}" placeholder="percent-basics">
+                        </label>
+                        <label class="field">
+                            <span>Название RU</span>
+                            <input th:field="*{titleRu}" required>
+                        </label>
+                        <label class="field">
+                            <span>Название KK</span>
+                            <input th:field="*{titleKk}" required>
+                        </label>
+                        <div class="actions">
+                            <button class="button primary" type="submit">Сохранить</button>
+                            <a class="button"
+                               th:if="${selectedTopic != null}"
+                               th:href="@{/admin/topics/tree(subjectId=${selectedSubjectId},gradeId=${selectedGradeId})}">
+                                Снять выбор
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="skill-section" th:if="${selectedTopic != null}">
+                        <hr class="divider">
+                        <h2 class="section-title">Атомарные навыки</h2>
+                        <p class="muted-line">Навыки используются как точная привязка вопросов, результатов и будущей аналитики.</p>
+
+                        <div class="empty-state" th:if="${#lists.isEmpty(selectedSkills)}">
+                            <strong>Навыков пока нет</strong>
+                            <span>Добавьте первый атомарный навык для выбранной темы.</span>
+                        </div>
+
+                        <div class="skill-list" th:if="${!#lists.isEmpty(selectedSkills)}">
+                            <form class="skill-row"
+                                  th:each="skill : ${selectedSkills}"
+                                  method="post"
+                                  th:action="@{/admin/skills/{id}(id=${skill.id})}">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <input type="hidden" name="topicId" th:value="${selectedTopic.id}">
+                                <label class="field">
+                                    <span>Код</span>
+                                    <input name="code" th:value="${skill.code}">
+                                </label>
+                                <label class="field">
+                                    <span>RU</span>
+                                    <input name="titleRu" th:value="${skill.titleRu}" required>
+                                </label>
+                                <label class="field">
+                                    <span>KK</span>
+                                    <input name="titleKk" th:value="${skill.titleKk}" required>
+                                </label>
+                                <label class="checkbox-field">
+                                    <input type="hidden" name="active" value="false">
+                                    <input type="checkbox" name="active" value="true" th:checked="${skill.active}">
+                                    <span>Активен</span>
+                                </label>
+                                <div class="row-actions">
+                                    <button class="button" type="submit">Обновить</button>
+                                    <button class="button danger"
+                                            type="submit"
+                                            th:formaction="@{/admin/skills/{id}/delete(id=${skill.id})}">
+                                        Удалить
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <h3 class="section-title small-title">Добавить навык</h3>
+                        <form class="form wide-form"
+                              method="post"
+                              th:action="@{/admin/topics/{id}/skills(id=${selectedTopic.id})}"
+                              th:object="${skillForm}">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <input type="hidden" th:field="*{topicId}" th:value="${selectedTopic.id}">
+                            <label class="field">
+                                <span>Код</span>
+                                <input th:field="*{code}" placeholder="calculate-percent-value">
+                            </label>
+                            <label class="field">
+                                <span>Название RU</span>
+                                <input th:field="*{titleRu}" required>
+                            </label>
+                            <label class="field">
+                                <span>Название KK</span>
+                                <input th:field="*{titleKk}" required>
+                            </label>
+                            <label class="checkbox-field">
+                                <input th:field="*{active}" type="checkbox">
+                                <span>Активен</span>
+                            </label>
+                            <div class="actions">
+                                <button class="button primary" type="submit">Добавить навык</button>
+                            </div>
+                        </form>
+                    </div>
+                </article>
+            </section>
+        </section>
+    </main>
+    <div th:replace="~{fragments/modal :: modalShell}"></div>
+</div>
+</body>
+</html>

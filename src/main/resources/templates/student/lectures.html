@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Лекции Damulab.kz</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page">
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title">Лекции</h1>
+                    <p class="lede">Короткие материалы от методиста. Контроль понимания показывает вопросы без раскрытия правильных ответов.</p>
+                </div>
+                <a class="button" th:href="@{/student}">В кабинет</a>
+            </div>
+
+            <div class="empty-state" th:if="${#lists.isEmpty(lectures)}">
+                <strong>Лекции пока не опубликованы</strong>
+                <span>Методист готовит первые материалы.</span>
+            </div>
+
+            <div class="lecture-list" th:if="${!#lists.isEmpty(lectures)}">
+                <article class="lecture-card" th:each="lecture : ${lectures}">
+                    <div>
+                        <span class="badge success" th:text="${lecture.topicTitleRu ?: 'Без темы'}">Проценты</span>
+                        <h2 th:text="${lecture.titleRu ?: lecture.titleKk}">Проценты в повседневной жизни</h2>
+                        <p th:text="${lecture.source ?: 'Материал Damulab'}">Источник</p>
+                    </div>
+                    <div class="lecture-card-meta">
+                        <span class="badge" th:text="${lecture.attachmentCount + ' влож.'}">0 влож.</span>
+                        <span class="badge" th:text="${lecture.checkpointCount + ' вопросов'}">0 вопросов</span>
+                        <a class="button primary" th:href="@{/student/lectures/{id}(id=${lecture.id})}">Открыть</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Карточка ребенка</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/header :: header}"></header>
+    <main class="page profile-layout parent-detail-page">
+        <section class="panel">
+            <div class="page-head parent-detail-head">
+                <div>
+                    <a th:href="@{/parent}">Назад к детям</a>
+                    <span class="badge success">Детальная карточка</span>
+                    <h1 class="page-title" th:text="${child.fullName()}">Demo Student</h1>
+                    <p class="lede">Прогресс по завершенным тестам, слабые темы и последние ошибки ребенка.</p>
+                </div>
+            </div>
+
+            <div class="meta-grid">
+                <div class="metric">
+                    <strong>Класс</strong>
+                    <span th:text="${child.gradeNo() == null ? 'не указан' : child.gradeNo()}">4</span>
+                </div>
+                <div class="metric">
+                    <strong>Язык</strong>
+                    <span th:text="${child.preferredLanguage()}">ru</span>
+                </div>
+                <div class="metric">
+                    <strong>Последний тест</strong>
+                    <span th:text="${analytics.lastResultAt() == null ? 'нет данных' : analytics.lastResultAt()}">нет данных</span>
+                </div>
+            </div>
+
+            <div class="meta-grid">
+                <div class="metric">
+                    <strong>Mastery</strong>
+                    <span th:text="${analytics.overallMasteryPercent() + '%'}">0%</span>
+                </div>
+                <div class="metric">
+                    <strong>Средний результат</strong>
+                    <span th:text="${analytics.averagePercent() + '%'}">0%</span>
+                </div>
+                <div class="metric">
+                    <strong>Тестов завершено</strong>
+                    <span th:text="${analytics.testsCompleted()}">0</span>
+                </div>
+            </div>
+
+            <h2 class="section-title">Слабые темы</h2>
+            <div class="empty-state" th:if="${#lists.isEmpty(analytics.knowledgeMap())}">
+                <strong>Пока нет результатов</strong>
+                <span>После первого завершенного теста здесь появится карта знаний.</span>
+            </div>
+            <div class="knowledge-list" th:if="${!#lists.isEmpty(analytics.knowledgeMap())}">
+                <article class="knowledge-row" th:each="item : ${analytics.knowledgeMap()}">
+                    <div>
+                        <strong th:text="${item.atomicSkillTitle() == null ? item.topicTitle() : item.atomicSkillTitle()}">Тема</strong>
+                        <span th:if="${item.atomicSkillTitle() != null}" th:text="${item.topicTitle()}">Навык</span>
+                    </div>
+                    <div class="mastery-bar">
+                        <span th:style="'width:' + ${item.masteryPercent()} + '%'"></span>
+                    </div>
+                    <b th:text="${item.masteryPercent() + '%'}">0%</b>
+                </article>
+            </div>
+
+            <h2 class="section-title">Последние ошибки</h2>
+            <div class="empty-state" th:if="${#lists.isEmpty(analytics.lastErrors())}">
+                <strong>Ошибок нет</strong>
+                <span>Список обновляется после завершения тестов.</span>
+            </div>
+            <div class="result-list" th:if="${!#lists.isEmpty(analytics.lastErrors())}">
+                <article class="result-row" th:each="error : ${analytics.lastErrors()}">
+                    <h3 th:text="${error.questionBody()}">Вопрос</h3>
+                    <p class="muted-line" th:text="${error.topicTitle()}">Тема</p>
+                    <div class="notice" th:if="${error.explanation() != null}">
+                        <strong>Что повторить</strong>
+                        <span th:text="${error.explanation()}">Разбор</span>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <aside class="panel profile-summary parent-connect-panel">
+            <span class="badge">Связка аккаунтов</span>
+            <h2>Доступ</h2>
+            <dl>
+                <dt>Email</dt>
+                <dd th:text="${child.email()}">student@example.com</dd>
+                <dt>ID профиля</dt>
+                <dd th:text="${child.studentId()}">1</dd>
+            </dl>
+            <div class="link-code-panel" th:if="${linkCode != null}">
+                <div class="qr-frame" th:utext="${linkCode.qrSvg()}"></div>
+                <div>
+                    <strong>Код привязки</strong>
+                    <span class="badge success">Активен</span>
+                    <code th:text="${linkCode.code()}">ABCD2345</code>
+                    <small th:text="'Действует до ' + ${linkCode.expiresAt()}">Действует 15 минут</small>
+                </div>
+            </div>
+            <div class="notice" th:if="${linkCode == null}">
+                <strong>Код привязки</strong>
+                <span>Сгенерируйте одноразовый код или QR для второго родителя.</span>
+            </div>
+            <form class="form" th:action="@{/parent/children/{id}/link-code(id=${child.studentId()})}" method="post">
+                <button class="button primary" type="submit">Сгенерировать код</button>
+            </form>
+        </aside>
+    </main>
+</div>
+</body>
+</html>

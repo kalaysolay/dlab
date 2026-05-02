@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Сессия теста</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell student-test-session-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page session-page student-test-session-page">
+        <section class="panel session-shell-head">
+            <div class="session-shell-title">
+                <p class="section-kicker">Тест по предметам</p>
+                <h1 class="page-title"><span th:text="${testSession.subjectTitle}">Математика</span></h1>
+                <p class="lede"><span th:text="${testSession.gradeTitle}">4 класс</span> · SessionID: <span th:text="${testSession.id}">1</span> · Тестовая сессия</p>
+            </div>
+            <div class="session-shell-right">
+                <div class="timer-box" th:attr="data-seconds=${testSession.timeLimitSeconds}">
+                    <span>Таймер</span>
+                    <strong id="testTimer">--:--</strong>
+                </div>
+                <button class="button" id="openExitModal" type="button">Выйти из теста</button>
+            </div>
+        </section>
+
+        <section class="panel session-progress-panel">
+            <div class="session-progress-head">
+                <p class="section-kicker">Навигация по вопросам</p>
+                <p class="muted-line">Отвечено: <span id="answeredCount">0</span> · Не отвечено: <span id="unansweredCount" th:text="${testSession.questions.size()}">0</span></p>
+            </div>
+            <div class="test-nav" id="questionNav">
+                <button type="button"
+                        th:each="question : ${testSession.questions}"
+                        th:attr="data-question-index=${question.orderNo - 1}"
+                        th:text="${question.orderNo}">1</button>
+            </div>
+            <div class="notice">
+                <strong>Подсказка по Fill-In:</strong>
+                <span>Если в тексте есть метки <code>[[1]]</code>, <code>[[2]]</code>, заполните поля с такими же индексами внизу.</span>
+            </div>
+        </section>
+
+        <form th:action="@{/student/test-sessions/{id}/finish(id=${testSession.id})}" method="post" id="testForm" class="session-form">
+            <th:block th:each="question : ${testSession.questions}">
+                <th:block th:replace="~{fragments/question-renderer :: sessionQuestion(${question}, ${testSession.questions.size()})}"></th:block>
+            </th:block>
+
+            <section class="panel session-actions session-footer">
+                <div class="actions session-footer-nav">
+                    <button class="button" id="prevQuestionButton" type="button">Предыдущий</button>
+                    <button class="button primary" id="nextQuestionButton" type="button">Следующий</button>
+                </div>
+                <div class="actions session-footer-submit">
+                    <button class="button primary" id="openFinishModal" type="button">Завершить тест</button>
+                </div>
+            </section>
+
+            <div id="finishSessionModal" class="modal-layer" hidden>
+                <div class="modal-backdrop" data-close-modal="finishSessionModal"></div>
+                <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="finishSessionTitle">
+                    <div class="modal-head">
+                        <h2 id="finishSessionTitle">Завершить тест?</h2>
+                    </div>
+                    <p class="lede">После подтверждения откроется страница результата.</p>
+                    <div class="actions">
+                        <button class="button primary" type="submit">Подтвердить</button>
+                        <button class="button" type="button" data-close-modal="finishSessionModal">Отмена</button>
+                    </div>
+                </section>
+            </div>
+        </form>
+
+        <div id="exitSessionModal" class="modal-layer" hidden>
+            <div class="modal-backdrop" data-close-modal="exitSessionModal"></div>
+            <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exitSessionTitle">
+                <div class="modal-head">
+                    <h2 id="exitSessionTitle">Выйти из теста?</h2>
+                </div>
+                <p class="lede">Неотправленные ответы на этой странице не сохранятся.</p>
+                <div class="actions">
+                    <a class="button danger" th:href="@{/student/tests}">Прервать тестирование</a>
+                    <button class="button" type="button" data-close-modal="exitSessionModal">Продолжить</button>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+<script>
+    const timerBox = document.querySelector(".timer-box");
+    const timer = document.getElementById("testTimer");
+    let seconds = Number(timerBox?.dataset.seconds || 0);
+
+    const renderTimer = () => {
+        const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+        const rest = String(seconds % 60).padStart(2, "0");
+        timer.textContent = `${minutes}:${rest}`;
+    };
+    renderTimer();
+    window.setInterval(() => {
+        if (seconds > 0) {
+            seconds -= 1;
+            renderTimer();
+        }
+    }, 1000);
+
+    const questionPanels = Array.from(document.querySelectorAll(".question-panel"));
+    const questionLinks = Array.from(document.querySelectorAll("#questionNav button"));
+    const prevButton = document.getElementById("prevQuestionButton");
+    const nextButton = document.getElementById("nextQuestionButton");
+    const finishModal = document.getElementById("finishSessionModal");
+    const exitModal = document.getElementById("exitSessionModal");
+    const openFinishModal = document.getElementById("openFinishModal");
+    const openExitModal = document.getElementById("openExitModal");
+    let currentIndex = 0;
+
+    const renderInlineFillQuestions = () => {
+        const blocks = Array.from(document.querySelectorAll(".fill-inline-question"));
+        const placeholderPattern = /(\[\[\d+]])/g;
+        blocks.forEach((block) => {
+            const body = block.querySelector(".fill-inline-body");
+            const bank = block.querySelector(".fill-inline-bank");
+            if (!body || !bank) return;
+            const source = block.dataset.fillBody || body.textContent || "";
+            const inputByPlaceholder = new Map();
+            Array.from(bank.querySelectorAll("input[data-fill-placeholder]")).forEach((input) => {
+                input.classList.add("fill-inline-input");
+                inputByPlaceholder.set(input.dataset.fillPlaceholder, input);
+            });
+
+            const parts = source.split(placeholderPattern);
+            body.textContent = "";
+            parts.forEach((part) => {
+                const input = inputByPlaceholder.get(part);
+                if (input) {
+                    body.appendChild(input);
+                } else if (part) {
+                    body.appendChild(document.createTextNode(part));
+                }
+            });
+        });
+    };
+    renderInlineFillQuestions();
+
+    const isPanelAnswered = (panel) => {
+        const checked = panel.querySelectorAll("input[type='radio']:checked, input[type='checkbox']:checked").length > 0;
+        const selected = Array.from(panel.querySelectorAll("select")).some((select) => select.value);
+        const hiddenMatched = Array.from(panel.querySelectorAll("input[type='hidden'][name^='match_']")).some((input) => input.value);
+        const filled = Array.from(panel.querySelectorAll("input:not([type='radio']):not([type='checkbox']):not([type='hidden'])"))
+            .some((input) => input.value.trim());
+        return checked || selected || hiddenMatched || filled;
+    };
+
+    const updateAnswered = () => {
+        const answered = questionPanels.filter(isPanelAnswered).length;
+        document.getElementById("answeredCount").textContent = String(answered);
+        document.getElementById("unansweredCount").textContent = String(questionPanels.length - answered);
+        questionLinks.forEach((link, index) => {
+            link.classList.toggle("answered", isPanelAnswered(questionPanels[index]));
+            link.classList.toggle("active", index === currentIndex);
+        });
+    };
+
+    const createSvgLine = (x1, y1, x2, y2, stroke, width) => {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", String(x1));
+        line.setAttribute("y1", String(y1));
+        line.setAttribute("x2", String(x2));
+        line.setAttribute("y2", String(y2));
+        line.setAttribute("stroke", stroke);
+        line.setAttribute("stroke-width", String(width));
+        line.setAttribute("stroke-linecap", "round");
+        return line;
+    };
+
+    const matchingControllers = [];
+    const matchingBlocks = Array.from(document.querySelectorAll(".matching-answer[data-question-id]"));
+
+    matchingBlocks.forEach((block) => {
+        const leftButtons = Array.from(block.querySelectorAll(".matching-left-card"));
+        const rightButtons = Array.from(block.querySelectorAll(".matching-right-card"));
+        const hiddenInputs = Array.from(block.querySelectorAll(".matching-hidden-fields input[type='hidden']"));
+        const linesCanvas = block.querySelector(".matching-lines");
+        const selectedLabel = block.querySelector(".matching-selected-label");
+        const hint = block.querySelector(".matching-hint");
+        const links = new Map();
+        let activeLeft = null;
+
+        const paintSelections = () => {
+            leftButtons.forEach((button) => {
+                const leftIndex = Number(button.dataset.leftIndex);
+                const isActive = activeLeft === leftIndex;
+                const isLinked = links.has(leftIndex);
+                button.classList.toggle("active", isActive);
+                button.classList.toggle("linked", isLinked);
+            });
+            rightButtons.forEach((button) => {
+                const rightIndex = Number(button.dataset.rightIndex);
+                const isLinked = Array.from(links.values()).includes(rightIndex);
+                button.classList.toggle("linked", isLinked);
+            });
+        };
+
+        const syncHiddenFields = () => {
+            hiddenInputs.forEach((input, leftIndex) => {
+                if (!links.has(leftIndex)) {
+                    input.value = "";
+                    return;
+                }
+                const rightIndex = links.get(leftIndex);
+                const rightButton = rightButtons.find((button) => Number(button.dataset.rightIndex) === rightIndex);
+                input.value = rightButton?.dataset.rightValue || "";
+            });
+        };
+
+        const drawLines = () => {
+            if (!linesCanvas || leftButtons.length === 0 || rightButtons.length === 0) return;
+            linesCanvas.innerHTML = "";
+            const width = Math.max(linesCanvas.clientWidth, 120);
+            const height = Math.max(linesCanvas.clientHeight, 120);
+            linesCanvas.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            const svgRect = linesCanvas.getBoundingClientRect();
+            if (svgRect.width === 0 || svgRect.height === 0) return;
+
+            const leftCenters = leftButtons.map((button) => {
+                const rect = button.getBoundingClientRect();
+                return rect.top + rect.height / 2 - svgRect.top;
+            });
+            const rightCenters = rightButtons.map((button) => {
+                const rect = button.getBoundingClientRect();
+                return rect.top + rect.height / 2 - svgRect.top;
+            });
+
+            leftCenters.forEach((leftY) => {
+                linesCanvas.appendChild(createSvgLine(8, leftY, width - 8, leftY, "#d6deeb", 3));
+            });
+            links.forEach((rightIndex, leftIndex) => {
+                const leftY = leftCenters[leftIndex];
+                const rightY = rightCenters[rightIndex];
+                if (typeof leftY !== "number" || typeof rightY !== "number") return;
+                linesCanvas.appendChild(createSvgLine(8, leftY, width - 8, rightY, "#5b62e9", 4));
+            });
+        };
+
+        const refresh = () => {
+            paintSelections();
+            syncHiddenFields();
+            drawLines();
+            updateAnswered();
+        };
+
+        leftButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                const leftIndex = Number(button.dataset.leftIndex);
+                activeLeft = activeLeft === leftIndex ? null : leftIndex;
+                if (selectedLabel) {
+                    selectedLabel.textContent = activeLeft === null
+                        ? "Левая карточка не выбрана"
+                        : `Выбрано слева: ${button.textContent.trim()}`;
+                }
+                if (hint) {
+                    hint.textContent = activeLeft === null
+                        ? "Выберите левую карточку."
+                        : "Теперь выберите карточку справа для создания связи.";
+                }
+                paintSelections();
+            });
+        });
+
+        rightButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                if (activeLeft === null) {
+                    if (hint) hint.textContent = "Сначала выберите карточку слева.";
+                    return;
+                }
+                const rightIndex = Number(button.dataset.rightIndex);
+                if (links.get(activeLeft) === rightIndex) {
+                    links.delete(activeLeft);
+                    activeLeft = null;
+                    if (selectedLabel) selectedLabel.textContent = "Левая карточка не выбрана";
+                    if (hint) hint.textContent = "Связь снята.";
+                    refresh();
+                    return;
+                }
+                links.forEach((value, key) => {
+                    if (value === rightIndex && key !== activeLeft) {
+                        links.delete(key);
+                    }
+                });
+                links.set(activeLeft, rightIndex);
+                activeLeft = null;
+                if (selectedLabel) selectedLabel.textContent = "Левая карточка не выбрана";
+                if (hint) hint.textContent = "Связь создана. Выберите следующую пару.";
+                refresh();
+            });
+        });
+
+        matchingControllers.push({ draw: drawLines });
+        refresh();
+    });
+
+    const showQuestion = (index) => {
+        if (questionPanels.length === 0) return;
+        currentIndex = Math.max(0, Math.min(index, questionPanels.length - 1));
+        questionPanels.forEach((panel, panelIndex) => {
+            panel.hidden = panelIndex !== currentIndex;
+        });
+        prevButton.disabled = currentIndex === 0;
+        nextButton.disabled = currentIndex === questionPanels.length - 1;
+        updateAnswered();
+        matchingControllers.forEach((controller) => controller.draw());
+        questionPanels[currentIndex].scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    const openSessionModal = (modal) => {
+        if (!modal) return;
+        modal.hidden = false;
+        requestAnimationFrame(() => modal.classList.add("is-open"));
+        document.body.classList.add("modal-open");
+    };
+
+    const closeSessionModal = (modal) => {
+        if (!modal) return;
+        modal.classList.remove("is-open");
+        const done = () => {
+            modal.hidden = true;
+            modal.removeEventListener("transitionend", done);
+        };
+        modal.addEventListener("transitionend", done);
+        document.body.classList.remove("modal-open");
+    };
+
+    document.getElementById("testForm").addEventListener("change", updateAnswered);
+    document.getElementById("testForm").addEventListener("input", updateAnswered);
+
+    questionLinks.forEach((link, index) => {
+        link.addEventListener("click", () => showQuestion(index));
+    });
+    prevButton.addEventListener("click", () => showQuestion(currentIndex - 1));
+    nextButton.addEventListener("click", () => showQuestion(currentIndex + 1));
+    openFinishModal.addEventListener("click", () => openSessionModal(finishModal));
+    openExitModal.addEventListener("click", () => openSessionModal(exitModal));
+
+    document.querySelectorAll("[data-close-modal]").forEach((button) => {
+        button.addEventListener("click", () => closeSessionModal(document.getElementById(button.dataset.closeModal)));
+    });
+    document.querySelectorAll(".modal-layer").forEach((modal) => {
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal || event.target.classList.contains("modal-backdrop")) {
+                closeSessionModal(modal);
+            }
+        });
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeSessionModal(finishModal);
+            closeSessionModal(exitModal);
+        }
+    });
+    window.addEventListener("resize", () => {
+        matchingControllers.forEach((controller) => controller.draw());
+    });
+
+    showQuestion(0);
+    updateAnswered();
+</script>
+</body>
+</html>

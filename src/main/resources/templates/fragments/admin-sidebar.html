@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside th:fragment="adminSidebar" class="sidebar" aria-label="Админ-навигация">
+    <div class="admin-brand">
+        <div class="brand-mark">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#sparkles}"></use></svg>
+        </div>
+        <div>
+            <h1>Damulab Admin</h1>
+            <p>Admin Console</p>
+        </div>
+    </div>
+    <nav class="admin-nav" aria-label="Разделы админ-панели">
+        <a th:classappend="${activeAdminNav == 'dashboard'} ? 'active'" th:href="@{/admin}">Обзор</a>
+        <a th:classappend="${activeAdminNav == 'topics'} ? 'active'" th:href="@{/admin/topics}">Темы</a>
+        <a th:classappend="${activeAdminNav == 'questions'} ? 'active'" th:href="@{/admin/questions}">Вопросы</a>
+        <a th:classappend="${activeAdminNav == 'question-ai'} ? 'active'" th:href="@{/admin/questions/ai-generate}">AI генерация</a>
+        <a th:classappend="${activeAdminNav == 'question-health'} ? 'active'" th:href="@{/admin/questions/health}">Качество вопросов</a>
+        <a th:classappend="${activeAdminNav == 'question-import'} ? 'active'" th:href="@{/admin/questions/import}">Импорт вопросов</a>
+        <a th:classappend="${activeAdminNav == 'lectures'} ? 'active'" th:href="@{/admin/lectures}">Лекции</a>
+        <a th:classappend="${activeAdminNav == 'push'} ? 'active'" th:href="@{/admin/push-notifications}">Push</a>
+    </nav>
+</aside>
+</body>
+</html>

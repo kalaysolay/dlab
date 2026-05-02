@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: damulab
+  profiles:
+    default: local
+  thymeleaf:
+    cache: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+damulab:
+  ui:
+    server-time-zone: Asia/Almaty
+  ai:
+    provider: ${AI_PROVIDER:stub}
+    fallback-provider: ${AI_FALLBACK_PROVIDER:deepseek}
+    real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:false}
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      model: ${OPENAI_MODEL:gpt-5.2}
+      api-key: ${OPENAI_API_KEY:}
+    deepseek:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      model: ${DEEPSEEK_MODEL:deepseek-chat}
+      api-key: ${DEEPSEEK_API_KEY:}

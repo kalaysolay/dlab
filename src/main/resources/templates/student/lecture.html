@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${lecture.titleRu ?: lecture.titleKk}">Лекция</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page lecture-reader-page">
+        <section class="panel lecture-reader">
+            <div class="lecture-reader-top">
+                <a class="button" th:href="${adminPreview} ? @{/admin/lectures} : @{/student/lectures}">Назад</a>
+                <span class="badge" th:if="${adminPreview}">admin preview</span>
+            </div>
+
+            <div class="lecture-hero">
+                <span class="badge success" th:text="${lecture.topicTitleRu ?: 'Тема не выбрана'}">Проценты</span>
+                <h1 th:text="${lecture.titleRu ?: lecture.titleKk}">Проценты в повседневной жизни</h1>
+                <p th:text="${lecture.source ?: 'Материал Damulab'}">Источник</p>
+            </div>
+
+            <div class="type-tabs compact-tabs" aria-label="Язык лекции">
+                <button class="type-tab active" type="button" data-reader-tab="ru">RU</button>
+                <button class="type-tab" type="button" data-reader-tab="kk">KK</button>
+            </div>
+
+            <article class="lecture-content active" data-reader-panel="ru">
+                <div th:if="${lecture.contentRu != null}" th:utext="${lecture.contentRu}">Текст лекции</div>
+                <div class="notice" th:if="${lecture.contentRu == null}">
+                    <strong>RU версия не заполнена</strong>
+                    <span>Используйте доступную языковую версию.</span>
+                </div>
+            </article>
+
+            <article class="lecture-content" data-reader-panel="kk">
+                <div th:if="${lecture.contentKk != null}" th:utext="${lecture.contentKk}">Лекция мәтіні</div>
+                <div class="notice" th:if="${lecture.contentKk == null}">
+                    <strong>KK нұсқасы жоқ</strong>
+                    <span>Қолжетімді тіл нұсқасын пайдаланыңыз.</span>
+                </div>
+            </article>
+
+            <section class="lecture-materials" th:if="${!lecture.attachments.isEmpty()}">
+                <h2 class="section-title">Материалы</h2>
+                <div class="attachment-list">
+                    <a class="attachment-card"
+                       th:each="attachment : ${lecture.attachments}"
+                       th:href="${attachment.url}"
+                       target="_blank"
+                       rel="noopener noreferrer nofollow">
+                        <strong th:text="${attachment.title}">percent_examples.pdf</strong>
+                        <span th:text="${attachment.mediaType}">pdf</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="lecture-checkpoints" th:if="${!lecture.checkpoints.isEmpty()}">
+                <h2 class="section-title">Проверь себя</h2>
+                <div class="checkpoint-list">
+                    <article class="checkpoint-card" th:each="checkpoint, stat : ${lecture.checkpoints}">
+                        <span class="badge" th:text="${checkpoint.type}">SCQ</span>
+                        <h3 th:text="${stat.count + '. ' + checkpoint.bodyRu}">1. Вопрос</h3>
+                        <p th:text="${checkpoint.bodyKk}">Қазақша сұрақ</p>
+                        <div class="notice">
+                            <strong>Ответы проверяются на сервере</strong>
+                            <span>Полный интерактивный checkpoint-flow подключается после MVP LMS viewer.</span>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </section>
+    </main>
+</div>
+<script>
+    const readerTabs = Array.from(document.querySelectorAll('[data-reader-tab]'));
+    const readerPanels = Array.from(document.querySelectorAll('[data-reader-panel]'));
+    readerTabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+            readerTabs.forEach((item) => item.classList.toggle('active', item === tab));
+            readerPanels.forEach((panel) => panel.classList.toggle('active', panel.dataset.readerPanel === tab.dataset.readerTab));
+        });
+    });
+</script>
+</body>
+</html>

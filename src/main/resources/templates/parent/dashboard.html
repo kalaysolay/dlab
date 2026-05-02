@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="#{dashboard.parent.title}">Кабинет родителя</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/header :: header}"></header>
+    <main class="page parent-layout parent-page">
+        <section class="panel">
+            <div class="student-hero-panel parent-hero">
+                <div>
+                    <span class="badge success">Моя семья</span>
+                    <h1 class="page-title" th:text="#{dashboard.parent.title}">Кабинет родителя</h1>
+                    <p class="lede">Поддерживайте ритм ребенка без давления: карточки, слабые темы и быстрый доступ к прогрессу.</p>
+                </div>
+                <div class="actions">
+                    <span class="badge">Родительский аккаунт</span>
+                    <span class="badge warning">Тесты недоступны</span>
+                </div>
+            </div>
+
+            <div class="notice success" th:if="${param.childCreated}">
+                Ребенок добавлен.
+            </div>
+            <div class="notice success" th:if="${param.childAttached}">
+                Ребенок привязан по коду.
+            </div>
+
+            <div class="empty-state" th:if="${#lists.isEmpty(children)}">
+                <strong>Детей пока нет</strong>
+                <span>Добавьте demo-ребенка через форму или используйте одноразовый код ученика.</span>
+            </div>
+
+            <div class="section-head" th:if="${!#lists.isEmpty(children)}">
+                <span class="badge">Мои дети</span>
+                <h2 class="section-title">Прогресс детей сегодня</h2>
+            </div>
+            <div class="child-list" th:if="${!#lists.isEmpty(children)}">
+                <article class="child-card" th:each="child : ${children}">
+                    <div>
+                        <div class="row-actions">
+                            <h2 th:text="${child.fullName()}">Demo Student</h2>
+                            <span class="badge success">Активен</span>
+                        </div>
+                        <p th:text="${child.email()}">student@example.com</p>
+                        <p class="muted-line">Карточка прогресса и последних ошибок</p>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>Класс</dt>
+                            <dd th:text="${child.gradeNo() == null ? 'не указан' : child.gradeNo()}">4</dd>
+                        </div>
+                        <div>
+                            <dt>Язык</dt>
+                            <dd th:text="${child.preferredLanguage()}">ru</dd>
+                        </div>
+                    </dl>
+                    <a class="button" th:href="@{/parent/children/{id}(id=${child.studentId()})}">Открыть карточку</a>
+                </article>
+            </div>
+
+            <section class="feature-grid">
+                <article class="feature-card">
+                    <span class="badge">Прогресс</span>
+                    <h3>Динамика занятий</h3>
+                    <p>Родитель видит только связанных детей и их учебную динамику.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="badge">Фокус</span>
+                    <h3>Слабые темы</h3>
+                    <p>Карточка ребенка ведет к знаниям, последним ошибкам и рекомендациям.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="badge">События</span>
+                    <h3>Лента активности</h3>
+                    <p>В MVP события представлены через результаты тестов и аналитику.</p>
+                </article>
+            </section>
+        </section>
+
+        <aside class="panel parent-connect-panel">
+            <h2 class="section-title">Добавить ребенка</h2>
+            <div class="type-tabs compact-tabs" aria-label="Способы добавления ребенка">
+                <span class="type-tab active">Через форму</span>
+                <span class="type-tab">По коду</span>
+            </div>
+            <form class="form" th:action="@{/parent/children}" th:object="${createChildForm}" method="post">
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">
+                    Ошибка формы
+                </div>
+                <div class="field">
+                    <label for="fullName">Имя ребенка</label>
+                    <input id="fullName" type="text" th:field="*{fullName}" autocomplete="name" required>
+                    <small class="field-error" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></small>
+                </div>
+                <div class="field">
+                    <label for="email">Email для входа</label>
+                    <input id="email" type="email" th:field="*{email}" autocomplete="email" placeholder="Можно оставить пустым">
+                    <small>Если email не указан, система создаст технический login для demo-ребенка.</small>
+                    <small class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></small>
+                </div>
+                <div class="field">
+                    <label for="gradeNo">Класс</label>
+                    <select id="gradeNo" th:field="*{gradeNo}">
+                        <option value="">Не указан</option>
+                        <option value="1">1 класс</option>
+                        <option value="2">2 класс</option>
+                        <option value="3">3 класс</option>
+                        <option value="4">4 класс</option>
+                        <option value="5">5 класс</option>
+                    </select>
+                    <small class="field-error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></small>
+                </div>
+                <div class="field">
+                    <label for="preferredLanguage">Язык</label>
+                    <select id="preferredLanguage" th:field="*{preferredLanguage}">
+                        <option value="ru">Русский</option>
+                        <option value="kk">Қазақша</option>
+                    </select>
+                    <small class="field-error" th:if="${#fields.hasErrors('preferredLanguage')}" th:errors="*{preferredLanguage}"></small>
+                </div>
+                <button class="button primary" type="submit">Добавить</button>
+            </form>
+
+            <hr class="divider">
+
+            <h2 class="section-title">Привязать по коду</h2>
+            <form class="form" th:action="@{/parent/link-codes/attach}" th:object="${attachChildForm}" method="post">
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="err : ${#fields.globalErrors()}" th:text="${err}">
+                    Код недействителен
+                </div>
+                <div class="field">
+                    <label for="code">Одноразовый код</label>
+                    <input id="code" type="text" th:field="*{code}" inputmode="latin" maxlength="12" placeholder="ABCD2345" required>
+                    <small class="field-error" th:if="${#fields.hasErrors('code')}" th:errors="*{code}"></small>
+                </div>
+                <button class="button" type="submit">Привязать</button>
+            </form>
+        </aside>
+    </main>
+</div>
+</body>
+</html>

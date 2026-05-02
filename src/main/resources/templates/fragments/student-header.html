@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header class="student-header" th:fragment="studentHeader">
+    <div class="student-header-row">
+        <a class="brand brand-link" th:href="@{/student}">
+            <span class="brand-mark">
+                <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#sparkles}"></use></svg>
+            </span>
+            <span class="brand-copy">
+                <strong th:text="#{app.name}">Damulab.kz</strong>
+                <small>Мой путь развития</small>
+            </span>
+        </a>
+        <div class="student-header-actions">
+            <span th:replace="~{fragments/language-switch :: languageSwitch}"></span>
+            <form class="student-logout" th:action="@{/logout}" method="post">
+                <button class="student-logout-button" type="submit">
+                    <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#log-out}"></use></svg>
+                    <span th:text="#{nav.logout}">Выход</span>
+                </button>
+            </form>
+        </div>
+    </div>
+    <nav class="student-nav-grid" aria-label="Навигация ученика">
+        <a th:href="@{/student}" th:classappend="${activeStudentNav == 'home'} ? 'active'">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#home}"></use></svg>
+            <span>Главная</span>
+        </a>
+        <a th:href="@{/student/tests}" th:classappend="${activeStudentNav == 'tests'} ? 'active'">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#clipboard-check}"></use></svg>
+            <span>Тесты</span>
+        </a>
+        <a th:href="@{/student/analytics}" th:classappend="${activeStudentNav == 'analytics'} ? 'active'">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#line-chart}"></use></svg>
+            <span>Аналитика</span>
+        </a>
+        <a th:href="@{/student/quiz}" th:classappend="${activeStudentNav == 'quiz'} ? 'active'">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#brain}"></use></svg>
+            <span>Викторина</span>
+        </a>
+        <button type="button" data-modal-open="achievements-modal">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#trophy}"></use></svg>
+            <span>Достижения</span>
+        </button>
+        <a th:href="@{/student/profile}" th:classappend="${activeStudentNav == 'profile'} ? 'active'">
+            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#user}"></use></svg>
+            <span>Профиль</span>
+        </a>
+    </nav>
+    <div id="achievements-modal" class="modal-layer" hidden>
+        <div class="modal-backdrop" data-modal-close="achievements-modal"></div>
+        <section class="modal-card achievements-dialog" role="dialog" aria-modal="true" aria-labelledby="achievements-title">
+            <div class="modal-head">
+                <h2 id="achievements-title">Мои достижения</h2>
+                <button class="button" type="button" data-modal-close="achievements-modal">Закрыть</button>
+            </div>
+            <div class="achievement-grid" th:if="${!#lists.isEmpty(studentAchievements)}">
+                <article class="achievement-card"
+                         th:each="achievement : ${studentAchievements}"
+                         th:classappend="${achievement.earned()} ? ' earned' : ' locked'">
+                    <span class="badge"
+                          th:classappend="${achievement.earned()} ? ' success' : ''"
+                          th:text="${achievement.earned()} ? 'Получено' : 'В процессе'">Получено</span>
+                    <h3 th:text="${achievement.title()}">Первый срез</h3>
+                    <p th:text="${achievement.description()}">Завершен первый предметный срез.</p>
+                </article>
+            </div>
+            <div class="achievement-grid" th:if="${#lists.isEmpty(studentAchievements)}">
+                <article class="achievement-card locked">
+                    <span class="badge">В процессе</span>
+                    <h3>Стабильный старт</h3>
+                    <p>Завершите первый тест и откройте первую награду.</p>
+                </article>
+                <article class="achievement-card locked">
+                    <span class="badge">В процессе</span>
+                    <h3>Серия в 3 дня</h3>
+                    <p>Учитесь 3 дня подряд, чтобы зафиксировать ритм.</p>
+                </article>
+                <article class="achievement-card locked">
+                    <span class="badge">В процессе</span>
+                    <h3>Первый прогресс</h3>
+                    <p>Поднимите средний балл и откройте новый бейдж.</p>
+                </article>
+            </div>
+        </section>
+    </div>
+    <script>
+        (() => {
+            const openStudentModal = (modal) => {
+                modal.hidden = false;
+                requestAnimationFrame(() => {
+                    modal.classList.add("is-open");
+                });
+                document.body.classList.add("modal-open");
+            };
+
+            const closeStudentModal = (modal) => {
+                modal.classList.remove("is-open");
+                const onDone = () => {
+                    modal.hidden = true;
+                    modal.removeEventListener("transitionend", onDone);
+                };
+                modal.addEventListener("transitionend", onDone);
+                document.body.classList.remove("modal-open");
+            };
+
+            document.querySelectorAll("[data-modal-open]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const modal = document.getElementById(button.dataset.modalOpen);
+                    if (modal) {
+                        openStudentModal(modal);
+                    }
+                });
+            });
+            document.querySelectorAll("[data-modal-close]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const modal = document.getElementById(button.dataset.modalClose);
+                    if (modal) {
+                        closeStudentModal(modal);
+                    }
+                });
+            });
+            document.querySelectorAll(".modal-layer").forEach((modal) => {
+                modal.addEventListener("click", (event) => {
+                    if (event.target === modal || event.target.classList.contains("modal-backdrop")) {
+                        closeStudentModal(modal);
+                    }
+                });
+            });
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    document.querySelectorAll(".modal-layer:not([hidden])").forEach((modal) => {
+                        closeStudentModal(modal);
+                    });
+                }
+            });
+        })();
+    </script>
+    <script th:src="@{/js/pwa.js}" defer></script>
+</header>
+</body>
+</html>

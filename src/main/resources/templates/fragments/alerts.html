@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="alerts">
+    <div class="alert error" th:if="${param.error}">
+        Неверный email или пароль.
+    </div>
+    <div class="alert" th:if="${param.logout}">
+        Вы вышли из системы.
+    </div>
+    <div class="alert" th:if="${param.registered}">
+        Аккаунт создан. Теперь можно войти.
+    </div>
+    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}">
+        Готово
+    </div>
+    <div class="alert error" th:if="${errorMessage}" th:text="${errorMessage}">
+        Ошибка
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Аналитика знаний</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page student-analytics-page">
+        <section class="panel analytics-hero">
+            <div>
+                <span class="section-kicker">Learning Analytics</span>
+                <h1 class="page-title">Аналитика знаний</h1>
+                <p class="lede">Срез по последним тестам, облако освоения и зоны, где стоит усилить практику.</p>
+            </div>
+            <div class="score-ring">
+                <strong th:text="${analytics.overallMasteryPercent() + '%'}">0%</strong>
+                <span>mastery</span>
+            </div>
+        </section>
+
+        <section class="analytics-grid">
+            <article class="panel">
+                <div class="card-title-row">
+                    <svg class="lucide-icon card-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#map}"></use></svg>
+                    <h2>Таймлайн тестов и диагностик</h2>
+                </div>
+                <div class="timeline-list" th:if="${!#lists.isEmpty(analytics.timeline())}">
+                    <a class="timeline-row"
+                       th:each="item : ${analytics.timeline()}"
+                       th:href="@{/student/test-sessions/{id}/result(id=${item.sessionId()})}">
+                        <strong th:text="${item.percent() + '%'}">80%</strong>
+                        <span th:text="${item.subjectTitle() == null ? item.testType() : item.subjectTitle()}">Предмет</span>
+                    </a>
+                </div>
+                <div class="empty-state" th:if="${#lists.isEmpty(analytics.timeline())}">
+                    <strong>Таймлайн пуст</strong>
+                    <span>Завершите тест, чтобы увидеть историю попыток.</span>
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="card-title-row">
+                    <svg class="lucide-icon card-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#sparkles}"></use></svg>
+                    <h2>Облако знаний</h2>
+                </div>
+                <div class="knowledge-list" th:if="${!#lists.isEmpty(analytics.knowledgeMap())}">
+                    <article class="knowledge-row" th:each="item : ${analytics.knowledgeMap()}">
+                        <div>
+                            <strong th:text="${item.atomicSkillTitle() == null ? item.topicTitle() : item.atomicSkillTitle()}">Тема</strong>
+                            <span th:if="${item.atomicSkillTitle() != null}" th:text="${item.topicTitle()}">Навык</span>
+                        </div>
+                        <div class="mastery-bar">
+                            <span th:style="'width:' + ${item.masteryPercent()} + '%'"></span>
+                        </div>
+                        <b th:text="${item.masteryPercent() + '%'}">0%</b>
+                        <span class="badge"
+                              th:classappend="${item.status() == 'strong' ? ' success' : (item.status() == 'watch' ? ' warning' : ' danger')}"
+                              th:text="${item.status() == 'strong' ? 'сильная' : (item.status() == 'watch' ? 'внимание' : 'слабая')}">статус</span>
+                    </article>
+                </div>
+                <div class="empty-state" th:if="${#lists.isEmpty(analytics.knowledgeMap())}">
+                    <strong>Пока нет данных</strong>
+                    <span>После первого завершенного теста карта освоения появится автоматически.</span>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="meta-grid">
+                <div class="metric">
+                    <strong>Завершено тестов</strong>
+                    <span th:text="${analytics.testsCompleted()}">0</span>
+                </div>
+                <div class="metric">
+                    <strong>Средний результат</strong>
+                    <span th:text="${analytics.averagePercent() + '%'}">0%</span>
+                </div>
+                <div class="metric">
+                    <strong>Прогноз</strong>
+                    <span th:text="${analytics.prediction().expectedPercent() + '%'}">0%</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="card-title-row">
+                <svg class="lucide-icon card-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#shield-check}"></use></svg>
+                <h2>Последние ошибки</h2>
+            </div>
+            <div class="result-list" th:if="${!#lists.isEmpty(analytics.lastErrors())}">
+                <article class="result-row" th:each="error : ${analytics.lastErrors()}">
+                    <div class="result-row-head">
+                        <span class="badge danger">Ошибка</span>
+                        <span class="badge" th:text="'сложность ' + ${error.difficulty()}">2</span>
+                    </div>
+                    <h3 th:text="${error.questionBody()}">Вопрос</h3>
+                    <p class="muted-line" th:text="${error.topicTitle()}">Тема</p>
+                    <div class="notice" th:if="${error.explanation() != null}">
+                        <strong>Повторить</strong>
+                        <span th:text="${error.explanation()}">Разбор</span>
+                    </div>
+                </article>
+            </div>
+            <div class="empty-state" th:if="${#lists.isEmpty(analytics.lastErrors())}">
+                <strong>Ошибок нет</strong>
+                <span>Отлично. Продолжайте поддерживать текущий темп.</span>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="section-title">Траектория</h2>
+            <p th:text="${analytics.trajectory().message()}">Сообщение</p>
+            <div class="notice" th:if="${analytics.trajectory().nextFocusTitle() != null}">
+                <strong>Следующий фокус</strong>
+                <span th:text="${analytics.trajectory().nextFocusTitle()}">Тема</span>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

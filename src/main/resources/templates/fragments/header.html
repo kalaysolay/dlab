@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<header class="topbar" th:fragment="header">
+    <span class="public-parent-header-scope" sec:authorize="isAnonymous() or hasRole('PARENT')" hidden></span>
+    <a class="brand brand-link" sec:authorize="isAnonymous()" th:href="@{/}">
+        <span class="brand-mark">
+            <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path>
+                <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path>
+            </svg>
+        </span>
+        <span class="brand-copy">
+            <strong th:text="#{app.name}">Damulab.kz</strong>
+            <small>Платформа для семьи и ученика</small>
+        </span>
+    </a>
+    <a class="brand brand-link" sec:authorize="isAuthenticated()" th:href="@{/dashboard}">
+        <span class="brand-mark">
+            <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path>
+                <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path>
+            </svg>
+        </span>
+        <span class="brand-copy">
+            <strong th:text="#{app.name}">Damulab.kz</strong>
+            <small sec:authorize="hasRole('STUDENT')">Мой путь развития</small>
+            <small sec:authorize="hasRole('PARENT')">Кабинет родителя</small>
+            <small sec:authorize="hasRole('ADMIN')">Admin Console</small>
+        </span>
+    </a>
+    <nav class="nav" aria-label="Основная навигация">
+        <a sec:authorize="isAnonymous()" th:href="@{/#hero}">Главная</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#why}">Почему мы</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#programs}">Программы</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#flow}">Как работает</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#reviews}">Отзывы</a>
+        <a sec:authorize="hasRole('PARENT')" th:href="@{/parent}">Главная</a>
+        <a sec:authorize="hasRole('PARENT')" th:href="@{/parent/profile}">Профиль</a>
+        <span th:replace="~{fragments/language-switch :: languageSwitch}"></span>
+        <a sec:authorize="isAnonymous()" th:href="@{/register}" th:text="#{nav.register}">Регистрация</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/login}" th:text="#{nav.login}">Войти</a>
+        <form sec:authorize="isAuthenticated()" class="nav-logout" th:action="@{/logout}" method="post">
+            <button class="link-button" type="submit" th:text="#{nav.logout}">Выйти</button>
+        </form>
+    </nav>
+    <script th:src="@{/js/pwa.js}" defer></script>
+</header>
+</body>
+</html>

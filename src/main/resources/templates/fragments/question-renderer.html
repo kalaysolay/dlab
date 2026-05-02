@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section class="panel question-panel" th:fragment="sessionQuestion(question,totalQuestions)" th:id="${'q-' + question.id}">
+    <div class="question-kicker">
+        <span class="badge" th:text="${question.type}">SCQ</span>
+        <span>Вопрос <span th:text="${question.orderNo}">1</span> из <span th:text="${totalQuestions}">4</span></span>
+        <span class="muted-line" th:text="${question.topicTitle}">Тема</span>
+    </div>
+    <h2 th:if="${question.type != 'FILL_IN'}" th:text="${question.body}">Текст вопроса</h2>
+    <div class="fill-inline-question" th:if="${question.type == 'FILL_IN'}" th:attr="data-fill-body=${question.body}">
+        <h2 class="fill-inline-body" th:text="${question.body}">Текст вопроса</h2>
+        <div class="fill-inline-bank" hidden>
+            <input th:each="placeholder,fillStat : ${question.fillPlaceholders}"
+                   th:name="${'fill_' + question.id + '_' + fillStat.index}"
+                   th:attr="data-fill-placeholder=${placeholder}"
+                   autocomplete="off">
+        </div>
+    </div>
+
+    <div class="answer-block" th:if="${question.type == 'SCQ'}">
+        <label class="answer-option" th:each="option : ${question.options}">
+            <input type="radio" th:name="${'answer_' + question.id}" th:value="${option.label}">
+            <span>
+                <strong th:text="${option.label}">A</strong>
+                <span th:text="${option.text}">Вариант</span>
+            </span>
+        </label>
+    </div>
+
+    <div class="answer-block" th:if="${question.type == 'MCQ'}">
+        <label class="answer-option" th:each="option : ${question.options}">
+            <input type="checkbox" th:name="${'answer_' + question.id}" th:value="${option.label}">
+            <span>
+                <strong th:text="${option.label}">A</strong>
+                <span th:text="${option.text}">Вариант</span>
+            </span>
+        </label>
+    </div>
+
+    <div class="matching-answer" th:if="${question.type == 'MATCHING'}" th:attr="data-question-id=${question.id}">
+        <p class="matching-instruction">Сопоставь элементы: клик по карточке слева, затем по карточке справа.</p>
+        <p class="matching-selected-label">Левая карточка не выбрана</p>
+        <div class="matching-board">
+            <div class="matching-column matching-left-column">
+                <button type="button"
+                        class="matching-card matching-left-card"
+                        th:each="left,leftStat : ${question.matchingLeft}"
+                        th:attr="data-left-index=${leftStat.index}"
+                        th:text="${left.text}">Левый элемент</button>
+            </div>
+            <svg class="matching-lines" viewBox="0 0 120 170" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="matching-column matching-right-column">
+                <button type="button"
+                        class="matching-card matching-right-card"
+                        th:each="right,rightStat : ${question.matchingRight}"
+                        th:attr="data-right-index=${rightStat.index},data-right-value=${right.value},data-right-label=${right.text}"
+                        th:text="${right.text}">Правый элемент</button>
+            </div>
+        </div>
+        <div class="matching-hidden-fields">
+            <input type="hidden"
+                   th:each="left,leftStat : ${question.matchingLeft}"
+                   th:id="${'match-field-' + question.id + '-' + leftStat.index}"
+                   th:name="${'match_' + question.id + '_' + leftStat.index}">
+        </div>
+        <p class="matching-hint">Выберите левую карточку.</p>
+    </div>
+
+    <div class="answer-block fill-answer" th:if="${question.type == 'FILL_IN'}">
+        <div class="notice">
+            <strong>Подсказка:</strong>
+            <span>Впишите ответы прямо в тексте вопроса на местах <code>[[1]]</code>, <code>[[2]]</code> и далее.</span>
+        </div>
+    </div>
+</section>
+
+<article class="result-row" th:fragment="resultQuestion(question)" th:id="${'result-q-' + question.sessionQuestionId}">
+    <div class="result-row-head">
+        <span class="badge" th:text="${question.type}">SCQ</span>
+        <span class="badge success" th:if="${question.correct}">Верно</span>
+        <span class="badge danger" th:if="${!question.correct}">Ошибка</span>
+    </div>
+    <h3 th:text="${question.orderNo + '. ' + question.body}">Вопрос</h3>
+    <p class="muted-line" th:text="${question.topicTitle}">Тема</p>
+
+    <div class="result-choice-list"
+         th:if="${question.type == 'SCQ' || question.type == 'MCQ'}"
+         th:attr="data-student-answer=${question.studentAnswer},data-correct-answer=${question.correctAnswer}">
+        <article class="result-choice-item" th:each="option : ${question.options}" th:attr="data-option-label=${option.label}">
+            <div class="result-choice-main">
+                <strong th:text="${option.label}">A</strong>
+                <span th:text="${option.text}">Вариант</span>
+            </div>
+            <small class="result-choice-meta"></small>
+        </article>
+    </div>
+
+    <div class="result-detail" th:if="${question.type == 'FILL_IN'}"
+         th:attr="data-student-answer=${question.studentAnswer},data-correct-answer=${question.correctAnswer}">
+        <div>
+            <strong>Ответ ученика</strong>
+            <div class="result-fill-list result-fill-student"></div>
+        </div>
+        <div>
+            <strong>Правильный ответ</strong>
+            <div class="result-fill-list result-fill-correct"></div>
+        </div>
+    </div>
+
+    <div class="result-detail" th:if="${question.type != 'SCQ' && question.type != 'MCQ' && question.type != 'FILL_IN'}">
+        <div>
+            <strong>Ответ ученика</strong>
+            <pre class="result-answer" th:attr="data-kind='student',data-question-type=${question.type}" th:text="${question.studentAnswer}">{}</pre>
+        </div>
+        <div>
+            <strong>Правильный ответ</strong>
+            <pre class="result-answer" th:attr="data-kind='correct',data-question-type=${question.type}" th:text="${question.correctAnswer}">{}</pre>
+        </div>
+    </div>
+
+    <div class="result-mini-lecture" th:if="${question.explanation != null && !#strings.isEmpty(question.explanation)}">
+        <button class="button result-mini-lecture-toggle" type="button">Мини-лекция</button>
+        <div class="notice result-mini-lecture-body" hidden>
+            <span th:text="${question.explanation}">Объяснение</span>
+        </div>
+    </div>
+</article>
+</body>
+</html>

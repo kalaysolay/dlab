@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Результаты викторины</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page quiz-results-page">
+        <section class="panel result-summary">
+            <div>
+                <span class="section-kicker">Комната <strong th:text="${results.code}">QZ7K2M</strong></span>
+                <h1 class="page-title">Итоги викторины</h1>
+                <p class="lede">Финальный рейтинг и очки рассчитываются сервером по ответам всех участников.</p>
+            </div>
+            <a class="button" th:href="@{/student/quiz}">Новая комната</a>
+        </section>
+
+        <section class="panel">
+            <h2 class="section-title">Таблица результатов</h2>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Место</th>
+                        <th>Игрок</th>
+                        <th>Очки</th>
+                        <th>Верно</th>
+                        <th>Точность</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="row,rowStat : ${results.results}">
+                        <td th:text="${rowStat.count}">1</td>
+                        <td>
+                            <strong th:text="${row.displayName}">Demo Student</strong>
+                            <span class="badge success" th:if="${row.currentStudent}">Это вы</span>
+                        </td>
+                        <td th:text="${row.score + '/' + row.maxScore}">8/10</td>
+                        <td th:text="${row.correctAnswers + '/' + row.totalQuestions}">8/10</td>
+                        <td>
+                            <strong th:text="${row.percent + '%'}">80%</strong>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

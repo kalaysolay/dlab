@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI генерация вопросов</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <th:block th:with="activeAdminNav='question-ai'">
+            <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        </th:block>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title">AI генерация вопросов</h1>
+                    <p class="lede">Первый вертикальный срез Stage 9: только StubAiProvider, review batch и human-in-the-loop.</p>
+                </div>
+                <a class="button" th:href="@{/admin/questions}">Банк вопросов</a>
+            </div>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <div class="notice">
+                <strong>Safety boundary</strong>
+                <span>В provider DTO уходят только предмет, класс, тема, навык, тип, сложность, язык и инструкция методиста. Персональные данные и прямые идентификаторы не отправляются.</span>
+            </div>
+
+            <form class="form wide-form" method="post" th:action="@{/admin/questions/ai-generate}" th:object="${aiForm}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <div th:if="${#fields.hasGlobalErrors()}" class="alert error">
+                    <div th:each="err : ${#fields.globalErrors()}" th:text="${err}">Ошибка</div>
+                </div>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Предмет</span>
+                        <select id="ai-subject" name="subjectId">
+                            <option th:each="subject : ${subjects}"
+                                    th:value="${subject.id}"
+                                    th:selected="${subject.id == selectedSubjectId}"
+                                    th:text="${subject.titleRu}">Математика</option>
+                        </select>
+                        <small class="muted-line">Сначала выберите предмет и класс: список тем обновится автоматически.</small>
+                    </label>
+                    <label class="field">
+                        <span>Класс</span>
+                        <select id="ai-grade" name="gradeId">
+                            <option th:each="grade : ${grades}"
+                                    th:value="${grade.id}"
+                                    th:selected="${grade.id == selectedGradeId}"
+                                    th:text="${grade.titleRu}">4 класс</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Тема</span>
+                        <select id="ai-topic" th:field="*{topicId}" required>
+                            <option value="">Выберите тему</option>
+                            <option th:each="topic : ${topics}"
+                                    th:value="${topic.id}"
+                                    th:text="${topic.titleRu}">Проценты</option>
+                        </select>
+                        <small id="ai-topic-hint" class="muted-line">Темы показаны для текущего предмета и класса.</small>
+                        <small th:if="${#fields.hasErrors('topicId')}" th:errors="*{topicId}" class="field-error">Ошибка</small>
+                    </label>
+                    <label class="field">
+                        <span>Тип</span>
+                        <select th:field="*{questionType}">
+                            <option th:each="type : ${questionTypes}" th:value="${type}" th:text="${type}">SCQ</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Сложность</span>
+                        <input type="number" min="1" max="5" th:field="*{difficulty}">
+                    </label>
+                    <label class="field">
+                        <span>Количество</span>
+                        <input type="number" min="1" max="10" th:field="*{count}">
+                    </label>
+                    <label class="field">
+                        <span>Языки</span>
+                        <select th:field="*{languageMode}">
+                            <option th:each="mode : ${languageModes}" th:value="${mode}" th:text="${mode}">RU_KK</option>
+                        </select>
+                    </label>
+                    <label class="field" style="grid-column: span 2;">
+                        <span>Дополнительная инструкция</span>
+                        <input th:field="*{instruction}" placeholder="Например: один вопрос на жизненный кейс и один на типичную ошибку">
+                        <small>Для теста сбоя StubAiProvider можно указать __FAIL_PROVIDER__.</small>
+                    </label>
+                </div>
+                <div class="actions">
+                    <button class="button primary" type="submit">Сгенерировать</button>
+                </div>
+            </form>
+
+            <section th:if="${job != null}" class="subpanel ai-job-panel">
+                <div class="page-head compact-head">
+                    <div>
+                        <h2>Job <span th:text="${'AI-' + job.id}">AI-1</span></h2>
+                        <p class="muted-line" th:text="${job.providerName + ' / ' + job.modelName + ', retry: ' + job.retryCount}">stub</p>
+                    </div>
+                    <span class="badge"
+                          th:classappend="${job.status == 'succeeded'} ? 'success' : (${job.status == 'failed'} ? 'danger' : 'warning')"
+                          th:text="${job.status}">succeeded</span>
+                </div>
+                <div class="meta-grid ai-meta-grid">
+                    <div class="metric"><strong th:text="${job.requestedCount}">5</strong><span>Запрошено</span></div>
+                    <div class="metric"><strong th:text="${#lists.size(job.items)}">5</strong><span>В review batch</span></div>
+                    <div class="metric"><strong th:text="${job.topicTitleRu}">Проценты</strong><span>Тема</span></div>
+                </div>
+
+                <div th:if="${job.status == 'failed'}" class="notice alert error">
+                    <strong>Сбой генерации</strong>
+                    <span th:text="${job.errorCode + ': ' + job.errorMessage}">stub_provider_failure</span>
+                    <form method="post" th:action="@{/admin/ai/jobs/{id}/retry(id=${job.id})}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button class="button" type="submit">Повторить</button>
+                    </form>
+                </div>
+
+                <div class="empty-state" th:if="${job.status == 'succeeded' && #lists.isEmpty(job.items)}">
+                    <strong>Пачка пуста</strong>
+                    <span>StubAiProvider не вернул черновиков.</span>
+                </div>
+
+                <div class="ai-result-list" th:if="${!#lists.isEmpty(job.items)}">
+                    <article class="subpanel ai-result-card" th:each="item : ${job.items}">
+                        <div class="result-row-head">
+                            <span class="badge" th:text="${'AI-Q-' + item.id}">AI-Q-1</span>
+                            <span class="badge" th:classappend="${item.qualityScore >= 80} ? 'success' : 'warning'"
+                                  th:text="${'Quality ' + item.qualityScore + '/100'}">Quality 88/100</span>
+                            <span class="badge"
+                                  th:classappend="${item.reviewStatus == 'approved'} ? 'success' : (${item.reviewStatus == 'deleted'} ? 'danger' : 'warning')"
+                                  th:text="${item.reviewStatus}">pending</span>
+                        </div>
+                        <h3 th:text="${item.bodyRu}">AI draft</h3>
+                        <p class="muted-line" th:text="${item.bodyKk}">KK</p>
+                        <p class="muted-line" th:text="${'Источник: ' + item.source}">Источник</p>
+                        <div class="notice" th:if="${item.qualityNotes != null}">
+                            <span th:text="${item.qualityNotes}">Quality notes</span>
+                        </div>
+
+                        <details th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}">
+                            <summary class="button">Исправить текст</summary>
+                            <form class="form wide-form ai-edit-form" method="post"
+                                  th:action="@{/admin/ai/batches/{batchId}/items/{itemId}/edit(batchId=${job.batchId},itemId=${item.id})}">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <input type="hidden" name="jobId" th:value="${job.id}">
+                                <label class="field">
+                                    <span>RU</span>
+                                    <textarea name="bodyRu" th:text="${item.bodyRu}"></textarea>
+                                </label>
+                                <label class="field">
+                                    <span>KK</span>
+                                    <textarea name="bodyKk" th:text="${item.bodyKk}"></textarea>
+                                </label>
+                                <label class="field">
+                                    <span>Источник</span>
+                                    <input name="source" th:value="${item.source}">
+                                </label>
+                                <label class="field">
+                                    <span>Пояснение RU</span>
+                                    <textarea name="explanationRu" th:text="${item.explanationRu}"></textarea>
+                                </label>
+                                <label class="field">
+                                    <span>Пояснение KK</span>
+                                    <textarea name="explanationKk" th:text="${item.explanationKk}"></textarea>
+                                </label>
+                                <button class="button" type="submit">Сохранить правку</button>
+                            </form>
+                        </details>
+
+                        <div class="row-actions">
+                            <form method="post" th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}"
+                                  th:action="@{/admin/ai/batches/{batchId}/items/{itemId}/approve(batchId=${job.batchId},itemId=${item.id})}">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <input type="hidden" name="jobId" th:value="${job.id}">
+                                <button class="button primary" type="submit">Одобрить в needs_review</button>
+                            </form>
+                            <form method="post" th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}"
+                                  th:action="@{/admin/ai/batches/{batchId}/items/{itemId}/delete(batchId=${job.batchId},itemId=${item.id})}">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <input type="hidden" name="jobId" th:value="${job.id}">
+                                <button class="button danger" type="submit">Удалить</button>
+                            </form>
+                            <a class="button" th:if="${item.createdQuestionId != null}"
+                               th:href="@{/admin/questions(query=${'Q-' + item.createdQuestionId})}">Открыть в банке</a>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </section>
+    </main>
+    <div th:replace="~{fragments/modal :: modalShell}"></div>
+</div>
+<script>
+    const aiSubject = document.getElementById('ai-subject');
+    const aiGrade = document.getElementById('ai-grade');
+    const aiTopic = document.getElementById('ai-topic');
+
+    function setAiTopicHint(message, isError) {
+        const hint = document.getElementById('ai-topic-hint');
+        if (!hint) {
+            return;
+        }
+        hint.textContent = message;
+        hint.classList.toggle('field-error', Boolean(isError));
+        hint.classList.toggle('muted-line', !isError);
+    }
+
+    function setAiTopicPlaceholder(text) {
+        aiTopic.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = text;
+        aiTopic.appendChild(option);
+        aiTopic.value = '';
+    }
+
+    async function syncAiTopics() {
+        if (!aiSubject || !aiGrade || !aiTopic) {
+            return;
+        }
+        if (!aiSubject.value || !aiGrade.value) {
+            setAiTopicPlaceholder('Сначала выберите предмет и класс');
+            setAiTopicHint('Тема станет доступна после выбора предмета и класса.', false);
+            return;
+        }
+        const prev = aiTopic.value;
+        aiTopic.disabled = true;
+        setAiTopicPlaceholder('Загружаем темы...');
+        setAiTopicHint('Обновляем темы для выбранного предмета и класса.', false);
+        const params = new URLSearchParams({
+            subjectId: aiSubject.value,
+            gradeId: aiGrade.value
+        });
+        try {
+            const response = await fetch('/api/content/references?' + params.toString(), { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('topic refresh failed');
+            }
+            const data = await response.json();
+            const topics = Array.isArray(data.topics) ? data.topics : [];
+            aiTopic.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = topics.length ? 'Выберите тему' : 'Нет тем для этой пары';
+            aiTopic.appendChild(placeholder);
+            topics.forEach((topic) => {
+                const option = document.createElement('option');
+                option.value = String(topic.id);
+                option.textContent = topic.titleRu || topic.titleKk || ('Тема ' + topic.id);
+                aiTopic.appendChild(option);
+            });
+            const stillExists = topics.some((topic) => String(topic.id) === prev);
+            aiTopic.value = stillExists ? prev : '';
+            setAiTopicHint(
+                    topics.length
+                            ? 'Выберите тему перед генерацией.'
+                            : 'Для этих предмета и класса нет тем. Сначала добавьте тему в разделе "Темы".',
+                    topics.length === 0
+            );
+        } catch (error) {
+            setAiTopicPlaceholder('Не удалось загрузить темы');
+            setAiTopicHint('Проверьте связь и повторите выбор предмета или класса.', true);
+        } finally {
+            aiTopic.disabled = false;
+        }
+    }
+
+    if (aiSubject && aiGrade) {
+        aiSubject.addEventListener('change', syncAiTopics);
+        aiGrade.addEventListener('change', syncAiTopics);
+    }
+</script>
+</body>
+</html>

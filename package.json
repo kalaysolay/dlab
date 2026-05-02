@@ -1,0 +1,17 @@
+{
+  "name": "damulab_1",
+  "version": "1.0.0",
+  "description": "Spring Boot MVP foundation for Damulab.kz.",
+  "main": "quiz-mockups.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "smoke:lectures": "node scripts/smoke/lecture-rich-editor-smoke.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

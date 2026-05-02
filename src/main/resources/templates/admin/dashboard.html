@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="#{dashboard.admin.title}">Админ-панель</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel dashboard-wrap">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-title" th:text="#{dashboard.admin.title}">Админ-панель</h1>
+                    <p class="lede">
+                        Оперативная сводка по контенту, тестовому циклу, качеству вопросов и ручным push.
+                    </p>
+                </div>
+            </header>
+
+            <section class="dashboard-kpis">
+                <article class="stat">
+                    <span>Контент</span>
+                    <b>Темы</b>
+                    <p><a th:href="@{/admin/topics}">CRUD, дерево, навыки</a></p>
+                </article>
+                <article class="stat">
+                    <span>Банк вопросов</span>
+                    <b>SCQ / MCQ</b>
+                    <p><a th:href="@{/admin/questions}">Модерация, health, импорт</a></p>
+                </article>
+                <article class="stat">
+                    <span>Лекции</span>
+                    <b>Draft / Publish</b>
+                    <p><a th:href="@{/admin/lectures}">Безопасное версионирование</a></p>
+                </article>
+                <article class="stat">
+                    <span>Операции</span>
+                    <b>Push</b>
+                    <p><a th:href="@{/admin/push-notifications}">Ручное планирование</a></p>
+                </article>
+            </section>
+
+            <section class="dashboard-main">
+                <article class="feature-card">
+                    <h2>Pipeline MVP</h2>
+                    <div class="flow-grid">
+                        <div class="metric"><strong>Content</strong><span>Темы, вопросы, лекции</span></div>
+                        <div class="metric"><strong>Test</strong><span>Серверная проверка</span></div>
+                        <div class="metric"><strong>Result</strong><span>Итоги после finish</span></div>
+                        <div class="metric"><strong>Parent</strong><span>Доступ по связке</span></div>
+                    </div>
+                </article>
+                <article class="feature-card">
+                    <h2>Сигналы контроля</h2>
+                    <div class="stack">
+                        <div class="notice success">Опубликованный контент остается live после правок.</div>
+                        <div class="notice">Импорт сохраняет вопросы только в needs_review.</div>
+                        <div class="notice">AI-результаты проходят human review.</div>
+                    </div>
+                </article>
+            </section>
+        </section>
+    </main>
+    <div th:replace="~{fragments/modal :: modalShell}"></div>
+</div>
+</body>
+</html>

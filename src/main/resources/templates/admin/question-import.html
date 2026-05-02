@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Импорт вопросов</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title">Импорт вопросов</h1>
+                    <p class="lede">JSON импорт использует те же серверные правила, что и ручное создание. Все импортированные строки попадают в needs_review.</p>
+                </div>
+                <a class="button" th:href="@{/admin/questions}">К банку</a>
+            </div>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <div class="split-layout">
+                <form class="form wide-form" method="post" th:action="@{/admin/questions/import}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <label class="field">
+                        <span>JSON payload</span>
+                        <textarea name="payload" class="code-textarea" rows="24" spellcheck="false" th:text="${payload}"></textarea>
+                    </label>
+                    <div class="actions">
+                        <button class="button primary" type="submit">Проверить JSON</button>
+                    </div>
+                </form>
+
+                <aside class="subpanel">
+                    <h2 class="section-title">Excel .xlsx</h2>
+                    <form class="form" method="post" enctype="multipart/form-data" th:action="@{/admin/questions/import/excel}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <label class="field">
+                            <span>Файл</span>
+                            <input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+                        </label>
+                        <button class="button primary" type="submit">Импортировать Excel</button>
+                    </form>
+                    <hr class="divider">
+                    <p class="muted-line">Колонки первой страницы: type, topicId, difficulty, bodyRu, bodyKk, source, payload, correct, explanationRu, explanationKk.</p>
+                    <p class="muted-line">SCQ/MCQ payload: `A|RU|KK;B|RU|KK`, correct: `B` или `A,C`.</p>
+                    <p class="muted-line">MATCHING payload: `leftRu|leftKk|rightRu|rightKk;...`.</p>
+                    <p class="muted-line">FILL_IN payload: `[[1]]|30|NUMERIC_TOLERANCE|0.01`.</p>
+                </aside>
+            </div>
+
+            <section class="subpanel" th:if="${job != null}">
+                <h2 class="section-title">Результат импорта</h2>
+                <div class="meta-grid">
+                    <div class="metric">
+                        <strong th:text="${job.status}">partial</strong>
+                        <span>Статус</span>
+                    </div>
+                    <div class="metric">
+                        <strong th:text="${job.sourceType}">JSON</strong>
+                        <span>Источник</span>
+                    </div>
+                    <div class="metric">
+                        <strong th:text="${job.totalRows}">0</strong>
+                        <span>Строк</span>
+                    </div>
+                    <div class="metric">
+                        <strong th:text="${job.importedRows}">0</strong>
+                        <span>Импортировано</span>
+                    </div>
+                    <div class="metric">
+                        <strong th:text="${job.errorRows}">0</strong>
+                        <span>Ошибок</span>
+                    </div>
+                </div>
+
+                <div class="empty-state" th:if="${#lists.isEmpty(job.errors)}">
+                    <strong>Ошибок нет</strong>
+                    <span>Созданные вопросы ожидают ручного review перед публикацией.</span>
+                </div>
+
+                <div class="table-wrap" th:if="${!#lists.isEmpty(job.errors)}">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Строка</th>
+                            <th>Код</th>
+                            <th>Сообщение</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="error : ${job.errors}">
+                            <td th:text="${error.rowNo}">1</td>
+                            <td><span class="badge danger" th:text="${error.errorCode}">validation</span></td>
+                            <td th:text="${error.message}">Ошибка</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+    </main>
+</div>
+</body>
+</html>

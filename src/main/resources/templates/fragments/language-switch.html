@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<span th:fragment="languageSwitch" class="language-select-wrap" aria-label="Переключение языка">
+    <svg class="lucide-icon language-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#languages}"></use></svg>
+    <form sec:authorize="hasRole('STUDENT')" class="language-form" th:action="@{/student/profile/language}" method="post">
+        <label class="sr-only" for="studentLanguage">Язык интерфейса</label>
+        <select id="studentLanguage" name="preferredLanguage" class="language-select" onchange="this.form.submit()">
+            <option value="ru" th:selected="${#locale.language == 'ru'}">Русский</option>
+            <option value="kk" th:selected="${#locale.language == 'kk'}">Қазақша</option>
+        </select>
+    </form>
+    <form sec:authorize="!hasRole('STUDENT')" class="language-form" method="get">
+        <label class="sr-only" for="pageLanguage">Язык интерфейса</label>
+        <select id="pageLanguage" name="lang" class="language-select" onchange="this.form.submit()">
+            <option value="ru" th:selected="${#locale.language == 'ru'}">Русский</option>
+            <option value="kk" th:selected="${#locale.language == 'kk'}">Қазақша</option>
+        </select>
+    </form>
+</span>
+</body>
+</html>

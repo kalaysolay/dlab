@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Викторины Damulab.kz</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page student-quiz-page">
+        <section class="panel quiz-hero-panel">
+            <div>
+                <span class="section-kicker">Quiz Arena</span>
+                <h1 class="page-title">Собери комнату и сыграй с друзьями</h1>
+                <p class="lede">Короткие раунды по таймеру: победа зависит от точности и скорости ответа.</p>
+            </div>
+            <a class="button" th:href="@{/student}">В кабинет</a>
+        </section>
+
+        <div class="alert error" th:if="${error}" th:text="${error}">Ошибка</div>
+
+        <section class="quiz-hub-cards">
+            <article class="panel">
+                <h2 class="section-title">Быстрая комната</h2>
+                <p class="muted-line">2-4 игрока, выбранные фильтры и старт от хоста.</p>
+            </article>
+            <article class="panel">
+                <h2 class="section-title">Вход по коду</h2>
+                <p class="muted-line">Код комнаты выглядит как <strong>QZ7K2M</strong>.</p>
+            </article>
+            <article class="panel">
+                <h2 class="section-title">Мой рейтинг</h2>
+                <p class="muted-line">После завершения комнаты результат попадает в таблицу.</p>
+            </article>
+        </section>
+
+        <section class="quiz-workbench">
+            <article class="panel">
+                <h2 class="section-title">Создать комнату</h2>
+                <form class="form wide-form" th:action="@{/student/quiz/rooms}" th:object="${createQuizRoomRequest}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <div class="form-grid two-col">
+                        <label class="field">
+                            <span>Предмет</span>
+                            <select th:field="*{subjectId}">
+                                <option th:each="subject : ${subjects}" th:value="${subject.id}" th:text="${subject.titleRu}">Математика</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Класс</span>
+                            <select th:field="*{gradeId}">
+                                <option th:each="grade : ${grades}" th:value="${grade.id}" th:text="${grade.titleRu}">4 класс</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Язык</span>
+                            <select th:field="*{language}">
+                                <option value="ru">Русский</option>
+                                <option value="kk">Қазақша</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Сложность</span>
+                            <select th:field="*{difficulty}">
+                                <option value="">Любая</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Вопросов</span>
+                            <input type="number" min="1" max="12" th:field="*{questionCount}">
+                        </label>
+                        <label class="field">
+                            <span>Секунд на раунд</span>
+                            <input type="number" min="5" max="120" th:field="*{roundSeconds}">
+                        </label>
+                        <label class="field">
+                            <span>Игроков максимум</span>
+                            <input type="number" min="2" max="4" th:field="*{maxPlayers}">
+                        </label>
+                    </div>
+                    <div class="actions">
+                        <button class="button primary" type="submit">Создать комнату</button>
+                    </div>
+                </form>
+            </article>
+
+            <article class="panel">
+                <h2 class="section-title">Войти по коду</h2>
+                <p class="muted-line">Присоединение доступно, пока комната в статусе waiting.</p>
+                <form class="form wide-form" th:action="@{/student/quiz/rooms/join}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <label class="field">
+                        <span>Код комнаты</span>
+                        <input name="code" th:value="${joinCode}" placeholder="QZ7K2M" maxlength="16" autocomplete="off">
+                    </label>
+                    <div class="actions">
+                        <button class="button primary" type="submit">Войти</button>
+                    </div>
+                </form>
+            </article>
+        </section>
+    </main>
+</div>
+</body>
+</html>

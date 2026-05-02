@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${mode == 'edit'} ? 'Редактировать лекцию' : 'Создать лекцию'">Редактор лекции</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
+    <link rel="stylesheet" th:href="@{/webjars/quill/dist/quill.snow.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel lecture-editor-page">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title" th:text="${mode == 'edit'} ? 'Редактор лекции' : 'Новая лекция'">Редактор лекции</h1>
+                    <p class="lede">Метаданные, контент RU/KK, материалы, контроль понимания и публикация в одном сценарии.</p>
+                </div>
+                <div class="actions">
+                    <a class="button" th:href="@{/admin/lectures}">Отмена</a>
+                    <button class="button" type="submit" form="lecture-form" name="action" value="draft">Сохранить черновик</button>
+                    <button class="button primary" type="submit" form="lecture-form" name="action" value="publish">Опубликовать</button>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <form id="lecture-form"
+                  class="form wide-form lecture-editor-form"
+                  method="post"
+                  enctype="multipart/form-data"
+                  th:action="${mode == 'edit'} ? @{/admin/lectures/{id}(id=${lecture.id})} : @{/admin/lectures}"
+                  th:object="${lectureForm}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}">
+                    Ошибка
+                </div>
+                <div id="lecture-attachments-error" class="alert error lecture-client-error" hidden></div>
+
+                <section class="subpanel">
+                    <h2 class="section-title">Метаданные и тема</h2>
+                    <div class="form-grid lecture-meta-grid">
+                        <label class="field">
+                            <span>Предмет</span>
+                            <select id="lecture-subject">
+                                <option th:each="subject : ${subjects}"
+                                        th:value="${subject.id}"
+                                        th:selected="${subject.id == selectedSubjectId}"
+                                        th:text="${subject.titleRu}">Математика</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Класс</span>
+                            <select id="lecture-grade">
+                                <option th:each="grade : ${grades}"
+                                        th:value="${grade.id}"
+                                        th:selected="${grade.id == selectedGradeId}"
+                                        th:text="${grade.titleRu}">4 класс</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Тема</span>
+                            <select id="lecture-topic" th:field="*{topicId}">
+                                <option value="">Без темы (только черновик)</option>
+                                <option th:each="topic : ${topics}" th:value="${topic.id}" th:text="${topic.titleRu}">Проценты</option>
+                            </select>
+                            <input type="hidden" id="lecture-topic-mirror" name="topicIdMirror" th:value="*{topicId}">
+                            <small id="lecture-topic-hint" class="muted-line">Темы показаны для выбранных предмета и класса.</small>
+                        </label>
+                        <label class="field">
+                            <span>Название RU</span>
+                            <input th:field="*{titleRu}" placeholder="Проценты в повседневной жизни">
+                        </label>
+                        <label class="field">
+                            <span>Название KK</span>
+                            <input th:field="*{titleKk}" placeholder="Күнделікті өмірдегі пайыздар">
+                        </label>
+                        <label class="field">
+                            <span>Источник</span>
+                            <input th:field="*{source}" placeholder="Учебник, параграф, методист">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="subpanel lecture-content-shell">
+                    <div class="page-head compact-head">
+                        <h2 class="section-title">Контент лекции (Quill + KaTeX)</h2>
+                        <div class="type-tabs compact-tabs" aria-label="Язык лекции">
+                            <button class="type-tab active" type="button" data-lecture-tab="ru">RU</button>
+                            <button class="type-tab" type="button" data-lecture-tab="kk">KK</button>
+                        </div>
+                    </div>
+
+                    <section class="lecture-tab-panel active" data-lecture-panel="ru">
+                        <label class="field">
+                            <span>RU контент</span>
+                            <textarea id="lecture-content-ru"
+                                      class="lecture-hidden-input"
+                                      th:field="*{contentRu}"
+                                      hidden
+                                      placeholder="Введите контент лекции на русском языке"></textarea>
+                            <div id="lecture-editor-ru" class="lecture-rich-editor"></div>
+                        </label>
+                    </section>
+
+                    <section class="lecture-tab-panel" data-lecture-panel="kk">
+                        <label class="field">
+                            <span>KK контент</span>
+                            <textarea id="lecture-content-kk"
+                                      class="lecture-hidden-input"
+                                      th:field="*{contentKk}"
+                                      hidden
+                                      placeholder="Дәріс мәтінін енгізіңіз"></textarea>
+                            <div id="lecture-editor-kk" class="lecture-rich-editor"></div>
+                        </label>
+                    </section>
+
+                    <div class="notice">
+                        <strong>Локальные ассеты редактора</strong>
+                        <span>Quill и KaTeX загружаются из WebJars приложения без внешних CDN.</span>
+                    </div>
+                </section>
+
+                <section class="split-layout lecture-details-grid">
+                    <article class="subpanel">
+                        <div class="page-head compact-head">
+                            <h2 class="section-title">Материалы и вложения</h2>
+                            <span class="badge">до 8 вложений</span>
+                        </div>
+                        <p class="muted-line">Поддерживаемые типы: ссылка, PDF, видео, изображение.</p>
+                        <div class="stack lecture-attachments-stack">
+                            <article class="attachment-item" th:each="i : ${#numbers.sequence(0,7)}" data-attachment-row>
+                                <input type="hidden" th:field="*{attachments[__${i}__].storageKey}" data-attachment-storage-key>
+                                <input type="hidden" th:field="*{attachments[__${i}__].originalFileName}" data-attachment-original-name>
+                                <input type="hidden" th:field="*{attachments[__${i}__].fileContentType}" data-attachment-content-type>
+                                <input type="hidden" th:field="*{attachments[__${i}__].fileSizeBytes}" data-attachment-size>
+                                <div class="form-grid lecture-attachment-grid">
+                                    <label class="field">
+                                        <span>Название</span>
+                                        <input th:field="*{attachments[__${i}__].title}" placeholder="percent_examples.pdf" data-attachment-title>
+                                    </label>
+                                    <label class="field">
+                                        <span>Тип</span>
+                                        <select th:field="*{attachments[__${i}__].mediaType}" data-attachment-type>
+                                            <option value="link">Ссылка</option>
+                                            <option value="pdf">PDF</option>
+                                            <option value="video">Видео</option>
+                                            <option value="image">Изображение</option>
+                                        </select>
+                                    </label>
+                                    <label class="field lecture-attachment-url-field">
+                                        <span>URL</span>
+                                        <input th:field="*{attachments[__${i}__].url}" placeholder="https://example.org/material.pdf" data-attachment-url>
+                                    </label>
+                                    <label class="field">
+                                        <span>Файл</span>
+                                        <input type="file" th:name="${'attachmentFiles[' + i + ']'}" data-attachment-file>
+                                    </label>
+                                </div>
+                                <div class="attachment-preview" data-attachment-preview>
+                                    <span class="muted-line">Превью появится после выбора файла или ввода URL.</span>
+                                </div>
+                                <p class="field-error attachment-feedback" data-attachment-feedback></p>
+                            </article>
+                        </div>
+                    </article>
+
+                    <article class="subpanel">
+                        <h2 class="section-title">Контроль понимания</h2>
+                        <label class="field">
+                            <span>Режим</span>
+                            <select th:field="*{controlMode}" id="lecture-control-mode">
+                                <option th:each="modeItem : ${controlModes}" th:value="${modeItem}" th:text="${modeItem.apiValue()}">none</option>
+                            </select>
+                        </label>
+
+                        <div class="notice control-block" data-control-block="NONE">
+                            <strong>Без контроля</strong>
+                            <span>После чтения лекции блок вопросов не показывается.</span>
+                        </div>
+
+                        <div class="notice control-block" data-control-block="AUTO">
+                            <strong>Автоподбор</strong>
+                            <span>Система возьмет опубликованные вопросы этой же темы.</span>
+                            <label class="field">
+                                <span>Количество вопросов</span>
+                                <input id="lecture-auto-checkpoint-count" type="number" min="1" max="10" th:field="*{autoCheckpointCount}">
+                            </label>
+                        </div>
+
+                        <div class="notice control-block" data-control-block="MANUAL">
+                            <strong>Ручной выбор</strong>
+                            <span>Выберите опубликованные вопросы по выбранной теме.</span>
+                            <label class="field">
+                                <span>Поиск по тексту вопроса</span>
+                                <input id="manual-checkpoint-query" placeholder="Например: процент">
+                            </label>
+                            <div class="actions">
+                                <button class="button" type="button" id="manual-checkpoint-load">Загрузить вопросы</button>
+                            </div>
+                            <div id="manual-checkpoint-candidates" class="stack"></div>
+                            <div class="notice">
+                                <strong>Выбранные вопросы</strong>
+                                <div id="manual-checkpoint-selected" class="stack"></div>
+                            </div>
+                            <div id="manual-checkpoint-hidden">
+                                <input type="hidden"
+                                       name="checkpointQuestionVersionIds"
+                                       th:each="checkpointId : *{checkpointQuestionVersionIds}"
+                                       th:value="${checkpointId}">
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <div class="actions lecture-form-actions">
+                    <a class="button" th:href="@{/admin/lectures}">Отмена</a>
+                    <button class="button" type="submit" name="action" value="draft">Сохранить черновик</button>
+                    <button class="button primary" type="submit" name="action" value="publish">Опубликовать</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</div>
+
+<script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
+<script th:src="@{/webjars/quill/dist/quill.js}"></script>
+<script>
+    const lectureTabs = Array.from(document.querySelectorAll('[data-lecture-tab]'));
+    const lecturePanels = Array.from(document.querySelectorAll('[data-lecture-panel]'));
+    const controlMode = document.getElementById('lecture-control-mode');
+    const controlBlocks = Array.from(document.querySelectorAll('[data-control-block]'));
+    const manualCheckpointQuery = document.getElementById('manual-checkpoint-query');
+    const manualCheckpointLoad = document.getElementById('manual-checkpoint-load');
+    const manualCheckpointCandidates = document.getElementById('manual-checkpoint-candidates');
+    const manualCheckpointSelected = document.getElementById('manual-checkpoint-selected');
+    const manualCheckpointHidden = document.getElementById('manual-checkpoint-hidden');
+    const lectureForm = document.getElementById('lecture-form');
+    const subjectSelect = document.getElementById('lecture-subject');
+    const gradeSelect = document.getElementById('lecture-grade');
+    const topicSelect = document.getElementById('lecture-topic');
+    const topicMirrorInput = document.getElementById('lecture-topic-mirror');
+    const topicHint = document.getElementById('lecture-topic-hint');
+    const attachmentRows = Array.from(document.querySelectorAll('[data-attachment-row]'));
+    const clientAttachmentError = document.getElementById('lecture-attachments-error');
+    const autoCheckpointCountInput = document.getElementById('lecture-auto-checkpoint-count');
+    const selectedCheckpointIds = new Set(
+        Array.from(manualCheckpointHidden?.querySelectorAll('input[name="checkpointQuestionVersionIds"]') ?? [])
+            .map((input) => String(input.value).trim())
+            .filter((value) => value.length > 0)
+    );
+    const checkpointMetaById = new Map();
+
+    function setTopicHint(message, isError) {
+        if (!topicHint) {
+            return;
+        }
+        topicHint.textContent = message;
+        topicHint.classList.toggle('field-error', !!isError);
+    }
+
+    function syncTopicMirror() {
+        if (!topicMirrorInput || !topicSelect) {
+            return;
+        }
+        topicMirrorInput.value = topicSelect.value || '';
+    }
+
+    lectureTabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+            lectureTabs.forEach((item) => item.classList.toggle('active', item === tab));
+            lecturePanels.forEach((panel) => panel.classList.toggle('active', panel.dataset.lecturePanel === tab.dataset.lectureTab));
+        });
+    });
+
+    function applyControlMode() {
+        controlBlocks.forEach((block) => block.classList.toggle('active', block.dataset.controlBlock === controlMode.value));
+        const isAutoMode = controlMode.value === 'AUTO';
+        const isManualMode = controlMode.value === 'MANUAL';
+        if (autoCheckpointCountInput) {
+            autoCheckpointCountInput.disabled = !isAutoMode;
+        }
+        if (manualCheckpointQuery) {
+            manualCheckpointQuery.disabled = !isManualMode;
+        }
+        if (manualCheckpointLoad) {
+            manualCheckpointLoad.disabled = !isManualMode;
+        }
+        Array.from(manualCheckpointHidden?.querySelectorAll('input[name="checkpointQuestionVersionIds"]') ?? []).forEach((input) => {
+            input.disabled = !isManualMode;
+        });
+        Array.from(manualCheckpointCandidates?.querySelectorAll('button[data-checkpoint-id]') ?? []).forEach((button) => {
+            button.disabled = !isManualMode;
+        });
+    }
+    controlMode.addEventListener('change', applyControlMode);
+    applyControlMode();
+    if (controlMode.value === 'MANUAL') {
+        loadManualCheckpointCandidates();
+    }
+
+    async function reloadTopics() {
+        if (!subjectSelect || !gradeSelect || !topicSelect) {
+            return;
+        }
+        const previous = topicSelect.value;
+        setTopicHint('Загружаем темы...', false);
+        try {
+            const params = new URLSearchParams({
+                subjectId: subjectSelect.value,
+                gradeId: gradeSelect.value
+            });
+            const response = await fetch('/api/content/references?' + params.toString(), { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('topic refresh failed');
+            }
+            const payload = await response.json();
+            const topics = Array.isArray(payload.topics) ? payload.topics : [];
+            const options = ['<option value="">Без темы (только черновик)</option>']
+                .concat(topics.map((topic) => `<option value="${topic.id}">${topic.titleRu ?? ('Topic #' + topic.id)}</option>`));
+            topicSelect.innerHTML = options.join('');
+            const keepPrevious = topics.some((topic) => String(topic.id) === previous);
+            topicSelect.value = keepPrevious ? previous : '';
+            syncTopicMirror();
+            if (topics.length === 0) {
+                setTopicHint('По выбранным предмету и классу темы не найдены.', true);
+            } else {
+                setTopicHint('Темы обновлены по выбранным фильтрам.', false);
+            }
+        } catch (error) {
+            setTopicHint('Не удалось обновить список тем. Попробуйте позже.', true);
+        }
+    }
+
+    subjectSelect?.addEventListener('change', reloadTopics);
+    gradeSelect?.addEventListener('change', reloadTopics);
+    topicSelect?.addEventListener('change', syncTopicMirror);
+    syncTopicMirror();
+
+    function checkpointLabel(item) {
+        const body = item.bodyRu || item.bodyKk || 'Вопрос без текста';
+        return `${item.type || 'Q'} · ${body}`;
+    }
+
+    function renderManualCheckpointHiddenInputs() {
+        if (!manualCheckpointHidden) {
+            return;
+        }
+        manualCheckpointHidden.innerHTML = '';
+        Array.from(selectedCheckpointIds).forEach((id) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'checkpointQuestionVersionIds';
+            input.value = id;
+            input.disabled = controlMode.value !== 'MANUAL';
+            manualCheckpointHidden.appendChild(input);
+        });
+    }
+
+    function renderManualSelected() {
+        if (!manualCheckpointSelected) {
+            return;
+        }
+        if (selectedCheckpointIds.size === 0) {
+            manualCheckpointSelected.innerHTML = '<span class="muted-line">Пока ничего не выбрано.</span>';
+            renderManualCheckpointHiddenInputs();
+            return;
+        }
+        const html = Array.from(selectedCheckpointIds).map((id) => {
+            const meta = checkpointMetaById.get(id);
+            const label = meta ? checkpointLabel(meta) : `Question version #${id}`;
+            return `
+                <article class="notice">
+                    <div>
+                        <strong>${label}</strong>
+                        <span>ID: ${id}</span>
+                    </div>
+                    <button class="button" type="button" data-checkpoint-remove="${id}">Убрать</button>
+                </article>
+            `;
+        }).join('');
+        manualCheckpointSelected.innerHTML = html;
+        Array.from(manualCheckpointSelected.querySelectorAll('button[data-checkpoint-remove]')).forEach((button) => {
+            button.addEventListener('click', () => {
+                selectedCheckpointIds.delete(String(button.dataset.checkpointRemove));
+                renderManualSelected();
+                renderManualCandidates(window.__manualCheckpointCandidates || []);
+            });
+        });
+        renderManualCheckpointHiddenInputs();
+    }
+
+    function renderManualCandidates(items) {
+        window.__manualCheckpointCandidates = items;
+        if (!manualCheckpointCandidates) {
+            return;
+        }
+        if (!Array.isArray(items) || items.length === 0) {
+            manualCheckpointCandidates.innerHTML = '<span class="muted-line">По текущему фильтру вопросы не найдены.</span>';
+            return;
+        }
+        const cards = items.map((item) => {
+            const questionVersionId = String(item.currentVersionId || '');
+            if (!questionVersionId) {
+                return '';
+            }
+            checkpointMetaById.set(questionVersionId, item);
+            const selected = selectedCheckpointIds.has(questionVersionId);
+            return `
+                <article class="notice">
+                    <div>
+                        <strong>${checkpointLabel(item)}</strong>
+                        <span>Question #${item.id}, version #${questionVersionId}</span>
+                    </div>
+                    <button class="button" type="button" data-checkpoint-id="${questionVersionId}">
+                        ${selected ? 'Убрать' : 'Добавить'}
+                    </button>
+                </article>
+            `;
+        }).join('');
+        manualCheckpointCandidates.innerHTML = cards || '<span class="muted-line">Подходящие вопросы не найдены.</span>';
+        Array.from(manualCheckpointCandidates.querySelectorAll('button[data-checkpoint-id]')).forEach((button) => {
+            button.disabled = controlMode.value !== 'MANUAL';
+            button.addEventListener('click', () => {
+                const id = String(button.dataset.checkpointId);
+                if (selectedCheckpointIds.has(id)) {
+                    selectedCheckpointIds.delete(id);
+                } else {
+                    selectedCheckpointIds.add(id);
+                }
+                renderManualSelected();
+                renderManualCandidates(window.__manualCheckpointCandidates || []);
+            });
+        });
+    }
+
+    async function loadManualCheckpointCandidates() {
+        if (!manualCheckpointCandidates || !topicSelect) {
+            return;
+        }
+        const topicId = topicSelect.value;
+        if (!topicId) {
+            manualCheckpointCandidates.innerHTML = '<span class="field-error">Сначала выберите тему лекции.</span>';
+            return;
+        }
+        const query = (manualCheckpointQuery?.value || '').trim();
+        manualCheckpointCandidates.innerHTML = '<span class="muted-line">Загружаем вопросы...</span>';
+        const params = new URLSearchParams({
+            topicId,
+            status: 'PUBLISHED'
+        });
+        if (query) {
+            params.set('query', query);
+        }
+        try {
+            const response = await fetch('/api/admin/questions?' + params.toString(), { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('checkpoint candidates failed');
+            }
+            const payload = await response.json();
+            renderManualCandidates(Array.isArray(payload) ? payload : []);
+        } catch (error) {
+            manualCheckpointCandidates.innerHTML = '<span class="field-error">Не удалось загрузить список вопросов.</span>';
+        }
+    }
+
+    manualCheckpointLoad?.addEventListener('click', loadManualCheckpointCandidates);
+    manualCheckpointQuery?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            loadManualCheckpointCandidates();
+        }
+    });
+    topicSelect?.addEventListener('change', () => {
+        if (controlMode.value === 'MANUAL') {
+            loadManualCheckpointCandidates();
+        }
+    });
+    renderManualSelected();
+
+    const lectureEditorConfigs = [
+        { inputId: 'lecture-content-ru', editorId: 'lecture-editor-ru' },
+        { inputId: 'lecture-content-kk', editorId: 'lecture-editor-kk' }
+    ];
+    const lectureEditors = [];
+
+    function editorToolbarConfig(withFormula) {
+        const base = [
+            [{ header: [2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ align: [] }],
+            ['blockquote', 'code-block'],
+            ['link', 'clean']
+        ];
+        if (withFormula) {
+            base.splice(5, 0, ['formula']);
+        }
+        return base;
+    }
+
+    lectureEditorConfigs.forEach((config) => {
+        const input = document.getElementById(config.inputId);
+        const editorRoot = document.getElementById(config.editorId);
+        if (!input || !editorRoot) {
+            return;
+        }
+
+        if (typeof window.Quill !== 'function') {
+            input.hidden = false;
+            input.classList.remove('lecture-hidden-input');
+            input.classList.add('lecture-textarea');
+            editorRoot.hidden = true;
+            return;
+        }
+
+        const hasKatex = typeof window.katex !== 'undefined';
+        const quill = new window.Quill('#' + config.editorId, {
+            theme: 'snow',
+            modules: {
+                toolbar: editorToolbarConfig(hasKatex)
+            }
+        });
+
+        const initial = (input.value || '').trim();
+        if (initial) {
+            quill.clipboard.dangerouslyPasteHTML(initial);
+        } else {
+            quill.setText('');
+        }
+
+        const syncInput = () => {
+            input.value = quill.root.innerHTML;
+        };
+        quill.on('text-change', syncInput);
+        syncInput();
+        lectureEditors.push(syncInput);
+    });
+
+    function getAttachmentUrlPath(url) {
+        const trimmed = (url || '').trim().toLowerCase();
+        if (!trimmed) {
+            return '';
+        }
+        const noHash = trimmed.split('#')[0];
+        return noHash.split('?')[0];
+    }
+
+    function isSafeAttachmentUrl(url) {
+        const trimmed = (url || '').trim();
+        const lower = trimmed.toLowerCase();
+        if (!trimmed) {
+            return false;
+        }
+        if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+            return false;
+        }
+        if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+            return true;
+        }
+        return lower.startsWith('http://') || lower.startsWith('https://');
+    }
+
+    function typeMatchesUrl(type, url) {
+        const path = getAttachmentUrlPath(url);
+        if (type === 'pdf') {
+            return path.endsWith('.pdf');
+        }
+        if (type === 'image') {
+            return ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'].some((suffix) => path.endsWith(suffix));
+        }
+        if (type === 'video') {
+            return ['.mp4', '.webm', '.ogg', '.mov'].some((suffix) => path.endsWith(suffix))
+                || path.includes('youtube.com/')
+                || path.includes('youtu.be/')
+                || path.includes('vimeo.com/');
+        }
+        return true;
+    }
+
+    function typeFromFileName(fileName) {
+        const lower = (fileName || '').toLowerCase();
+        if (lower.endsWith('.pdf')) {
+            return 'pdf';
+        }
+        if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'].some((suffix) => lower.endsWith(suffix))) {
+            return 'image';
+        }
+        if (['.mp4', '.webm', '.ogg', '.mov'].some((suffix) => lower.endsWith(suffix))) {
+            return 'video';
+        }
+        return 'link';
+    }
+
+    function updateAttachmentPreview(row) {
+        const type = row.querySelector('[data-attachment-type]')?.value || 'link';
+        const url = row.querySelector('[data-attachment-url]')?.value || '';
+        const storageKey = row.querySelector('[data-attachment-storage-key]')?.value || '';
+        const originalName = row.querySelector('[data-attachment-original-name]')?.value || '';
+        const sizeBytes = Number(row.querySelector('[data-attachment-size]')?.value || 0);
+        const fileInput = row.querySelector('[data-attachment-file]');
+        const selectedFile = fileInput?.files?.[0] || null;
+        const preview = row.querySelector('[data-attachment-preview]');
+        if (!preview) {
+            return;
+        }
+        const formatBytes = (bytes) => {
+            if (!bytes || bytes <= 0) return '';
+            if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+            if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+            return `${bytes} B`;
+        };
+
+        if (selectedFile) {
+            const objectUrl = URL.createObjectURL(selectedFile);
+            const escapedUrl = objectUrl.replace(/"/g, '&quot;');
+            if (type === 'image') {
+                preview.innerHTML = '<img class="attachment-preview-image" src="' + escapedUrl + '" alt="Attachment preview">';
+                return;
+            }
+            if (type === 'video') {
+                preview.innerHTML = '<video class="attachment-preview-video" controls preload="metadata" src="' + escapedUrl + '"></video>';
+                return;
+            }
+            if (type === 'pdf') {
+                preview.innerHTML = '<a class="button" href="' + escapedUrl + '" target="_blank" rel="noopener noreferrer">Открыть PDF</a>';
+                return;
+            }
+            preview.innerHTML = '<span class="muted-line">Выбран файл: ' + selectedFile.name + ' (' + formatBytes(selectedFile.size) + ')</span>';
+            return;
+        }
+
+        const safe = isSafeAttachmentUrl(url);
+        if (!url.trim()) {
+            if (storageKey && originalName) {
+                preview.innerHTML = '<span class="muted-line">Сохраненный файл: ' + originalName + (sizeBytes > 0 ? ' (' + formatBytes(sizeBytes) + ')' : '') + '</span>';
+            } else {
+                preview.innerHTML = '<span class="muted-line">Превью появится после выбора файла или ввода URL.</span>';
+            }
+            return;
+        }
+        if (!safe) {
+            preview.innerHTML = '<span class="field-error">Небезопасный URL.</span>';
+            return;
+        }
+
+        const escapedUrl = url.replace(/"/g, '&quot;');
+        if (type === 'image') {
+            preview.innerHTML = '<img class="attachment-preview-image" src="' + escapedUrl + '" alt="Attachment preview">';
+            return;
+        }
+        if (type === 'video') {
+            const path = getAttachmentUrlPath(url);
+            if (path.includes('youtube.com/') || path.includes('youtu.be/') || path.includes('vimeo.com/')) {
+                preview.innerHTML = '<a class="button" href="' + escapedUrl + '" target="_blank" rel="noopener noreferrer">Открыть видео</a>';
+            } else {
+                preview.innerHTML = '<video class="attachment-preview-video" controls preload="metadata" src="' + escapedUrl + '"></video>';
+            }
+            return;
+        }
+        if (type === 'pdf') {
+            preview.innerHTML = '<a class="button" href="' + escapedUrl + '" target="_blank" rel="noopener noreferrer">Открыть PDF</a>';
+            return;
+        }
+        preview.innerHTML = '<a class="button" href="' + escapedUrl + '" target="_blank" rel="noopener noreferrer">Открыть ссылку</a>';
+    }
+
+    function validateAttachmentRow(row) {
+        const title = row.querySelector('[data-attachment-title]')?.value?.trim() ?? '';
+        const type = row.querySelector('[data-attachment-type]')?.value ?? 'link';
+        const url = row.querySelector('[data-attachment-url]')?.value?.trim() ?? '';
+        const storageKey = row.querySelector('[data-attachment-storage-key]')?.value?.trim() ?? '';
+        const fileInput = row.querySelector('[data-attachment-file]');
+        const selectedFile = fileInput?.files?.[0] || null;
+        const feedback = row.querySelector('[data-attachment-feedback]');
+
+        const hasStoredFile = storageKey.length > 0;
+        const hasFile = !!selectedFile;
+        const isEmpty = !title && !url && !hasStoredFile && !hasFile;
+        let error = '';
+        if (!isEmpty) {
+            if (!title) {
+                error = 'Для вложения укажите название.';
+            } else if (!hasFile && !url && !hasStoredFile) {
+                error = 'Добавьте файл или укажите URL.';
+            } else if (!hasFile && url && !isSafeAttachmentUrl(url)) {
+                error = 'Разрешены только безопасные URL: https://, http:// и относительные пути.';
+            } else if (hasFile && selectedFile.size > 25 * 1024 * 1024) {
+                error = 'Размер файла не должен превышать 25 MB.';
+            } else if (!hasFile && url && !typeMatchesUrl(type, url)) {
+                error = 'URL не соответствует выбранному типу вложения.';
+            }
+        }
+
+        if (feedback) {
+            feedback.textContent = error;
+        }
+        row.classList.toggle('has-error', !!error);
+        updateAttachmentPreview(row);
+        return { isEmpty, hasError: !!error };
+    }
+
+    function validateAttachments() {
+        let nonEmptyCount = 0;
+        let hasError = false;
+        attachmentRows.forEach((row) => {
+            const result = validateAttachmentRow(row);
+            if (!result.isEmpty) {
+                nonEmptyCount += 1;
+            }
+            hasError = hasError || result.hasError;
+        });
+        if (nonEmptyCount > 8) {
+            hasError = true;
+            clientAttachmentError.hidden = false;
+            clientAttachmentError.textContent = 'Можно добавить не более 8 вложений на лекцию.';
+            return false;
+        }
+        if (hasError) {
+            clientAttachmentError.hidden = false;
+            clientAttachmentError.textContent = 'Исправьте ошибки во вложениях перед сохранением.';
+            return false;
+        }
+        clientAttachmentError.hidden = true;
+        clientAttachmentError.textContent = '';
+        return true;
+    }
+
+    attachmentRows.forEach((row) => {
+        row.querySelector('[data-attachment-type]')?.addEventListener('change', () => validateAttachmentRow(row));
+        row.querySelector('[data-attachment-url]')?.addEventListener('input', () => validateAttachmentRow(row));
+        row.querySelector('[data-attachment-title]')?.addEventListener('input', () => validateAttachmentRow(row));
+        row.querySelector('[data-attachment-file]')?.addEventListener('change', (event) => {
+            const file = event.target?.files?.[0];
+            if (file) {
+                const titleInput = row.querySelector('[data-attachment-title]');
+                const typeSelect = row.querySelector('[data-attachment-type]');
+                if (titleInput && !titleInput.value.trim()) {
+                    titleInput.value = file.name;
+                }
+                if (typeSelect) {
+                    typeSelect.value = typeFromFileName(file.name);
+                }
+            }
+            validateAttachmentRow(row);
+        });
+        validateAttachmentRow(row);
+    });
+
+    if (lectureForm) {
+        lectureForm.addEventListener('submit', (event) => {
+            lectureEditors.forEach((sync) => sync());
+            renderManualCheckpointHiddenInputs();
+            if (!validateAttachments()) {
+                event.preventDefault();
+            }
+        });
+    }
+</script>
+</body>
+</html>

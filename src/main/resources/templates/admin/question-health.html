@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Качество вопросов</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title">Качество вопросов</h1>
+                    <p class="lede">Проблемные вопросы по текущим версиям: ошибки, слабая дискриминация, отсутствие попыток и открытые флаги.</p>
+                </div>
+                <div class="row-actions">
+                    <a class="button" th:href="@{/admin/questions/import}">Импорт</a>
+                    <a class="button" th:href="@{/admin/questions}">Банк вопросов</a>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <form class="filter-bar" method="get" th:action="@{/admin/questions/health}">
+                <label class="field compact">
+                    <span>Сигнал</span>
+                    <select name="quality">
+                        <option value="">Все</option>
+                        <option th:each="item : ${qualityFilters}"
+                                th:value="${item}"
+                                th:selected="${item == selectedQuality}"
+                                th:text="${item}">HIGH_ERROR</option>
+                    </select>
+                </label>
+                <button class="button" type="submit">Показать</button>
+            </form>
+
+            <div class="meta-grid">
+                <div class="metric">
+                    <strong th:text="${health.totalQuestions}">0</strong>
+                    <span>Вопросов</span>
+                </div>
+                <div class="metric">
+                    <strong th:text="${health.highErrorQuestions}">0</strong>
+                    <span>Высокая ошибка</span>
+                </div>
+                <div class="metric">
+                    <strong th:text="${health.weakDiscriminationQuestions}">0</strong>
+                    <span>Слабая дискриминация</span>
+                </div>
+                <div class="metric">
+                    <strong th:text="${health.flaggedQuestions}">0</strong>
+                    <span>Открытые флаги</span>
+                </div>
+                <div class="metric">
+                    <strong th:text="${health.noAttemptQuestions}">0</strong>
+                    <span>Без попыток</span>
+                </div>
+            </div>
+
+            <div class="empty-state" th:if="${#lists.isEmpty(health.items)}">
+                <strong>Нет вопросов по фильтру</strong>
+                <span>Смените сигнал качества или вернитесь к банку вопросов.</span>
+            </div>
+
+            <div class="health-card-grid" th:if="${!#lists.isEmpty(health.items)}">
+                <article class="health-card" th:each="item : ${health.items}">
+                    <div class="health-card-head">
+                        <div>
+                            <span class="badge" th:text="${'Q-' + item.questionId}">Q-1</span>
+                            <span class="badge"
+                                  th:classappend="${item.qualitySignal == 'ok'} ? 'success' : (${item.qualitySignal == 'high_error' || item.qualitySignal == 'weak_discrimination'} ? 'danger' : 'warning')"
+                                  th:text="${item.qualitySignal}">high_error</span>
+                        </div>
+                        <span class="muted-line" th:text="${item.type}">SCQ</span>
+                    </div>
+                    <h2 th:text="${item.bodyRu}">Вопрос</h2>
+                    <p class="muted-line" th:text="${item.topicTitleRu}">Тема</p>
+                    <dl class="health-stat-list">
+                        <div>
+                            <dt>Попытки</dt>
+                            <dd th:text="${item.attempts}">0</dd>
+                        </div>
+                        <div>
+                            <dt>Ошибка</dt>
+                            <dd th:text="${item.errorRate + '%'}">0%</dd>
+                        </div>
+                        <div>
+                            <dt>Discr.</dt>
+                            <dd th:text="${item.discriminativePower}">0</dd>
+                        </div>
+                        <div>
+                            <dt>Флаги</dt>
+                            <dd th:text="${item.openFlagCount}">0</dd>
+                        </div>
+                    </dl>
+                    <form class="inline-review-form" method="post" th:action="@{/admin/questions/{id}/flags(id=${item.questionId})}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" name="source" value="METHODIST">
+                        <label class="field">
+                            <span>Комментарий методиста</span>
+                            <input name="reason" th:value="${'Проверить: ' + item.qualitySignal}">
+                        </label>
+                        <button class="button" type="submit">Добавить флаг</button>
+                    </form>
+                    <form method="post" th:if="${item.status != 'archived'}"
+                          th:action="@{/admin/questions/{id}/flag(id=${item.questionId})}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" name="reason" th:value="${item.qualitySignal}">
+                        <button class="button danger" type="submit">На review</button>
+                    </form>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

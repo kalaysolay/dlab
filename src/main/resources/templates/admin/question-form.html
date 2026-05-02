@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${mode == 'edit'} ? 'Редактировать вопрос' : 'Добавить вопрос'">Добавить вопрос</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title" th:text="${mode == 'edit'} ? 'Редактировать вопрос' : 'Добавить вопрос'">Добавить вопрос</h1>
+                    <p class="lede">Правильные ответы сохраняются как серверный answer key и не раскрываются ученику до завершения теста.</p>
+                    <p class="muted-line" th:if="${mode == 'edit'}">
+                        <span th:text="${'Q-' + questionId + ' · v' + questionVersionNo + ' · ' + questionCurrentStatus}">Q-1 · v1 · draft</span>
+                    </p>
+                </div>
+                <a class="button" th:href="@{/admin/questions}">К списку</a>
+            </div>
+
+            <form id="question-form"
+                  class="form wide-form"
+                  method="post"
+                  th:action="${mode == 'edit'} ? @{/admin/questions/{id}(id=${questionId})} : @{/admin/questions}"
+                  th:object="${questionForm}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}">
+                    Ошибка
+                </div>
+
+                <h2 class="section-title">Базовые параметры</h2>
+                <div class="notice">
+                    <strong>Порядок выбора</strong>
+                    <span>Сначала выберите предмет и класс. После этого список тем обновится автоматически; если тем нет, добавьте их в разделе "Темы".</span>
+                </div>
+                <div class="notice" th:if="${mode == 'edit' and (questionCurrentStatus == 'published' or questionCurrentStatus == 'approved')}">
+                    <strong>Версионирование</strong>
+                    <span>Редактирование published/approved вопроса сохраняет новую версию для review, не ломая уже опубликованный контент в student flow.</span>
+                </div>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Предмет</span>
+                        <select id="question-subject" name="subjectId">
+                            <option th:each="subject : ${subjects}"
+                                    th:value="${subject.id}"
+                                    th:selected="${subject.id == selectedSubjectId}"
+                                    th:text="${subject.titleRu}">Математика</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Класс</span>
+                        <select id="question-grade" name="gradeId">
+                            <option th:each="grade : ${grades}"
+                                    th:value="${grade.id}"
+                                    th:selected="${grade.id == selectedGradeId}"
+                                    th:text="${grade.titleRu}">4 класс</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Тема</span>
+                        <select id="question-topic" th:field="*{topicId}" required>
+                            <option value="">Выберите тему</option>
+                            <option th:each="topic : ${topics}" th:value="${topic.id}" th:text="${topic.titleRu}">Проценты</option>
+                        </select>
+                        <small id="question-topic-hint" class="muted-line">Темы показаны для текущего предмета и класса.</small>
+                        <small class="field-error" th:if="${#fields.hasErrors('topicId')}" th:errors="*{topicId}">Ошибка</small>
+                    </label>
+                    <label class="field">
+                        <span>Тип вопроса</span>
+                        <select th:field="*{type}" id="question-type">
+                            <option th:each="item : ${questionTypes}" th:value="${item}" th:text="${item}">SCQ</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Сложность</span>
+                        <select th:field="*{difficulty}">
+                            <option value="1">1 - легкий</option>
+                            <option value="2">2</option>
+                            <option value="3">3 - средний</option>
+                            <option value="4">4</option>
+                            <option value="5">5 - сложный</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Статус после сохранения</span>
+                        <select th:field="*{status}">
+                            <option value="DRAFT">draft</option>
+                            <option value="NEEDS_REVIEW">needs_review</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Источник</span>
+                        <input th:field="*{source}" placeholder="Учебник, страница, ручной ввод" required>
+                        <small class="field-error" th:if="${#fields.hasErrors('source')}" th:errors="*{source}">Ошибка</small>
+                    </label>
+                </div>
+
+                <hr class="divider">
+
+                <h2 class="section-title">Текст вопроса</h2>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>RU</span>
+                        <textarea id="question-body-ru" th:field="*{bodyRu}" required></textarea>
+                        <small class="muted-line">Для FILL_IN добавьте метки вида <code>[[1]]</code> в текст вопроса.</small>
+                        <small class="field-error" th:if="${#fields.hasErrors('bodyRu')}" th:errors="*{bodyRu}">Ошибка</small>
+                    </label>
+                    <label class="field">
+                        <span>KK</span>
+                        <textarea id="question-body-kk" th:field="*{bodyKk}" required></textarea>
+                        <small class="muted-line">Для FILL_IN используйте те же placeholder-метки, что и в RU.</small>
+                        <small class="field-error" th:if="${#fields.hasErrors('bodyKk')}" th:errors="*{bodyKk}">Ошибка</small>
+                    </label>
+                    <label class="field">
+                        <span>Объяснение RU</span>
+                        <textarea id="question-explanation-ru" th:field="*{explanationRu}"></textarea>
+                    </label>
+                    <label class="field">
+                        <span>Объяснение KK</span>
+                        <textarea id="question-explanation-kk" th:field="*{explanationKk}"></textarea>
+                    </label>
+                    <label class="field">
+                        <span>Мини-лекция RU</span>
+                        <textarea id="question-mini-lecture-ru" th:field="*{miniLectureRu}"></textarea>
+                    </label>
+                    <label class="field">
+                        <span>Мини-лекция KK</span>
+                        <textarea id="question-mini-lecture-kk" th:field="*{miniLectureKk}"></textarea>
+                    </label>
+                </div>
+                <div class="actions">
+                    <button class="button" type="button" id="generate-mini-lecture">Сгенерировать мини-лекцию и объяснение (RU + KK)</button>
+                </div>
+                <div id="lecture-generation-status" class="muted-line" aria-live="polite"></div>
+
+                <hr class="divider">
+
+                <div class="type-tabs" aria-label="Типы вопросов">
+                    <button class="type-tab active" type="button" data-type="SCQ">SCQ</button>
+                    <button class="type-tab" type="button" data-type="MCQ">MCQ</button>
+                    <button class="type-tab" type="button" data-type="MATCHING">MATCHING</button>
+                    <button class="type-tab" type="button" data-type="FILL_IN">FILL_IN</button>
+                </div>
+
+                <section class="question-type-panel active" data-panel="SCQ">
+                    <h2 class="section-title">SCQ / MCQ варианты</h2>
+                    <div id="choice-options-list" class="stack">
+                        <div class="option-row"
+                             th:each="option, iter : *{options}"
+                             th:classappend="${option.softDeleted} ? 'is-soft-deleted'">
+                            <input type="hidden" class="option-label-input" th:field="*{options[__${iter.index}__].label}">
+                            <input type="hidden" class="option-soft-delete-input" th:field="*{options[__${iter.index}__].softDeleted}">
+                            <strong class="option-label" th:text="${option.label}">A</strong>
+                            <label class="field">
+                                <span>RU</span>
+                                <input th:field="*{options[__${iter.index}__].textRu}">
+                            </label>
+                            <label class="field">
+                                <span>KK</span>
+                                <input th:field="*{options[__${iter.index}__].textKk}">
+                            </label>
+                            <label class="checkbox-field">
+                                <input class="option-correct-input" type="checkbox" th:field="*{options[__${iter.index}__].correct}">
+                                Правильный
+                            </label>
+                            <button class="button danger option-delete-button" type="button" title="Удалить вариант" aria-label="Удалить вариант">
+                                <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#trash-2}"></use></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="actions compact-actions">
+                        <button class="button" type="button" id="choice-option-add">Добавить вариант</button>
+                    </div>
+                    <p class="muted-line">Для SCQ сервер требует ровно один правильный вариант; для MCQ - минимум один.</p>
+                </section>
+
+                <section class="question-type-panel" data-panel="MATCHING">
+                    <h2 class="section-title">MATCHING пары</h2>
+                    <div class="stack">
+                        <div class="pair-row" th:each="i : ${#numbers.sequence(0,1)}">
+                            <label class="field">
+                                <span>Левая RU</span>
+                                <input th:field="*{matchingPairs[__${i}__].leftRu}">
+                            </label>
+                            <label class="field">
+                                <span>Левая KK</span>
+                                <input th:field="*{matchingPairs[__${i}__].leftKk}">
+                            </label>
+                            <label class="field">
+                                <span>Правая RU</span>
+                                <input th:field="*{matchingPairs[__${i}__].rightRu}">
+                            </label>
+                            <label class="field">
+                                <span>Правая KK</span>
+                                <input th:field="*{matchingPairs[__${i}__].rightKk}">
+                            </label>
+                        </div>
+                    </div>
+                    <p class="muted-line">Ключ сопоставления хранится по строкам: левая часть строки соответствует правой части той же строки.</p>
+                </section>
+
+                <section class="question-type-panel" data-panel="FILL_IN">
+                    <h2 class="section-title">FILL_IN ключ ответа</h2>
+                    <div class="notice">
+                        <strong>Как составлять FILL_IN:</strong>
+                        <span>1) В тексте вопроса используйте метки вида <code>[[1]]</code>, <code>[[2]]</code>.</span>
+                        <span>2) Ниже добавьте для каждой метки правильный ответ и правило проверки.</span>
+                        <span>3) Для <code>NUMERIC_TOLERANCE</code> обязательно укажите tolerance (например <code>0.01</code>).</span>
+                        <span>4) Если в тексте есть <code>[[1]]</code>, ниже должна быть строка с точно таким же placeholder.</span>
+                    </div>
+                    <div id="fill-in-validation" class="alert error" hidden></div>
+                    <div class="stack">
+                        <div class="fill-row" th:each="i : ${#numbers.sequence(0,3)}">
+                            <label class="field">
+                                <span th:text="'Placeholder ' + (${i} + 1)">Placeholder</span>
+                                <input th:field="*{fillAnswers[__${i}__].placeholder}" placeholder="[[1]]">
+                            </label>
+                            <label class="field">
+                                <span>Ответ</span>
+                                <input th:field="*{fillAnswers[__${i}__].answer}">
+                            </label>
+                            <label class="field">
+                                <span>Правило</span>
+                                <select th:field="*{fillAnswers[__${i}__].matchMode}">
+                                    <option th:each="mode : ${fillModes}" th:value="${mode}" th:text="${mode}">EXACT</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span>Tolerance</span>
+                                <input th:field="*{fillAnswers[__${i}__].tolerance}" placeholder="0.01">
+                            </label>
+                        </div>
+                    </div>
+                    <p class="muted-line">Допустимо оставлять пустые строки. Сохраняются только заполненные placeholder-ответы.</p>
+                </section>
+
+                <div class="actions">
+                    <button class="button primary" type="submit" th:text="${mode == 'edit'} ? 'Сохранить изменения' : 'Сохранить вопрос'">Сохранить вопрос</button>
+                    <a class="button" th:href="@{/admin/questions}">Отмена</a>
+                </div>
+            </form>
+        </section>
+    </main>
+</div>
+<script>
+    const typeSelect = document.getElementById('question-type');
+    const subjectSelect = document.getElementById('question-subject');
+    const gradeSelect = document.getElementById('question-grade');
+    const topicSelect = document.getElementById('question-topic');
+    const questionForm = document.getElementById('question-form');
+    const bodyRuInput = document.getElementById('question-body-ru');
+    const bodyKkInput = document.getElementById('question-body-kk');
+    const explanationRuInput = document.getElementById('question-explanation-ru');
+    const explanationKkInput = document.getElementById('question-explanation-kk');
+    const miniLectureRuInput = document.getElementById('question-mini-lecture-ru');
+    const miniLectureKkInput = document.getElementById('question-mini-lecture-kk');
+    const generateMiniLectureButton = document.getElementById('generate-mini-lecture');
+    const lectureGenerationStatus = document.getElementById('lecture-generation-status');
+    const fillValidation = document.getElementById('fill-in-validation');
+    const choiceOptionsList = document.getElementById('choice-options-list');
+    const choiceOptionAddButton = document.getElementById('choice-option-add');
+    const tabs = Array.from(document.querySelectorAll('.type-tab'));
+    const panels = Array.from(document.querySelectorAll('.question-type-panel'));
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    function activate(type) {
+        typeSelect.value = type;
+        tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.type === type || ((type === 'MCQ') && tab.dataset.type === 'MCQ')));
+        panels.forEach((panel) => {
+            const panelType = panel.dataset.panel;
+            panel.classList.toggle('active', panelType === type || ((type === 'MCQ') && panelType === 'SCQ'));
+        });
+        if (type === 'SCQ') {
+            const checked = visibleOptionRows()
+                    .map((row) => row.querySelector('.option-correct-input'))
+                    .filter((input) => input?.checked);
+            checked.slice(1).forEach((input) => {
+                input.checked = false;
+            });
+        }
+    }
+
+    tabs.forEach((tab) => tab.addEventListener('click', () => activate(tab.dataset.type)));
+    typeSelect.addEventListener('change', () => activate(typeSelect.value));
+    activate(typeSelect.value);
+
+    function visibleOptionRows() {
+        if (!choiceOptionsList) {
+            return [];
+        }
+        return Array.from(choiceOptionsList.querySelectorAll('.option-row'))
+                .filter((row) => row.querySelector('.option-soft-delete-input')?.value !== 'true');
+    }
+
+    function reindexVisibleOptions() {
+        visibleOptionRows().forEach((row, index) => {
+            const label = letters[index] || ('V' + (index + 1));
+            const labelText = row.querySelector('.option-label');
+            const labelInput = row.querySelector('.option-label-input');
+            if (labelText) labelText.textContent = label;
+            if (labelInput) labelInput.value = label;
+        });
+    }
+
+    function enforceSingleCorrect(changedInput) {
+        if (!changedInput || typeSelect.value !== 'SCQ' || !changedInput.checked) {
+            return;
+        }
+        visibleOptionRows().forEach((row) => {
+            const input = row.querySelector('.option-correct-input');
+            if (input && input !== changedInput) {
+                input.checked = false;
+            }
+        });
+    }
+
+    function bindOptionRow(row) {
+        const correctInput = row.querySelector('.option-correct-input');
+        const deleteButton = row.querySelector('.option-delete-button');
+        if (correctInput) {
+            correctInput.addEventListener('change', () => enforceSingleCorrect(correctInput));
+        }
+        if (deleteButton) {
+            deleteButton.addEventListener('click', () => {
+                if (visibleOptionRows().length <= 2) {
+                    window.alert('Нужно оставить минимум два варианта ответа.');
+                    return;
+                }
+                if (!window.confirm('Удалить этот вариант ответа?')) {
+                    return;
+                }
+                const softDeleteInput = row.querySelector('.option-soft-delete-input');
+                if (softDeleteInput) {
+                    softDeleteInput.value = 'true';
+                }
+                const correct = row.querySelector('.option-correct-input');
+                if (correct) {
+                    correct.checked = false;
+                }
+                row.classList.add('is-soft-deleted');
+                reindexVisibleOptions();
+            });
+        }
+    }
+
+    function appendChoiceOption() {
+        if (!choiceOptionsList) {
+            return;
+        }
+        const index = choiceOptionsList.querySelectorAll('.option-row').length;
+        const label = letters[visibleOptionRows().length] || ('V' + (visibleOptionRows().length + 1));
+        const row = document.createElement('div');
+        row.className = 'option-row';
+        row.innerHTML = `
+            <input type="hidden" class="option-label-input" name="options[${index}].label" value="${label}">
+            <input type="hidden" class="option-soft-delete-input" name="options[${index}].softDeleted" value="false">
+            <strong class="option-label">${label}</strong>
+            <label class="field">
+                <span>RU</span>
+                <input name="options[${index}].textRu">
+            </label>
+            <label class="field">
+                <span>KK</span>
+                <input name="options[${index}].textKk">
+            </label>
+            <label class="checkbox-field">
+                <input class="option-correct-input" type="checkbox" name="options[${index}].correct" value="true">
+                Правильный
+            </label>
+            <button class="button danger option-delete-button" type="button" title="Удалить вариант" aria-label="Удалить вариант">
+                <svg class="lucide-icon" aria-hidden="true"><use href="/icons/lucide-sprite.svg#trash-2"></use></svg>
+            </button>
+        `;
+        choiceOptionsList.appendChild(row);
+        bindOptionRow(row);
+        reindexVisibleOptions();
+    }
+
+    if (choiceOptionsList) {
+        Array.from(choiceOptionsList.querySelectorAll('.option-row')).forEach(bindOptionRow);
+        reindexVisibleOptions();
+    }
+
+    if (choiceOptionAddButton) {
+        choiceOptionAddButton.addEventListener('click', appendChoiceOption);
+    }
+
+    function setQuestionTopicHint(message, isError) {
+        const hint = document.getElementById('question-topic-hint');
+        if (!hint) {
+            return;
+        }
+        hint.textContent = message;
+        hint.classList.toggle('field-error', Boolean(isError));
+        hint.classList.toggle('muted-line', !isError);
+    }
+
+    function setQuestionTopicPlaceholder(text) {
+        topicSelect.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = text;
+        topicSelect.appendChild(option);
+        topicSelect.value = '';
+    }
+
+    async function syncTopics() {
+        if (!subjectSelect || !gradeSelect || !topicSelect) {
+            return;
+        }
+        if (!subjectSelect.value || !gradeSelect.value) {
+            setQuestionTopicPlaceholder('Сначала выберите предмет и класс');
+            setQuestionTopicHint('Тема станет доступна после выбора предмета и класса.', false);
+            return;
+        }
+        const prev = topicSelect.value;
+        topicSelect.disabled = true;
+        setQuestionTopicPlaceholder('Загружаем темы...');
+        setQuestionTopicHint('Обновляем темы для выбранного предмета и класса.', false);
+        const params = new URLSearchParams({
+            subjectId: subjectSelect.value,
+            gradeId: gradeSelect.value
+        });
+        try {
+            const response = await fetch('/api/content/references?' + params.toString(), { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('topic refresh failed');
+            }
+            const data = await response.json();
+            const topics = Array.isArray(data.topics) ? data.topics : [];
+            topicSelect.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = topics.length ? 'Выберите тему' : 'Нет тем для этой пары';
+            topicSelect.appendChild(placeholder);
+            topics.forEach((topic) => {
+                const opt = document.createElement('option');
+                opt.value = String(topic.id);
+                opt.textContent = topic.titleRu || topic.titleKk || ('Тема ' + topic.id);
+                topicSelect.appendChild(opt);
+            });
+            const stillExists = topics.some((topic) => String(topic.id) === prev);
+            topicSelect.value = stillExists ? prev : '';
+            setQuestionTopicHint(
+                    topics.length
+                            ? 'Выберите тему перед сохранением вопроса.'
+                            : 'Для этих предмета и класса нет тем. Сначала добавьте тему в разделе "Темы".',
+                    topics.length === 0
+            );
+        } catch (error) {
+            setQuestionTopicPlaceholder('Не удалось загрузить темы');
+            setQuestionTopicHint('Проверьте связь и повторите выбор предмета или класса.', true);
+        } finally {
+            topicSelect.disabled = false;
+        }
+    }
+
+    if (subjectSelect && gradeSelect) {
+        subjectSelect.addEventListener('change', syncTopics);
+        gradeSelect.addEventListener('change', syncTopics);
+    }
+
+    function parseIndexedField(target, key, value) {
+        const indexedFieldPattern = new RegExp('^(options|matchingPairs|fillAnswers)\\[' + '(\\d+)' + ']\\.(\\w+)$');
+        const match = key.match(indexedFieldPattern);
+        if (!match) {
+            return false;
+        }
+        const collection = match[1];
+        const index = Number(match[2]);
+        const field = match[3];
+        if (!target[collection]) {
+            target[collection] = [];
+        }
+        if (!target[collection][index]) {
+            target[collection][index] = {};
+        }
+        if (field === 'correct') {
+            target[collection][index][field] = true;
+        } else if (field === 'softDeleted') {
+            target[collection][index][field] = value === 'true';
+        } else if (field === 'tolerance') {
+            target[collection][index][field] = value === '' ? null : Number(value);
+        } else {
+            target[collection][index][field] = value;
+        }
+        return true;
+    }
+
+    function buildQuestionPayload() {
+        const formData = new FormData(questionForm);
+        const payload = {
+            topicId: null,
+            atomicSkillId: null,
+            type: null,
+            difficulty: 2,
+            bodyRu: '',
+            bodyKk: '',
+            source: '',
+            explanationRu: '',
+            explanationKk: '',
+            miniLectureRu: '',
+            miniLectureKk: '',
+            status: 'DRAFT',
+            options: [],
+            matchingPairs: [],
+            fillAnswers: []
+        };
+
+        formData.forEach((rawValue, rawKey) => {
+            const value = String(rawValue);
+            const key = String(rawKey);
+            if (parseIndexedField(payload, key, value)) {
+                return;
+            }
+            switch (key) {
+                case 'topicId':
+                    payload.topicId = value ? Number(value) : null;
+                    break;
+                case 'atomicSkillId':
+                    payload.atomicSkillId = value ? Number(value) : null;
+                    break;
+                case 'type':
+                    payload.type = value;
+                    break;
+                case 'difficulty':
+                    payload.difficulty = value ? Number(value) : 2;
+                    break;
+                case 'bodyRu':
+                    payload.bodyRu = value;
+                    break;
+                case 'bodyKk':
+                    payload.bodyKk = value;
+                    break;
+                case 'source':
+                    payload.source = value;
+                    break;
+                case 'explanationRu':
+                    payload.explanationRu = value;
+                    break;
+                case 'explanationKk':
+                    payload.explanationKk = value;
+                    break;
+                case 'miniLectureRu':
+                    payload.miniLectureRu = value;
+                    break;
+                case 'miniLectureKk':
+                    payload.miniLectureKk = value;
+                    break;
+                case 'status':
+                    payload.status = value;
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        payload.options = payload.options
+            .filter(Boolean)
+            .map((item) => ({ ...item, correct: Boolean(item.correct), softDeleted: Boolean(item.softDeleted) }));
+        payload.matchingPairs = payload.matchingPairs.filter(Boolean);
+        payload.fillAnswers = payload.fillAnswers.filter(Boolean);
+        return payload;
+    }
+
+    async function generateMiniLectureDraft() {
+        if (!generateMiniLectureButton || !questionForm) {
+            return;
+        }
+        const tokenInput = questionForm.querySelector('input[name="_csrf"]');
+        const csrfToken = tokenInput ? tokenInput.value : '';
+        const payload = buildQuestionPayload();
+
+        generateMiniLectureButton.disabled = true;
+        lectureGenerationStatus.textContent = 'Генерируем мини-лекцию и объяснение...';
+        lectureGenerationStatus.classList.remove('field-error');
+        lectureGenerationStatus.classList.add('muted-line');
+
+        try {
+            const response = await fetch('/api/admin/questions/mini-lecture/generate', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'generation_failed');
+            }
+            if (explanationRuInput) explanationRuInput.value = data.explanationRu || '';
+            if (explanationKkInput) explanationKkInput.value = data.explanationKk || '';
+            if (miniLectureRuInput) miniLectureRuInput.value = data.miniLectureRu || '';
+            if (miniLectureKkInput) miniLectureKkInput.value = data.miniLectureKk || '';
+            lectureGenerationStatus.textContent = 'Черновик мини-лекции и объяснения заполнен.';
+            lectureGenerationStatus.classList.remove('field-error');
+            lectureGenerationStatus.classList.add('muted-line');
+        } catch (error) {
+            lectureGenerationStatus.textContent = 'Не удалось сгенерировать: ' + error.message;
+            lectureGenerationStatus.classList.add('field-error');
+            lectureGenerationStatus.classList.remove('muted-line');
+        } finally {
+            generateMiniLectureButton.disabled = false;
+        }
+    }
+
+    if (generateMiniLectureButton) {
+        generateMiniLectureButton.addEventListener('click', generateMiniLectureDraft);
+    }
+
+    function placeholders(text) {
+        const fillPlaceholderPattern = new RegExp('\\[\\[' + '\\d+' + ']]', 'g');
+        return Array.from((text || '').matchAll(fillPlaceholderPattern)).map((item) => item[0]);
+    }
+
+    function fillRows() {
+        return Array.from(document.querySelectorAll('[data-panel="FILL_IN"] .fill-row')).map((row) => {
+            const fields = row.querySelectorAll('input, select');
+            return {
+                placeholder: fields[0]?.value?.trim() ?? '',
+                answer: fields[1]?.value?.trim() ?? '',
+                mode: fields[2]?.value?.trim() ?? '',
+                tolerance: fields[3]?.value?.trim() ?? ''
+            };
+        });
+    }
+
+    if (questionForm) {
+        questionForm.addEventListener('submit', (event) => {
+            reindexVisibleOptions();
+            if (fillValidation) {
+                fillValidation.hidden = true;
+                fillValidation.textContent = '';
+            }
+            if (typeSelect.value !== 'FILL_IN') {
+                return;
+            }
+
+            const fromBody = new Set([...placeholders(bodyRuInput?.value), ...placeholders(bodyKkInput?.value)]);
+            const rows = fillRows().filter((row) => row.placeholder || row.answer || row.mode || row.tolerance);
+            const completed = rows.filter((row) => row.placeholder && row.answer && row.mode);
+
+            if (completed.length === 0) {
+                event.preventDefault();
+                if (fillValidation) {
+                    fillValidation.textContent = 'Для FILL_IN заполните минимум одну строку: placeholder, ответ и правило.';
+                    fillValidation.hidden = false;
+                }
+                return;
+            }
+
+            const missingInBody = completed
+                .map((row) => row.placeholder)
+                .filter((value) => !fromBody.has(value));
+            if (missingInBody.length > 0) {
+                event.preventDefault();
+                if (fillValidation) {
+                    fillValidation.textContent = 'Эти placeholder отсутствуют в тексте RU/KK: ' + Array.from(new Set(missingInBody)).join(', ');
+                    fillValidation.hidden = false;
+                }
+                return;
+            }
+
+            const missingRules = Array.from(fromBody).filter((item) => !completed.some((row) => row.placeholder === item));
+            if (missingRules.length > 0) {
+                event.preventDefault();
+                if (fillValidation) {
+                    fillValidation.textContent = 'Для placeholder из текста нет ключа ответа: ' + missingRules.join(', ');
+                    fillValidation.hidden = false;
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>

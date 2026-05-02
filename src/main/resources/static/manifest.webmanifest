@@ -1,0 +1,18 @@
+{
+  "name": "Damulab.kz",
+  "short_name": "Damulab",
+  "description": "Damulab.kz MVP learning portal",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#1668dc",
+  "icons": [
+    {
+      "src": "/icons/damulab-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Регистрация</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/header :: header}"></header>
+    <main class="page auth-grid auth-page">
+        <section class="auth-copy">
+            <span class="badge success">Damulab.kz</span>
+            <h1 class="page-title">Создание аккаунта</h1>
+            <p class="lede">Создайте профиль ученика или родителя. Вход станет доступен после серверной проверки формы.</p>
+            <div class="warm-card">
+                <strong>Роль задает стартовый кабинет</strong>
+                <p>Ученик получает задания и тесты, родитель видит семейную аналитику.</p>
+            </div>
+        </section>
+        <section class="panel auth-panel">
+            <div class="type-tabs compact-tabs">
+                <a class="type-tab" th:href="@{/login}">Вход</a>
+                <a class="type-tab active" th:href="@{/register}" aria-current="page">Регистрация</a>
+            </div>
+            <h2 class="section-title">Регистрация</h2>
+            <form class="form wide-form" th:action="@{/register}" th:object="${registerForm}" method="post">
+                <div class="form-grid two-col auth-register-grid">
+                    <div class="field auth-register-span">
+                        <label for="email">Email</label>
+                        <input id="email" th:field="*{email}" type="email" autocomplete="username" required>
+                        <span class="alert error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></span>
+                    </div>
+                    <div class="field auth-register-span">
+                        <label for="password">Пароль</label>
+                        <input id="password" th:field="*{password}" type="password" autocomplete="new-password" required>
+                        <span class="alert error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></span>
+                    </div>
+                    <div class="field">
+                        <label for="fullName">Имя</label>
+                        <input id="fullName" th:field="*{fullName}" type="text" autocomplete="name" required>
+                        <span class="alert error" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></span>
+                    </div>
+                    <div class="field">
+                        <label for="phone">Телефон</label>
+                        <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel">
+                    </div>
+                    <div class="field">
+                        <label for="role">Роль</label>
+                        <select id="role" th:field="*{role}">
+                            <option value="STUDENT">Ученик</option>
+                            <option value="PARENT">Родитель</option>
+                        </select>
+                        <span class="alert error" th:if="${#fields.hasErrors('role')}" th:errors="*{role}"></span>
+                    </div>
+                    <div class="field">
+                        <label for="gradeNo">Класс ученика</label>
+                        <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="5">
+                        <span class="alert error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></span>
+                    </div>
+                </div>
+                <button class="button primary" type="submit">Создать аккаунт</button>
+            </form>
+        </section>
+    </main>
+</div>
+</body>
+</html>

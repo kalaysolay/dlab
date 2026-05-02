@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="#{dashboard.student.title}">Кабинет ученика</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page student-home">
+        <section class="student-home-hero">
+            <p class="section-kicker">Student Home</p>
+            <h1 th:text="'Привет, ' + ${dashboard.fullName()} + '! Какую вершину покорим сегодня?'">
+                Привет! Какую вершину покорим сегодня?
+            </h1>
+        </section>
+
+        <section class="student-home-grid student-home-grid-top">
+            <article class="panel mission-panel student-mission-card">
+                <div class="card-title-row">
+                    <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#map}"></use></svg>
+                    <h2>Миссия дня / Күндік миссия</h2>
+                </div>
+                <div class="mission-stack">
+                    <div class="mission-step mint">
+                        <strong th:text="${dashboard.mission().title()}">Первый предметный срез</strong>
+                        <span th:text="${dashboard.mission().description()}">Начните с короткого теста.</span>
+                    </div>
+                    <div class="mission-step sky">
+                        <strong>Укрепи слабые места</strong>
+                        <span>После результата открой аналитику и выбери следующую тему.</span>
+                    </div>
+                </div>
+                <a class="button primary" th:href="${dashboard.mission().actionUrl()}" th:text="${dashboard.mission().actionText()}">Начать</a>
+            </article>
+
+            <article class="panel student-word-card">
+                <div class="card-title-row">
+                    <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#shield-check}"></use></svg>
+                    <h2>Слово дня</h2>
+                </div>
+                <p class="section-kicker">Запоминайка</p>
+                <strong>Жігер</strong>
+                <span>Настойчивость и воля двигаться к цели.</span>
+            </article>
+        </section>
+
+        <section class="student-home-grid">
+            <article class="panel student-last-card">
+                <div class="card-title-row">
+                    <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#book-open-check}"></use></svg>
+                    <h2>Последнее занятие</h2>
+                </div>
+                <div class="empty-state" th:if="${dashboard.lastActivity() == null}">
+                    <strong>Пока нет завершенных занятий.</strong>
+                    <span>Пройдите первый предметный срез, чтобы увидеть здесь результат.</span>
+                </div>
+                <div class="last-activity" th:if="${dashboard.lastActivity() != null}">
+                    <strong th:text="${dashboard.lastActivity().title()}">Математика</strong>
+                    <span th:text="${dashboard.lastActivity().detail()}">4 из 4 верно</span>
+                    <p>
+                        Хороший темп. Продолжите с результата и посмотрите, какие темы требуют повторения.
+                    </p>
+                    <a class="button" th:href="@{/student/test-sessions/{id}/result(id=${dashboard.lastActivity().sessionId()})}">
+                        Продолжить с этого места
+                    </a>
+                </div>
+            </article>
+
+            <article class="panel streak-panel student-streak-card">
+                <div class="card-title-row">
+                    <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#star}"></use></svg>
+                    <h2>Серия активности</h2>
+                </div>
+                <strong th:text="${dashboard.streak().currentCount()} + ' дней'">0 дней</strong>
+                <span>подряд занятий</span>
+                <p>
+                    Лучший результат:
+                    <b th:text="${dashboard.streak().longestCount()} + ' дней'">0 дней</b>
+                </p>
+            </article>
+        </section>
+
+        <section class="panel student-progress-panel">
+            <div class="card-title-row">
+                <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#bar-chart-3}"></use></svg>
+                <h2>Статистика прогресса</h2>
+            </div>
+            <div class="student-stat-grid">
+                <div class="student-stat mint">
+                    <span>Завершено тестов</span>
+                    <strong th:text="${dashboard.progress().completedTests()}">0</strong>
+                </div>
+                <div class="student-stat sky">
+                    <span>Средний результат</span>
+                    <strong th:text="${dashboard.progress().averagePercent()} + '%'">0%</strong>
+                </div>
+                <div class="student-stat lavender">
+                    <span>Карта знаний</span>
+                    <strong th:text="${dashboard.progress().overallMastery()} + '%'">0%</strong>
+                </div>
+                <div class="student-stat amber">
+                    <span>Достижения</span>
+                    <strong th:text="${dashboard.progress().earnedAchievements()}">0</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="student-route-section">
+            <div class="card-title-row">
+                <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#route}"></use></svg>
+                <h2>Траектория развития</h2>
+            </div>
+            <div class="student-route-grid">
+                <a class="student-route-card" th:href="@{/student/tests}">
+                    <strong>Тесты</strong>
+                    <span>Закрой слабую тему коротким срезом.</span>
+                    <i class="route-progress danger" aria-hidden="true"><b style="width: 32%"></b></i>
+                </a>
+                <a class="student-route-card" th:href="@{/student/analytics}">
+                    <strong>Аналитика</strong>
+                    <span>Посмотри, где знания уже устойчивые.</span>
+                    <i class="route-progress primary" aria-hidden="true"><b style="width: 68%"></b></i>
+                </a>
+                <a class="student-route-card" th:href="@{/student/lectures}">
+                    <strong>Лекции</strong>
+                    <span>Повтори материал перед следующим тестом.</span>
+                    <i class="route-progress success" aria-hidden="true"><b style="width: 80%"></b></i>
+                </a>
+            </div>
+        </section>
+
+        <section class="panel" id="achievements-panel">
+            <div class="page-head compact-head">
+                <div>
+                    <div class="section-kicker">Достижения</div>
+                    <h2>Награды за регулярную работу</h2>
+                </div>
+                <button class="button" type="button" data-modal-open="achievements-modal">Открыть все</button>
+            </div>
+            <div class="achievement-grid" th:if="${!#lists.isEmpty(dashboard.achievements())}">
+                <article class="achievement-card"
+                         th:each="achievement, iter : ${dashboard.achievements()}"
+                         th:if="${iter.index < 3}"
+                         th:classappend="${achievement.earned()} ? ' earned' : ' locked'">
+                    <span class="badge" th:classappend="${achievement.earned()} ? ' success' : ''" th:text="${achievement.earned()} ? 'Получено' : 'В процессе'">Получено</span>
+                    <h3 th:text="${achievement.title()}">Первый срез</h3>
+                    <p th:text="${achievement.description()}">Завершен первый предметный срез.</p>
+                </article>
+            </div>
+            <div class="achievement-grid" th:if="${#lists.isEmpty(dashboard.achievements())}">
+                <article class="achievement-card locked">
+                    <span class="badge">В процессе</span>
+                    <h3>Стабильный старт</h3>
+                    <p>Завершите первый тест, чтобы открыть стартовую награду.</p>
+                </article>
+                <article class="achievement-card locked">
+                    <span class="badge">В процессе</span>
+                    <h3>Серия в 3 дня</h3>
+                    <p>Учитесь 3 дня подряд и зафиксируйте ритм.</p>
+                </article>
+                <article class="achievement-card locked">
+                    <span class="badge">В процессе</span>
+                    <h3>Первый прогресс</h3>
+                    <p>Поднимите средний результат, чтобы открыть новую карточку.</p>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>
