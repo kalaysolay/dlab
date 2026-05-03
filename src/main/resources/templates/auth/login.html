@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,17 +13,17 @@
     <main class="page auth-grid auth-page">
         <section class="auth-copy">
             <span class="badge success">Damulab.kz</span>
-            <h1 class="page-title">Единый вход в Damulab</h1>
-            <p class="lede">Один вход для ученика, родителя и администратора. Роль определяется аккаунтом после авторизации.</p>
+            <h1 class="page-title" th:text="#{login.pageTitle}">Единый вход в Damulab</h1>
+            <p class="lede" th:text="#{login.lede}">Один вход для ученика, родителя и администратора. Роль определяется аккаунтом после авторизации.</p>
             <div class="warm-card">
-                <strong>Простой старт</strong>
-                <p>Родитель не проходит тесты, но видит статистику ребенка в своем кабинете.</p>
+                <strong th:text="#{login.cardTitle}">Простой старт</strong>
+                <p th:text="#{login.cardBody}">Родитель не проходит тесты, но видит статистику ребенка в своем кабинете.</p>
             </div>
         </section>
         <section class="panel auth-panel">
             <div class="type-tabs compact-tabs">
-                <a class="type-tab active" th:href="@{/login}" aria-current="page">Вход</a>
-                <a class="type-tab" th:href="@{/register}">Регистрация</a>
+                <a class="type-tab active" th:href="@{/login}" aria-current="page" th:text="#{login.tabLogin}">Вход</a>
+                <a class="type-tab" th:href="@{/register}" th:text="#{login.tabRegister}">Регистрация</a>
             </div>
             <h2 class="section-title" th:text="#{login.title}">Вход</h2>
             <div th:replace="~{fragments/alerts :: alerts}"></div>
@@ -38,7 +38,7 @@
                 </div>
                 <button class="button primary" type="submit" th:text="#{login.submit}">Войти</button>
             </form>
-            <p class="muted-line">
+            <p class="muted-line" th:text="#{login.demoHint}">
                 Demo: admin@damulab.kz / student@damulab.kz / parent@damulab.kz, пароль password.
             </p>
         </section>

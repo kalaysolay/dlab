@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <header class="topbar" th:fragment="header">
     <span class="public-parent-header-scope" sec:authorize="isAnonymous() or hasRole('PARENT')" hidden></span>
@@ -12,7 +12,7 @@
         </span>
         <span class="brand-copy">
             <strong th:text="#{app.name}">Damulab.kz</strong>
-            <small>Платформа для семьи и ученика</small>
+            <small th:text="#{brand.tagline.anonymous}">Платформа для семьи и ученика</small>
         </span>
     </a>
     <a class="brand brand-link" sec:authorize="isAuthenticated()" th:href="@{/dashboard}">
@@ -24,19 +24,19 @@
         </span>
         <span class="brand-copy">
             <strong th:text="#{app.name}">Damulab.kz</strong>
-            <small sec:authorize="hasRole('STUDENT')">Мой путь развития</small>
-            <small sec:authorize="hasRole('PARENT')">Кабинет родителя</small>
-            <small sec:authorize="hasRole('ADMIN')">Admin Console</small>
+            <small sec:authorize="hasRole('STUDENT')" th:text="#{brand.tagline.student}">Мой путь развития</small>
+            <small sec:authorize="hasRole('PARENT')" th:text="#{brand.tagline.parent}">Кабинет родителя</small>
+            <small sec:authorize="hasRole('ADMIN')" th:text="#{brand.tagline.admin}">Admin Console</small>
         </span>
     </a>
-    <nav class="nav" aria-label="Основная навигация">
-        <a sec:authorize="isAnonymous()" th:href="@{/#hero}">Главная</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#why}">Почему мы</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#programs}">Программы</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#flow}">Как работает</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#reviews}">Отзывы</a>
-        <a sec:authorize="hasRole('PARENT')" th:href="@{/parent}">Главная</a>
-        <a sec:authorize="hasRole('PARENT')" th:href="@{/parent/profile}">Профиль</a>
+    <nav class="nav" th:aria-label="#{nav.aria.main}" aria-label="Основная навигация">
+        <a sec:authorize="isAnonymous()" th:href="@{/#hero}" th:text="#{nav.landing.hero}">Главная</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#why}" th:text="#{nav.landing.why}">Почему мы</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#programs}" th:text="#{nav.landing.programs}">Программы</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#flow}" th:text="#{nav.landing.how}">Как работает</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/#reviews}" th:text="#{nav.landing.reviews}">Отзывы</a>
+        <a sec:authorize="hasRole('PARENT')" th:href="@{/parent}" th:text="#{nav.home}">Главная</a>
+        <a sec:authorize="hasRole('PARENT')" th:href="@{/parent/profile}" th:text="#{nav.profile}">Профиль</a>
         <span th:replace="~{fragments/language-switch :: languageSwitch}"></span>
         <a sec:authorize="isAnonymous()" th:href="@{/register}" th:text="#{nav.register}">Регистрация</a>
         <a sec:authorize="isAnonymous()" th:href="@{/login}" th:text="#{nav.login}">Войти</a>

@@ -18,6 +18,27 @@ abstract class ExternalAiProviderSupport {
         this.validator = validator;
     }
 
+    protected Map<String, Object> miniLectureStructuredJsonSchema() {
+        Map<String, Object> langBlock = objectSchema(Map.of(
+                "title", stringSchema(),
+                "theory", stringSchema(),
+                "question_analysis", stringSchema(),
+                "common_mistake", stringSchema(),
+                "example_analysis", stringSchema(),
+                "summary", stringSchema()
+        ), List.of(
+                "title", "theory", "question_analysis", "common_mistake", "example_analysis", "summary"
+        ));
+        return objectSchema(Map.of(
+                "ru", langBlock,
+                "kz", langBlock
+        ), List.of("ru", "kz"));
+    }
+
+    protected MiniLectureStructuredPayload parseMiniLectureStructured(String json) {
+        return MiniLectureJsonParser.parse(objectMapper, json);
+    }
+
     protected List<AiGeneratedQuestionDraft> parseDrafts(String json) {
         try {
             ExternalAiQuestionPayload payload = objectMapper.readValue(json, ExternalAiQuestionPayload.class);

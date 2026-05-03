@@ -8,6 +8,14 @@ spring:
       hibernate:
         format_sql: true
 
+# Локальная разработка (профиль local — см. application.yml spring.profiles.default):
+# по умолчанию вызываем OpenAI, если не переопределить AI_PROVIDER.
+# Если в .env со старым шаблоном стоит AI_REAL_PROVIDERS_ENABLED=false — внешний AI будет отключён.
+damulab:
+  ai:
+    provider: ${AI_PROVIDER:openai}
+    real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:true}
+
 logging:
   level:
     kz.damulab: DEBUG

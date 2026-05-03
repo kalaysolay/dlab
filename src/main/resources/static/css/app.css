@@ -3761,6 +3761,130 @@ h2 {
     margin-top: 8px;
 }
 
+.student-test-result-page .result-mini-lecture-body img {
+    max-width: 100%;
+    height: auto;
+    cursor: zoom-in;
+    border-radius: 8px;
+    display: block;
+}
+
+.student-test-result-page .result-mini-lecture-body .katex-display {
+    overflow-x: auto;
+}
+
+.img-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(23, 32, 51, 0.88);
+    padding: 24px;
+}
+
+.img-lightbox-overlay[hidden] {
+    display: none !important;
+}
+
+.img-lightbox-overlay img {
+    max-width: min(96vw, 1200px);
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.img-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(23, 32, 51, 0.15);
+}
+
+.img-lightbox-close:hover {
+    background: var(--surface-muted);
+}
+
+.question-mini-lecture-preview {
+    margin-top: 8px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface-muted);
+    min-height: 48px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.question-mini-lecture-preview img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    cursor: zoom-in;
+}
+
+.admin-layout .question-body-row {
+    margin-top: 4px;
+}
+
+.admin-layout .question-mini-lecture-section {
+    margin-top: 12px;
+    padding-top: 4px;
+}
+
+.admin-layout .lecture-lang-tabs {
+    display: inline-flex;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--surface-muted);
+}
+
+.admin-layout .lecture-lang-tab {
+    min-height: 36px;
+    border: none;
+    border-radius: 8px;
+    padding: 0 14px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.admin-layout .lecture-lang-tab.active {
+    background: var(--surface);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.admin-layout .lecture-lang-panels {
+    margin-top: 10px;
+}
+
+.admin-layout .lecture-lang-panel[hidden] {
+    display: none !important;
+}
+
+.admin-layout .lecture-stub-banner {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
 .student-test-result-page .result-matching-detail {
     margin-top: 12px;
 }

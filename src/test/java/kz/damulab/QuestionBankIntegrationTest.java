@@ -246,9 +246,10 @@ class QuestionBankIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.correctAnswerRu").value(containsString("B")))
                 .andExpect(jsonPath("$.correctAnswerRu").value(containsString("70")))
-                .andExpect(jsonPath("$.explanationRu").value(containsString("Разбор и верный ответ")))
-                .andExpect(jsonPath("$.miniLectureRu").value(containsString("Объяснение для школьника")))
-                .andExpect(jsonPath("$.miniLectureKk").value(containsString("Мектеп оқушысына")));
+                .andExpect(jsonPath("$.explanationRu").value(containsString("mini-lecture")))
+                .andExpect(jsonPath("$.miniLectureRu").value(containsString("Мини-лекция (stub")))
+                .andExpect(jsonPath("$.miniLectureKk").value(containsString("Мини-лекция (stub)")))
+                .andExpect(jsonPath("$.stubMode").value(true));
     }
 
     @Test

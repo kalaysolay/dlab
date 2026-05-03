@@ -12,6 +12,7 @@ public class AiProviderProperties {
     private boolean realProvidersEnabled;
     private final Provider openai = new Provider("https://api.openai.com", "gpt-5.2", null);
     private final Provider deepseek = new Provider("https://api.deepseek.com", "deepseek-chat", null);
+    private MiniLecture miniLecture = new MiniLecture();
 
     public String getProvider() {
         return provider;
@@ -43,6 +44,36 @@ public class AiProviderProperties {
 
     public Provider getDeepseek() {
         return deepseek;
+    }
+
+    public MiniLecture getMiniLecture() {
+        return miniLecture;
+    }
+
+    public void setMiniLecture(MiniLecture miniLecture) {
+        this.miniLecture = miniLecture == null ? new MiniLecture() : miniLecture;
+    }
+
+    public static class MiniLecture {
+
+        private String openaiModel = "gpt-4o";
+        private String deepseekModel = "deepseek-chat";
+
+        public String getOpenaiModel() {
+            return openaiModel;
+        }
+
+        public void setOpenaiModel(String openaiModel) {
+            this.openaiModel = openaiModel;
+        }
+
+        public String getDeepseekModel() {
+            return deepseekModel;
+        }
+
+        public void setDeepseekModel(String deepseekModel) {
+            this.deepseekModel = deepseekModel;
+        }
     }
 
     public static class Provider {

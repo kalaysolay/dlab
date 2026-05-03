@@ -27,6 +27,7 @@ dependencies {
     implementation 'org.webjars:webjars-locator-core:0.59'
     implementation 'org.webjars.npm:quill:2.0.3'
     implementation 'org.webjars.npm:katex:0.16.11'
+    implementation 'org.webjars.npm:dompurify:3.1.7'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
@@ -42,4 +43,40 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+/**
+ * Проверка паритета ключей messages_ru.properties и messages_kk.properties.
+ * Запуск: ./gradlew.bat i18nVerify
+ */
+tasks.register('i18nVerify') {
+    group = 'verification'
+    description = 'Checks that messages_kk.properties has the same keys as messages_ru.properties'
+    doLast {
+        def loadKeys = { File f ->
+            f.getText('UTF-8').split(/\r?\n/).findAll { String line ->
+                line = line.trim()
+                line && !line.startsWith('#') && line.contains('=')
+            }.collect { String line ->
+                line.split('=', 2)[0].trim()
+            } as Set
+        }
+        def ruFile = file('src/main/resources/messages_ru.properties')
+        def kkFile = file('src/main/resources/messages_kk.properties')
+        def ru = loadKeys(ruFile)
+        def kk = loadKeys(kkFile)
+        def missingInKk = ru - kk
+        def extraInKk = kk - ru
+        if (missingInKk || extraInKk) {
+            def msg = []
+            if (missingInKk) {
+                msg << "messages_kk.properties lacks keys (${missingInKk.size()}): " + missingInKk.sort().take(30)
+            }
+            if (extraInKk) {
+                msg << "messages_kk.properties has extra keys (${extraInKk.size()}): " + extraInKk.sort().take(30)
+            }
+            throw new GradleException(msg.join('\n'))
+        }
+        println "i18nVerify: ${ru.size()} keys match between messages_ru and messages_kk."
+    }
 }

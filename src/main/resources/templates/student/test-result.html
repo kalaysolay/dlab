@@ -6,6 +6,7 @@
     <title>Результат теста</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
 </head>
 <body>
 <div class="app-shell">
@@ -66,6 +67,9 @@
         </section>
     </main>
 </div>
+<script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
+<script th:src="@{/webjars/katex/dist/contrib/auto-render.min.js}"></script>
+<script th:src="@{/webjars/dompurify/dist/purify.min.js}"></script>
 <script>
     const resultRows = Array.from(document.querySelectorAll("#resultList .result-row"));
     const navButtons = Array.from(document.querySelectorAll(".result-nav button"));
@@ -269,6 +273,36 @@
         });
     };
 
+    const sanitizeMiniLectureHtml = (raw) => {
+        if (!raw) return "";
+        if (typeof window.DOMPurify !== "undefined") {
+            return window.DOMPurify.sanitize(raw, {
+                ALLOWED_TAGS: ["p", "ul", "ol", "li", "strong", "em", "h3", "h4", "code", "br", "img", "article", "span", "div"],
+                ALLOWED_ATTR: ["class", "src", "alt", "loading", "href"],
+                ALLOW_DATA_ATTR: false
+            });
+        }
+        return escapeHtml(raw);
+    };
+
+    const renderMiniLectureBodies = () => {
+        document.querySelectorAll(".result-mini-lecture-body[data-mini-lecture-html]").forEach((body) => {
+            const raw = body.getAttribute("data-mini-lecture-html");
+            body.removeAttribute("data-mini-lecture-html");
+            body.innerHTML = sanitizeMiniLectureHtml(raw);
+            if (typeof window.renderMathInElement === "function") {
+                window.renderMathInElement(body, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "\\[", right: "\\]", display: true },
+                        { left: "\\(", right: "\\)", display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+        });
+    };
+
     const bindMiniLectureToggles = () => {
         document.querySelectorAll(".result-mini-lecture").forEach((block) => {
             const button = block.querySelector(".result-mini-lecture-toggle");
@@ -287,12 +321,60 @@
         });
     };
 
+    const initMiniLectureImageLightbox = () => {
+        let overlay = document.querySelector(".img-lightbox-overlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.className = "img-lightbox-overlay";
+            overlay.setAttribute("hidden", "");
+            overlay.innerHTML = "<button type=\"button\" class=\"img-lightbox-close\" aria-label=\"Закрыть\">&times;</button><img alt=\"\">";
+            document.body.appendChild(overlay);
+        }
+        const imgEl = overlay.querySelector("img");
+        const closeBtn = overlay.querySelector(".img-lightbox-close");
+        const close = () => {
+            overlay.setAttribute("hidden", "");
+            document.body.style.overflow = "";
+        };
+        if (closeBtn) {
+            closeBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                close();
+            });
+        }
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) {
+                close();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !overlay.hasAttribute("hidden")) {
+                close();
+            }
+        });
+        document.querySelectorAll(".result-mini-lecture-body").forEach((body) => {
+            body.addEventListener("click", (event) => {
+                const target = event.target;
+                if (target && target.tagName === "IMG" && target.src) {
+                    if (imgEl) {
+                        imgEl.src = target.src;
+                        imgEl.alt = target.alt || "";
+                    }
+                    overlay.removeAttribute("hidden");
+                    document.body.style.overflow = "hidden";
+                }
+            });
+        });
+    };
+
     document.querySelectorAll(".result-answer").forEach((pre) => {
         pre.textContent = formatAnswerText(pre.textContent, pre.dataset.questionType);
     });
     renderChoiceResultState();
     renderFillResultState();
+    renderMiniLectureBodies();
     bindMiniLectureToggles();
+    initMiniLectureImageLightbox();
 
     const showResultRow = (index) => {
         if (resultRows.length === 0) return;

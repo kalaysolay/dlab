@@ -388,6 +388,10 @@ public class TestingHubService {
     }
 
     private String explanation(QuestionVersion version, String language) {
+        String mini = localized(version.getMiniLectureRu(), version.getMiniLectureKk(), language);
+        if (mini != null && !mini.isBlank()) {
+            return mini;
+        }
         return localized(version.getExplanationRu(), version.getExplanationKk(), language);
     }
 

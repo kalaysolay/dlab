@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org">
 <body>
-<header class="student-header" th:fragment="studentHeader">
+<header class="student-header" th:fragment="studentHeader" th:lang="${#locale.language}">
     <div class="student-header-row">
         <a class="brand brand-link" th:href="@{/student}">
             <span class="brand-mark">
@@ -9,7 +9,7 @@
             </span>
             <span class="brand-copy">
                 <strong th:text="#{app.name}">Damulab.kz</strong>
-                <small>Мой путь развития</small>
+                <small th:text="#{student.brand.subtitle}">Мой путь развития</small>
             </span>
         </a>
         <div class="student-header-actions">
@@ -22,38 +22,38 @@
             </form>
         </div>
     </div>
-    <nav class="student-nav-grid" aria-label="Навигация ученика">
+    <nav class="student-nav-grid" th:aria-label="#{student.nav.aria}" aria-label="Навигация ученика">
         <a th:href="@{/student}" th:classappend="${activeStudentNav == 'home'} ? 'active'">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#home}"></use></svg>
-            <span>Главная</span>
+            <span th:text="#{student.nav.home}">Главная</span>
         </a>
         <a th:href="@{/student/tests}" th:classappend="${activeStudentNav == 'tests'} ? 'active'">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#clipboard-check}"></use></svg>
-            <span>Тесты</span>
+            <span th:text="#{student.nav.tests}">Тесты</span>
         </a>
         <a th:href="@{/student/analytics}" th:classappend="${activeStudentNav == 'analytics'} ? 'active'">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#line-chart}"></use></svg>
-            <span>Аналитика</span>
+            <span th:text="#{student.nav.analytics}">Аналитика</span>
         </a>
         <a th:href="@{/student/quiz}" th:classappend="${activeStudentNav == 'quiz'} ? 'active'">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#brain}"></use></svg>
-            <span>Викторина</span>
+            <span th:text="#{student.nav.quiz}">Викторина</span>
         </a>
         <button type="button" data-modal-open="achievements-modal">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#trophy}"></use></svg>
-            <span>Достижения</span>
+            <span th:text="#{student.nav.achievements}">Достижения</span>
         </button>
         <a th:href="@{/student/profile}" th:classappend="${activeStudentNav == 'profile'} ? 'active'">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#user}"></use></svg>
-            <span>Профиль</span>
+            <span th:text="#{student.nav.profile}">Профиль</span>
         </a>
     </nav>
     <div id="achievements-modal" class="modal-layer" hidden>
         <div class="modal-backdrop" data-modal-close="achievements-modal"></div>
         <section class="modal-card achievements-dialog" role="dialog" aria-modal="true" aria-labelledby="achievements-title">
             <div class="modal-head">
-                <h2 id="achievements-title">Мои достижения</h2>
-                <button class="button" type="button" data-modal-close="achievements-modal">Закрыть</button>
+                <h2 id="achievements-title" th:text="#{student.modal.achievements.title}">Мои достижения</h2>
+                <button class="button" type="button" data-modal-close="achievements-modal" th:text="#{student.modal.close}">Закрыть</button>
             </div>
             <div class="achievement-grid" th:if="${!#lists.isEmpty(studentAchievements)}">
                 <article class="achievement-card"
@@ -61,26 +61,26 @@
                          th:classappend="${achievement.earned()} ? ' earned' : ' locked'">
                     <span class="badge"
                           th:classappend="${achievement.earned()} ? ' success' : ''"
-                          th:text="${achievement.earned()} ? 'Получено' : 'В процессе'">Получено</span>
+                          th:text="${achievement.earned()} ? #{student.achievement.status.earned} : #{student.achievement.status.progress}">Получено</span>
                     <h3 th:text="${achievement.title()}">Первый срез</h3>
                     <p th:text="${achievement.description()}">Завершен первый предметный срез.</p>
                 </article>
             </div>
             <div class="achievement-grid" th:if="${#lists.isEmpty(studentAchievements)}">
                 <article class="achievement-card locked">
-                    <span class="badge">В процессе</span>
-                    <h3>Стабильный старт</h3>
-                    <p>Завершите первый тест и откройте первую награду.</p>
+                    <span class="badge" th:text="#{student.achievement.status.progress}">В процессе</span>
+                    <h3 th:text="#{student.achievement.placeholder1.title}">Стабильный старт</h3>
+                    <p th:text="#{student.achievement.modal.placeholder1.body}">Завершите первый тест и откройте первую награду.</p>
                 </article>
                 <article class="achievement-card locked">
-                    <span class="badge">В процессе</span>
-                    <h3>Серия в 3 дня</h3>
-                    <p>Учитесь 3 дня подряд, чтобы зафиксировать ритм.</p>
+                    <span class="badge" th:text="#{student.achievement.status.progress}">В процессе</span>
+                    <h3 th:text="#{student.achievement.placeholder2.title}">Серия в 3 дня</h3>
+                    <p th:text="#{student.achievement.placeholder2.body}">Учитесь 3 дня подряд, чтобы зафиксировать ритм.</p>
                 </article>
                 <article class="achievement-card locked">
-                    <span class="badge">В процессе</span>
-                    <h3>Первый прогресс</h3>
-                    <p>Поднимите средний балл и откройте новый бейдж.</p>
+                    <span class="badge" th:text="#{student.achievement.status.progress}">В процессе</span>
+                    <h3 th:text="#{student.achievement.placeholder3.title}">Первый прогресс</h3>
+                    <p th:text="#{student.achievement.modal.placeholder3.body}">Поднимите средний балл и откройте новый бейдж.</p>
                 </article>
             </div>
         </section>

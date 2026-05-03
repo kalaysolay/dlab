@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
 <body>
-<aside th:fragment="adminSidebar" class="sidebar" aria-label="Админ-навигация">
+<aside th:fragment="adminSidebar" class="sidebar" th:aria-label="#{admin.sidebar.aria}" aria-label="Админ-навигация">
     <div class="admin-brand">
         <div class="brand-mark">
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#sparkles}"></use></svg>
         </div>
         <div>
-            <h1>Damulab Admin</h1>
-            <p>Admin Console</p>
+            <h1 th:text="#{admin.brand.title}">Damulab Admin</h1>
+            <p th:text="#{admin.brand.subtitle}">Admin Console</p>
         </div>
     </div>
-    <nav class="admin-nav" aria-label="Разделы админ-панели">
-        <a th:classappend="${activeAdminNav == 'dashboard'} ? 'active'" th:href="@{/admin}">Обзор</a>
-        <a th:classappend="${activeAdminNav == 'topics'} ? 'active'" th:href="@{/admin/topics}">Темы</a>
-        <a th:classappend="${activeAdminNav == 'questions'} ? 'active'" th:href="@{/admin/questions}">Вопросы</a>
-        <a th:classappend="${activeAdminNav == 'question-ai'} ? 'active'" th:href="@{/admin/questions/ai-generate}">AI генерация</a>
-        <a th:classappend="${activeAdminNav == 'question-health'} ? 'active'" th:href="@{/admin/questions/health}">Качество вопросов</a>
-        <a th:classappend="${activeAdminNav == 'question-import'} ? 'active'" th:href="@{/admin/questions/import}">Импорт вопросов</a>
-        <a th:classappend="${activeAdminNav == 'lectures'} ? 'active'" th:href="@{/admin/lectures}">Лекции</a>
-        <a th:classappend="${activeAdminNav == 'push'} ? 'active'" th:href="@{/admin/push-notifications}">Push</a>
+    <nav class="admin-nav" th:aria-label="#{admin.sidebar.sections.aria}" aria-label="Разделы админ-панели">
+        <a th:classappend="${activeAdminNav == 'dashboard'} ? 'active'" th:href="@{/admin}" th:text="#{admin.nav.dashboard}">Обзор</a>
+        <a th:classappend="${activeAdminNav == 'topics'} ? 'active'" th:href="@{/admin/topics}" th:text="#{admin.nav.topics}">Темы</a>
+        <a th:classappend="${activeAdminNav == 'questions'} ? 'active'" th:href="@{/admin/questions}" th:text="#{admin.nav.questions}">Вопросы</a>
+        <a th:classappend="${activeAdminNav == 'question-ai'} ? 'active'" th:href="@{/admin/questions/ai-generate}" th:text="#{admin.nav.questionAi}">AI генерация</a>
+        <a th:classappend="${activeAdminNav == 'question-health'} ? 'active'" th:href="@{/admin/questions/health}" th:text="#{admin.nav.questionHealth}">Качество вопросов</a>
+        <a th:classappend="${activeAdminNav == 'question-import'} ? 'active'" th:href="@{/admin/questions/import}" th:text="#{admin.nav.questionImport}">Импорт вопросов</a>
+        <a th:classappend="${activeAdminNav == 'lectures'} ? 'active'" th:href="@{/admin/lectures}" th:text="#{admin.nav.lectures}">Лекции</a>
+        <a th:classappend="${activeAdminNav == 'push'} ? 'active'" th:href="@{/admin/push-notifications}" th:text="#{admin.nav.push}">Push</a>
     </nav>
 </aside>
 </body>

@@ -10,6 +10,10 @@ spring:
   flyway:
     enabled: true
 damulab:
+  ai:
+    # Интеграционные тесты без сети: стабильный stub (см. AiContentFactoryIntegrationTest и др.).
+    provider: stub
+    real-providers-enabled: false
   testing:
     default-question-count: 12
     max-question-count: 20

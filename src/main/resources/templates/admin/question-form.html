@@ -6,6 +6,7 @@
     <title th:text="${mode == 'edit'} ? 'Редактировать вопрос' : 'Добавить вопрос'">Добавить вопрос</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
 </head>
 <body>
 <div class="app-shell admin-shell">
@@ -138,7 +139,7 @@
                 <hr class="divider">
 
                 <h2 class="section-title">Текст вопроса</h2>
-                <div class="form-grid">
+                <div class="form-grid two-col question-body-row">
                     <label class="field">
                         <span>RU</span>
                         <textarea id="question-body-ru" th:field="*{bodyRu}" required></textarea>
@@ -151,21 +152,39 @@
                         <small class="muted-line">Для FILL_IN используйте те же placeholder-метки, что и в RU.</small>
                         <small class="field-error" th:if="${#fields.hasErrors('bodyKk')}" th:errors="*{bodyKk}">Ошибка</small>
                     </label>
-                    <label class="field">
-                        <span>Объяснение для ученика RU</span>
-                        <textarea id="question-mini-lecture-ru" th:field="*{miniLectureRu}" rows="8"
-                                  placeholder="То же, что показывается после теста как «мини-лекция»: разбор, верный ответ, закрепление."></textarea>
-                        <small class="muted-line">Этот текст сохраняется в поле объяснения для результата теста. Отдельного поля «объяснение» больше нет.</small>
-                    </label>
-                    <label class="field">
-                        <span>Объяснение для ученика KK</span>
-                        <textarea id="question-mini-lecture-kk" th:field="*{miniLectureKk}" rows="8"></textarea>
-                    </label>
                 </div>
-                <div class="actions">
-                    <button class="button" type="button" id="generate-mini-lecture">Сгенерировать объяснение (RU + KK)</button>
-                </div>
-                <div id="lecture-generation-status" class="muted-line" aria-live="polite"></div>
+
+                <section class="question-mini-lecture-section">
+                    <h2 class="section-title">Мини-лекция для ученика</h2>
+                    <p class="muted-line">Показывается после теста при ошибочном ответе. После генерации проверьте текст; в БД сохраняется HTML из полей ниже.</p>
+                    <div class="actions compact-actions">
+                        <button class="button" type="button" id="generate-mini-lecture">Сгенерировать (RU + KK)</button>
+                    </div>
+                    <div id="lecture-generation-status" class="muted-line" aria-live="polite"></div>
+                    <div id="lecture-stub-banner" class="notice lecture-stub-banner" hidden role="status"></div>
+
+                    <div class="lecture-lang-tabs" role="tablist" aria-label="Язык мини-лекции">
+                        <button type="button" class="lecture-lang-tab active" data-lecture-tab="ru" role="tab" aria-selected="true">На русском</button>
+                        <button type="button" class="lecture-lang-tab" data-lecture-tab="kk" role="tab" aria-selected="false">На казахском</button>
+                    </div>
+                    <div class="lecture-lang-panels">
+                        <div class="lecture-lang-panel active" data-lecture-panel="ru" role="tabpanel">
+                            <label class="field">
+                                <span>Текст мини-лекции (RU)</span>
+                                <textarea id="question-mini-lecture-ru" th:field="*{miniLectureRu}" rows="10"
+                                          placeholder="HTML из генерации или свой текст: разделы, KaTeX $...$ или \\( ... \\)."></textarea>
+                                <div id="question-mini-lecture-preview-ru" class="question-mini-lecture-preview" aria-live="polite"></div>
+                            </label>
+                        </div>
+                        <div class="lecture-lang-panel" data-lecture-panel="kk" role="tabpanel" hidden>
+                            <label class="field">
+                                <span>Текст мини-лекции (KK)</span>
+                                <textarea id="question-mini-lecture-kk" th:field="*{miniLectureKk}" rows="10"></textarea>
+                                <div id="question-mini-lecture-preview-kk" class="question-mini-lecture-preview" aria-live="polite"></div>
+                            </label>
+                        </div>
+                    </div>
+                </section>
 
                 <hr class="divider">
 
@@ -290,6 +309,9 @@
         </section>
     </main>
 </div>
+<script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
+<script th:src="@{/webjars/katex/dist/contrib/auto-render.min.js}"></script>
+<script th:src="@{/webjars/dompurify/dist/purify.min.js}"></script>
 <script>
     const typeSelect = document.getElementById('question-type');
     const subjectSelect = document.getElementById('question-subject');
@@ -307,6 +329,29 @@
     const fillAnswerAddButton = document.getElementById('fill-answer-add');
     const FILL_MATCH_MODES = ['EXACT', 'NORMALIZED', 'NUMERIC_TOLERANCE', 'REGEXP'];
     const lectureGenerationStatus = document.getElementById('lecture-generation-status');
+    const miniLecturePreviewRu = document.getElementById('question-mini-lecture-preview-ru');
+    const miniLecturePreviewKk = document.getElementById('question-mini-lecture-preview-kk');
+    const lectureLangTabs = Array.from(document.querySelectorAll('.lecture-lang-tab'));
+    const lectureLangPanels = Array.from(document.querySelectorAll('.lecture-lang-panel'));
+    const activateLectureTab = (lang) => {
+        lectureLangTabs.forEach((tab) => {
+            const active = tab.dataset.lectureTab === lang;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        lectureLangPanels.forEach((panel) => {
+            const active = panel.dataset.lecturePanel === lang;
+            panel.classList.toggle('active', active);
+            if (active) {
+                panel.removeAttribute('hidden');
+            } else {
+                panel.setAttribute('hidden', 'hidden');
+            }
+        });
+    };
+    lectureLangTabs.forEach((tab) => {
+        tab.addEventListener('click', () => activateLectureTab(tab.dataset.lectureTab));
+    });
     const fillValidation = document.getElementById('fill-in-validation');
     const choiceOptionsList = document.getElementById('choice-options-list');
     const choiceOptionAddButton = document.getElementById('choice-option-add');
@@ -801,24 +846,56 @@
             }
             if (!response.ok) {
                 const code = data.error || 'generation_failed';
+                const detail = data.message ? String(data.message).trim() : '';
                 const human = {
                     topic_not_found: 'Тема не найдена — выберите тему из списка.',
                     question_body_required: 'Заполните текст вопроса RU и KK.',
                     question_correct_answer_required: 'Сначала задайте правильный ответ для этого типа (варианты, пары или пропуски).',
                     fill_in_answer_required: 'Для FILL_IN заполните метку и ответ в каждой используемой строке.',
                     matching_pair_required: 'Заполните пары сопоставления полностью.',
-                    question_type_required: 'Выберите тип вопроса.'
+                    question_type_required: 'Выберите тип вопроса.',
+                    ai_provider_disabled: 'Генерация через внешний AI отключена (damulab.ai.real-providers-enabled=false).',
+                    openai_api_key_missing: 'Не задан OPENAI_API_KEY на сервере.',
+                    deepseek_api_key_missing: 'Не задан DEEPSEEK_API_KEY на сервере.',
+                    openai_request_failed: 'Запрос к OpenAI не выполнен (сеть или ответ API).',
+                    deepseek_request_failed: 'Запрос к DeepSeek не выполнен (сеть или ответ API).',
+                    openai_response_empty: 'OpenAI вернул пустой ответ (нет текста в ожидаемом поле).',
+                    deepseek_response_empty: 'DeepSeek вернул пустой ответ.',
+                    ai_schema_invalid: 'Ответ модели не соответствует ожидаемой схеме JSON.',
+                    ai_provider_unknown: 'Неизвестное значение damulab.ai.provider.'
                 };
-                throw new Error(human[code] || code);
+                let msg = human[code] || ('Ошибка: ' + code);
+                if (detail && detail !== code) {
+                    msg += ' — ' + detail;
+                }
+                throw new Error(msg);
             }
             const textRu = data.miniLectureRu || data.explanationRu || '';
             const textKk = data.miniLectureKk || data.explanationKk || '';
             if (miniLectureRuInput) miniLectureRuInput.value = textRu;
             if (miniLectureKkInput) miniLectureKkInput.value = textKk;
-            lectureGenerationStatus.textContent = 'Черновик объяснения для ученика заполнен (RU + KK). Проверьте и отредактируйте при необходимости.';
+            refreshMiniLecturePreviews();
+            const stubBanner = document.getElementById('lecture-stub-banner');
+            if (stubBanner) {
+                if (data.stubMode === true) {
+                    stubBanner.hidden = false;
+                    stubBanner.textContent = 'Режим заглушки (stub): внешний LLM не вызывался. Текст ниже — для проверки формы. Для реальной генерации задайте AI_PROVIDER=openai, AI_REAL_PROVIDERS_ENABLED=true, OPENAI_API_KEY и перезапустите сервер.';
+                } else {
+                    stubBanner.hidden = true;
+                    stubBanner.textContent = '';
+                }
+            }
+            lectureGenerationStatus.textContent = data.stubMode === true
+                    ? 'Черновик заполнен в режиме stub (без сети). Проверьте HTML и при необходимости переключитесь на OpenAI.'
+                    : 'Черновик объяснения для ученика заполнен (RU + KK). Проверьте и отредактируйте при необходимости.';
             lectureGenerationStatus.classList.remove('field-error');
             lectureGenerationStatus.classList.add('muted-line');
         } catch (error) {
+            const stubBannerErr = document.getElementById('lecture-stub-banner');
+            if (stubBannerErr) {
+                stubBannerErr.hidden = true;
+                stubBannerErr.textContent = '';
+            }
             lectureGenerationStatus.textContent = 'Не удалось сгенерировать: ' + error.message;
             lectureGenerationStatus.classList.add('field-error');
             lectureGenerationStatus.classList.remove('muted-line');
@@ -830,6 +907,109 @@
     if (generateMiniLectureButton) {
         generateMiniLectureButton.addEventListener('click', generateMiniLectureDraft);
     }
+
+    const escapeHtmlAdmin = (value) => String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+
+    const sanitizeMiniLectureHtmlAdmin = (raw) => {
+        if (!raw) return '';
+        if (typeof window.DOMPurify !== 'undefined') {
+            return window.DOMPurify.sanitize(raw, {
+                ALLOWED_TAGS: ['p', 'ul', 'ol', 'li', 'strong', 'em', 'h3', 'h4', 'code', 'br', 'img', 'article', 'span', 'div'],
+                ALLOWED_ATTR: ['class', 'src', 'alt', 'loading', 'href'],
+                ALLOW_DATA_ATTR: false
+            });
+        }
+        return escapeHtmlAdmin(raw);
+    };
+
+    const renderMathInPreview = (el) => {
+        if (!el || typeof window.renderMathInElement !== 'function') {
+            return;
+        }
+        window.renderMathInElement(el, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '\\(', right: '\\)', display: false }
+            ],
+            throwOnError: false
+        });
+    };
+
+    const refreshMiniLecturePreviews = () => {
+        if (miniLecturePreviewRu && miniLectureRuInput) {
+            miniLecturePreviewRu.innerHTML = sanitizeMiniLectureHtmlAdmin(miniLectureRuInput.value);
+            renderMathInPreview(miniLecturePreviewRu);
+        }
+        if (miniLecturePreviewKk && miniLectureKkInput) {
+            miniLecturePreviewKk.innerHTML = sanitizeMiniLectureHtmlAdmin(miniLectureKkInput.value);
+            renderMathInPreview(miniLecturePreviewKk);
+        }
+    };
+
+    let miniLecturePreviewTimer;
+    const scheduleMiniLecturePreview = () => {
+        clearTimeout(miniLecturePreviewTimer);
+        miniLecturePreviewTimer = setTimeout(refreshMiniLecturePreviews, 250);
+    };
+
+    if (miniLectureRuInput) {
+        miniLectureRuInput.addEventListener('input', scheduleMiniLecturePreview);
+    }
+    if (miniLectureKkInput) {
+        miniLectureKkInput.addEventListener('input', scheduleMiniLecturePreview);
+    }
+
+    const initAdminMiniLectureLightbox = () => {
+        let overlay = document.querySelector('.img-lightbox-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'img-lightbox-overlay';
+            overlay.setAttribute('hidden', '');
+            overlay.innerHTML = '<button type="button" class="img-lightbox-close" aria-label="Закрыть">&times;</button><img alt="">';
+            document.body.appendChild(overlay);
+        }
+        const imgEl = overlay.querySelector('img');
+        const closeBtn = overlay.querySelector('.img-lightbox-close');
+        const close = () => {
+            overlay.setAttribute('hidden', '');
+            document.body.style.overflow = '';
+        };
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                close();
+            });
+        }
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+                close();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !overlay.hasAttribute('hidden')) {
+                close();
+            }
+        });
+        document.querySelectorAll('.question-mini-lecture-preview').forEach((body) => {
+            body.addEventListener('click', (event) => {
+                const target = event.target;
+                if (target && target.tagName === 'IMG' && target.src && imgEl) {
+                    imgEl.src = target.src;
+                    imgEl.alt = target.alt || '';
+                    overlay.removeAttribute('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        });
+    };
+
+    refreshMiniLecturePreviews();
+    initAdminMiniLectureLightbox();
 
     function placeholders(text) {
         const fillPlaceholderPattern = new RegExp('\\[\\[' + '\\d+' + ']]', 'g');

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,148 +13,148 @@
     <main class="page public-home">
         <section id="hero" class="hero">
             <div>
-                <span class="badge success">СОР / СОЧ / МОДО</span>
-                <h1>Подготовка к СОР, СОЧ и МОДО без перегруза</h1>
+                <span class="badge success" th:text="#{home.hero.badge}">СОР / СОЧ / МОДО</span>
+                <h1 th:text="#{home.hero.title}">Подготовка к СОР, СОЧ и МОДО без перегруза</h1>
                 <p class="lede" th:text="#{home.subtitle}">
                     Базовый учебный цикл: контент, тест, результат, аналитика, родитель.
                 </p>
                 <div class="actions">
-                    <a class="button primary" th:href="@{/login}">Начать бесплатно</a>
-                    <a class="button" th:href="@{/parent}">Как подключить ребенка</a>
+                    <a class="button primary" th:href="@{/login}" th:text="#{home.hero.cta.start}">Начать бесплатно</a>
+                    <a class="button" th:href="@{/parent}" th:text="#{home.hero.cta.parent}">Как подключить ребенка</a>
                 </div>
             </div>
         </section>
 
-        <section class="feature-grid public-quick-links" aria-label="Быстрый старт">
+        <section class="feature-grid public-quick-links" th:aria-label="#{home.quick.aria}" aria-label="Быстрый старт">
             <a class="warm-card" th:href="@{/login}">
-                <span class="badge">Быстрый старт</span>
-                <h2>Единый вход</h2>
-                <p>Ученик и родитель входят через один понятный маршрут без email confirmation в MVP.</p>
+                <span class="badge" th:text="#{home.quick.login.badge}">Быстрый старт</span>
+                <h2 th:text="#{home.quick.login.title}">Единый вход</h2>
+                <p th:text="#{home.quick.login.body}">Ученик и родитель входят через один понятный маршрут без email confirmation в MVP.</p>
             </a>
             <a class="warm-card" th:href="@{/parent}">
-                <span class="badge">Семья</span>
-                <h2>Связка родитель-ученик</h2>
-                <p>Родитель добавляет ребенка и видит прогресс только по связанным профилям.</p>
+                <span class="badge" th:text="#{home.quick.family.badge}">Семья</span>
+                <h2 th:text="#{home.quick.family.title}">Связка родитель-ученик</h2>
+                <p th:text="#{home.quick.family.body}">Родитель добавляет ребенка и видит прогресс только по связанным профилям.</p>
             </a>
             <a class="warm-card" th:href="@{/student/analytics}">
-                <span class="badge">Аналитика</span>
-                <h2>Карта знаний</h2>
-                <p>Результаты тестов превращаются в понятные темы, слабые зоны и следующий шаг.</p>
+                <span class="badge" th:text="#{home.quick.analytics.badge}">Аналитика</span>
+                <h2 th:text="#{home.quick.analytics.title}">Карта знаний</h2>
+                <p th:text="#{home.quick.analytics.body}">Результаты тестов превращаются в понятные темы, слабые зоны и следующий шаг.</p>
             </a>
         </section>
 
-        <section id="why" class="feature-grid" aria-label="Преимущества">
+        <section id="why" class="feature-grid" th:aria-label="#{home.why.aria}" aria-label="Преимущества">
             <article class="feature-card">
-                <span class="badge">План</span>
-                <h3>Адаптивный план</h3>
-                <p>Короткие учебные действия вокруг текущих пробелов, а не механическая гонка за тестами.</p>
+                <span class="badge" th:text="#{home.why.plan.badge}">План</span>
+                <h3 th:text="#{home.why.plan.title}">Адаптивный план</h3>
+                <p th:text="#{home.why.plan.body}">Короткие учебные действия вокруг текущих пробелов, а не механическая гонка за тестами.</p>
             </article>
             <article class="feature-card">
-                <span class="badge">RU / KK</span>
-                <h3>RU / KK</h3>
-                <p>Интерфейс и учебный контент ведутся в двух языках с сохранением серверной валидации.</p>
+                <span class="badge" th:text="#{home.why.lang.badge}">RU / KK</span>
+                <h3 th:text="#{home.why.lang.title}">RU / KK</h3>
+                <p th:text="#{home.why.lang.body}">Интерфейс и учебный контент ведутся в двух языках с сохранением серверной валидации.</p>
             </article>
             <article class="feature-card">
-                <span class="badge">Контроль</span>
-                <h3>Прозрачный контроль</h3>
-                <p>Методист управляет качеством вопросов, импортом, health-сигналами и публикацией.</p>
+                <span class="badge" th:text="#{home.why.control.badge}">Контроль</span>
+                <h3 th:text="#{home.why.control.title}">Прозрачный контроль</h3>
+                <p th:text="#{home.why.control.body}">Методист управляет качеством вопросов, импортом, health-сигналами и публикацией.</p>
             </article>
         </section>
 
         <section id="programs" class="program-band">
             <div class="section-head">
-                <span class="badge">Программы</span>
-                <h2>Треки подготовки</h2>
+                <span class="badge" th:text="#{home.programs.badge}">Программы</span>
+                <h2 th:text="#{home.programs.title}">Треки подготовки</h2>
             </div>
             <div class="feature-grid">
                 <article class="feature-card">
-                    <span class="badge">СОР / СОЧ</span>
-                    <h3>Школьная база</h3>
-                    <p>Теория, короткая практика, контроль и исправление слабых тем по текущей программе.</p>
+                    <span class="badge" th:text="#{home.programs.track1.badge}">СОР / СОЧ</span>
+                    <h3 th:text="#{home.programs.track1.title}">Школьная база</h3>
+                    <p th:text="#{home.programs.track1.body}">Теория, короткая практика, контроль и исправление слабых тем по текущей программе.</p>
                 </article>
                 <article class="feature-card">
-                    <span class="badge success">МОДО</span>
-                    <h3>Готовность к проверке</h3>
-                    <p>Регулярные задания и понятная метрика готовности без перегруза ребенка.</p>
+                    <span class="badge success" th:text="#{home.programs.track2.badge}">МОДО</span>
+                    <h3 th:text="#{home.programs.track2.title}">Готовность к проверке</h3>
+                    <p th:text="#{home.programs.track2.body}">Регулярные задания и понятная метрика готовности без перегруза ребенка.</p>
                 </article>
                 <article class="feature-card">
-                    <span class="badge warning">Спринт</span>
-                    <h3>Перед контрольной</h3>
-                    <p>Короткий фокус на проблемных темах перед проверочными работами и итогами четверти.</p>
+                    <span class="badge warning" th:text="#{home.programs.track3.badge}">Спринт</span>
+                    <h3 th:text="#{home.programs.track3.title}">Перед контрольной</h3>
+                    <p th:text="#{home.programs.track3.body}">Короткий фокус на проблемных темах перед проверочными работами и итогами четверти.</p>
                 </article>
             </div>
         </section>
 
         <section id="flow" class="program-band public-flow">
             <div class="section-head">
-                <span class="badge">Процесс</span>
-                <h2>Как это работает</h2>
+                <span class="badge" th:text="#{home.flow.badge}">Процесс</span>
+                <h2 th:text="#{home.flow.title}">Как это работает</h2>
             </div>
             <div class="flow-grid">
                 <div class="metric">
-                    <strong>1. Регистрация</strong>
-                    <span>Родитель или ученик создает аккаунт через серверную форму.</span>
+                    <strong th:text="#{home.flow.step1.title}">1. Регистрация</strong>
+                    <span th:text="#{home.flow.step1.body}">Родитель или ученик создает аккаунт через серверную форму.</span>
                 </div>
                 <div class="metric">
-                    <strong>2. Практика</strong>
-                    <span>Ученик проходит тесты, ответы проверяет backend.</span>
+                    <strong th:text="#{home.flow.step2.title}">2. Практика</strong>
+                    <span th:text="#{home.flow.step2.body}">Ученик проходит тесты, ответы проверяет backend.</span>
                 </div>
                 <div class="metric">
-                    <strong>3. Результат</strong>
-                    <span>Итог появляется только после завершения теста.</span>
+                    <strong th:text="#{home.flow.step3.title}">3. Результат</strong>
+                    <span th:text="#{home.flow.step3.body}">Итог появляется только после завершения теста.</span>
                 </div>
                 <div class="metric">
-                    <strong>4. Родитель</strong>
-                    <span>Родитель видит прогресс и последние ошибки ребенка.</span>
+                    <strong th:text="#{home.flow.step4.title}">4. Родитель</strong>
+                    <span th:text="#{home.flow.step4.body}">Родитель видит прогресс и последние ошибки ребенка.</span>
                 </div>
             </div>
         </section>
 
-        <section id="reviews" class="feature-grid public-reviews" aria-label="Отзывы родителей">
+        <section id="reviews" class="feature-grid public-reviews" th:aria-label="#{home.reviews.aria}" aria-label="Отзывы родителей">
             <article class="feature-card">
-                <span class="badge">Отзыв</span>
-                <p>“Через месяц сын сам начал заходить в задания. Раньше приходилось уговаривать.”</p>
-                <h3>Алия, мама 4-классника</h3>
+                <span class="badge" th:text="#{home.reviews.badge}">Отзыв</span>
+                <p th:text="#{home.reviews.r1.body}">“Через месяц сын сам начал заходить в задания. Раньше приходилось уговаривать.”</p>
+                <h3 th:text="#{home.reviews.r1.author}">Алия, мама 4-классника</h3>
             </article>
             <article class="feature-card">
-                <span class="badge">Отзыв</span>
-                <p>“Отчеты читаемые: видно, какая тема проседает и что делать дальше.”</p>
-                <h3>Руслан, отец 5-классницы</h3>
+                <span class="badge" th:text="#{home.reviews.badge}">Отзыв</span>
+                <p th:text="#{home.reviews.r2.body}">“Отчеты читаемые: видно, какая тема проседает и что делать дальше.”</p>
+                <h3 th:text="#{home.reviews.r2.author}">Руслан, отец 5-классницы</h3>
             </article>
             <article class="feature-card">
-                <span class="badge">Отзыв</span>
-                <p>“Ритм занятий спокойный, но стабильный. Перед СОЧ стало меньше тревоги.”</p>
-                <h3>Екатерина, мама 6-классника</h3>
+                <span class="badge" th:text="#{home.reviews.badge}">Отзыв</span>
+                <p th:text="#{home.reviews.r3.body}">“Ритм занятий спокойный, но стабильный. Перед СОЧ стало меньше тревоги.”</p>
+                <h3 th:text="#{home.reviews.r3.author}">Екатерина, мама 6-классника</h3>
             </article>
         </section>
 
         <section class="program-band public-faq">
             <div class="section-head">
-                <span class="badge">FAQ</span>
-                <h2>Частые вопросы</h2>
+                <span class="badge" th:text="#{home.faq.badge}">FAQ</span>
+                <h2 th:text="#{home.faq.title}">Частые вопросы</h2>
             </div>
             <div class="feature-grid">
                 <article class="faq-card">
-                    <h3>Сколько времени нужно?</h3>
-                    <p>Обычно 20-35 минут в день: короткий, но регулярный ритм работает лучше длинных редких сессий.</p>
+                    <h3 th:text="#{home.faq.q1.title}">Сколько времени нужно?</h3>
+                    <p th:text="#{home.faq.q1.body}">Обычно 20-35 минут в день: короткий, но регулярный ритм работает лучше длинных редких сессий.</p>
                 </article>
                 <article class="faq-card">
-                    <h3>Родитель видит прогресс?</h3>
-                    <p>Да. Кабинет показывает связанных детей, результаты, слабые темы и последние ошибки.</p>
+                    <h3 th:text="#{home.faq.q2.title}">Родитель видит прогресс?</h3>
+                    <p th:text="#{home.faq.q2.body}">Да. Кабинет показывает связанных детей, результаты, слабые темы и последние ошибки.</p>
                 </article>
                 <article class="faq-card">
-                    <h3>Есть два языка?</h3>
-                    <p>Интерфейс и ключевые учебные сценарии поддерживают русский и қазақша.</p>
+                    <h3 th:text="#{home.faq.q3.title}">Есть два языка?</h3>
+                    <p th:text="#{home.faq.q3.body}">Интерфейс и ключевые учебные сценарии поддерживают русский и қазақша.</p>
                 </article>
             </div>
         </section>
     </main>
     <footer class="site-footer">
-        <p>© 2026 Damulab.kz. СОР/СОЧ и школьная теория без стресса.</p>
+        <p th:text="#{footer.copy}">© 2026 Damulab.kz. СОР/СОЧ и школьная теория без стресса.</p>
         <div>
-            <a th:href="@{/login}">Кабинет</a>
-            <a th:href="@{/register}">Регистрация</a>
-            <a th:href="@{/parent}">Родителю</a>
+            <a th:href="@{/login}" th:text="#{nav.dashboard}">Кабинет</a>
+            <a th:href="@{/register}" th:text="#{nav.register}">Регистрация</a>
+            <a th:href="@{/parent}" th:text="#{nav.forParent}">Родителю</a>
         </div>
     </footer>
 </div>

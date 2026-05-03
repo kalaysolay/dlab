@@ -142,11 +142,9 @@
         </div>
     </div>
 
-    <div class="result-mini-lecture" th:if="${question.explanation != null && !#strings.isEmpty(question.explanation)}">
+    <div class="result-mini-lecture" th:if="${!question.correct && question.explanation != null && !#strings.isEmpty(question.explanation)}">
         <button class="button result-mini-lecture-toggle" type="button">Мини-лекция</button>
-        <div class="notice result-mini-lecture-body" hidden>
-            <span th:text="${question.explanation}">Объяснение</span>
-        </div>
+        <div class="notice result-mini-lecture-body" hidden th:attr="data-mini-lecture-html=${question.explanation}"></div>
     </div>
 </article>
 </body>

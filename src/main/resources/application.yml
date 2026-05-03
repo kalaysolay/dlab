@@ -25,6 +25,13 @@ server:
       enabled: true
       force: true
 
+# Мини-лекция и AI: при генерации смотрите консоль — INFO от kz.damulab.ai и QuestionBankService.
+# Сырой JSON от модели — только при DEBUG (см. application-local.yml: kz.damulab: DEBUG).
+logging:
+  level:
+    kz.damulab.ai: INFO
+    kz.damulab.questions.QuestionBankService: INFO
+
 damulab:
   testing:
     default-question-count: 12
@@ -32,10 +39,12 @@ damulab:
     min-published-per-subject-grade: 1
   ui:
     server-time-zone: Asia/Almaty
+  # Базовые значения; профиль local переопределяет в application-local.yml (openai + real по умолчанию).
+  # Если real=false: провайдер openai не вызывается (кроме тестов со своими overrides).
   ai:
     provider: ${AI_PROVIDER:stub}
     fallback-provider: ${AI_FALLBACK_PROVIDER:deepseek}
-    real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:false}
+    real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:true}
     openai:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       model: ${OPENAI_MODEL:gpt-5.2}
@@ -44,3 +53,6 @@ damulab:
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       model: ${DEEPSEEK_MODEL:deepseek-chat}
       api-key: ${DEEPSEEK_API_KEY:}
+    mini-lecture:
+      openai-model: ${OPENAI_MINI_LECTURE_MODEL:gpt-4o}
+      deepseek-model: ${DEEPSEEK_MINI_LECTURE_MODEL:deepseek-chat}

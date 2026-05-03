@@ -3,6 +3,8 @@ package kz.damulab.ai;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import kz.damulab.questions.FillMatchMode;
@@ -11,7 +13,27 @@ import kz.damulab.questions.QuestionType;
 @Component
 public class StubAiProvider implements AiProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(StubAiProvider.class);
+
     static final String FAILURE_TOKEN = "__FAIL_PROVIDER__";
+
+    private static final String STUB_MINI_LECTURE_HINT_RU = """
+            Это ЗАГЛУШКА: внешний LLM не вызывается. Чтобы получить реальную мини-лекцию (JSON → HTML по промпту приложения), задайте в окружении:
+            AI_PROVIDER=openai
+            AI_REAL_PROVIDERS_ENABLED=true
+            OPENAI_API_KEY=sk-…
+            (опционально OPENAI_MINI_LECTURE_MODEL=gpt-4o), перезапустите сервер и снова нажмите «Сгенерировать».
+
+            Ниже — сжатая выжимка из полей формы только для проверки UI.""";
+
+    private static final String STUB_MINI_LECTURE_HINT_KK = """
+            Бұл STUB: сыртқы LLM шақырылмайды. Нақты мини-лекция үшін ортада:
+            AI_PROVIDER=openai
+            AI_REAL_PROVIDERS_ENABLED=true
+            OPENAI_API_KEY=sk-…
+            орнатып, серверді қайта іске қосыңыз.
+
+            Төменде — UI тексеруі үшін форма өрістерінің қысқаша мазмұны.""";
 
     private AiQuestionGenerationRequest lastRequest;
 
@@ -26,6 +48,60 @@ public class StubAiProvider implements AiProvider {
             drafts.add(draft(request, index));
         }
         return new AiQuestionGenerationResult("stub", "stub-ai-content-factory-v1", drafts);
+    }
+
+    @Override
+    public AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request) {
+        log.info(
+                "StubAiProvider.generateMiniLecture: предмет RU (первые 80 симв.)='{}', класс={}, вопрос RU (первые 80)='{}'",
+                preview(request.subjectRu(), 80),
+                request.gradeNo(),
+                preview(request.questionRu(), 80)
+        );
+        return MiniLectureHtmlComposer.toResult(stubStructuredPayload(request));
+    }
+
+    private static String preview(String text, int max) {
+        if (text == null || text.isBlank()) {
+            return "-";
+        }
+        String t = text.trim().replace('\n', ' ');
+        return t.length() <= max ? t : t.substring(0, max) + "...";
+    }
+
+    private MiniLectureStructuredPayload stubStructuredPayload(MiniLectureGenerationRequest r) {
+        String subRu = trimOrDash(r.subjectRu());
+        String subKk = trimOrDash(r.subjectKk());
+        String qRu = trimOrDash(r.questionRu());
+        String qKk = trimOrDash(r.questionKk());
+        String gradeLineRu = "Класс из формы: " + r.gradeNo() + " — " + trimOrDash(r.gradeTitleRu());
+        String gradeLineKk = "Формадағы сынып: " + r.gradeNo() + " — " + trimOrDash(r.gradeTitleKk());
+        MiniLectureLangBlock ru = new MiniLectureLangBlock(
+                "Мини-лекция (stub, без внешнего AI)",
+                STUB_MINI_LECTURE_HINT_RU.trim()
+                        + "\n\nПредмет: " + subRu + ".\n" + gradeLineRu + ".\nВопрос (RU): " + qRu,
+                "Контекст для проверки: условие и варианты уже переданы в промпт при реальном провайдере; здесь только echo.",
+                "Верный ответ (из формы): " + trimOrDash(r.correctAnswerRu()),
+                "Пример разбора в stub не генерируется — его заменит ответ модели после включения OpenAI/DeepSeek.",
+                "Сохраните вопрос и повторите генерацию с настроенным API-ключом."
+        );
+        MiniLectureLangBlock kz = new MiniLectureLangBlock(
+                "Мини-лекция (stub)",
+                STUB_MINI_LECTURE_HINT_KK.trim()
+                        + "\n\nПән: " + subKk + ".\n" + gradeLineKk + ".\nСұрақ (KK): " + qKk,
+                "Тексеру контексті: нақты провайдерде шарт пен нұсқалар промптқа жіберіледі.",
+                "Дұрыс жауап (формадан): " + trimOrDash(r.correctAnswerKk()),
+                "Stub режимінде ұқсас мысал шығарылмайды — OpenAI/DeepSeek қосқанда модель толтырады.",
+                "API кілтін баптап, қайта генерациялаңыз."
+        );
+        return new MiniLectureStructuredPayload(ru, kz);
+    }
+
+    private static String trimOrDash(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.trim();
     }
 
     public AiQuestionGenerationRequest getLastRequest() {

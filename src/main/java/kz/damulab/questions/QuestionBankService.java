@@ -27,6 +27,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,6 +36,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import kz.damulab.ai.AiMiniLectureResult;
+import kz.damulab.ai.AiProvider;
+import kz.damulab.ai.AiProviderProperties;
+import kz.damulab.ai.MiniLectureGenerationRequest;
 import kz.damulab.audit.AdminContentAuditService;
 import kz.damulab.content.AtomicSkill;
 import kz.damulab.content.AtomicSkillRepository;
@@ -49,6 +55,8 @@ import kz.damulab.users.AppUserRepository;
 @Service
 public class QuestionBankService {
 
+    private static final Logger log = LoggerFactory.getLogger(QuestionBankService.class);
+
     private final QuestionRepository questions;
     private final QuestionVersionRepository versions;
     private final TopicRepository topics;
@@ -61,6 +69,8 @@ public class QuestionBankService {
     private final QuestionFlagRepository questionFlags;
     private final ObjectMapper objectMapper;
     private final AdminContentAuditService audit;
+    private final AiProvider aiProvider;
+    private final AiProviderProperties aiProviderProperties;
 
     public QuestionBankService(
             QuestionRepository questions,
@@ -74,7 +84,9 @@ public class QuestionBankService {
             QuestionImportErrorRepository importErrors,
             QuestionFlagRepository questionFlags,
             ObjectMapper objectMapper,
-            AdminContentAuditService audit
+            AdminContentAuditService audit,
+            AiProvider aiProvider,
+            AiProviderProperties aiProviderProperties
     ) {
         this.questions = questions;
         this.versions = versions;
@@ -88,6 +100,8 @@ public class QuestionBankService {
         this.questionFlags = questionFlags;
         this.objectMapper = objectMapper;
         this.audit = audit;
+        this.aiProvider = aiProvider;
+        this.aiProviderProperties = aiProviderProperties;
     }
 
     @Transactional(readOnly = true)
@@ -413,6 +427,9 @@ public class QuestionBankService {
         if (form.getTopicIds() == null || form.getTopicIds().isEmpty()) {
             throw new QuestionBankException("topic_not_found");
         }
+        if (form.getGradeIds() == null || form.getGradeIds().isEmpty()) {
+            throw new QuestionBankException("grade_not_found");
+        }
         Topic topic = findTopic(form.getTopicIds().get(0));
         if (isBlank(form.getBodyRu()) || isBlank(form.getBodyKk())) {
             throw new QuestionBankException("question_body_required");
@@ -420,22 +437,127 @@ public class QuestionBankService {
 
         String correctAnswerRu = correctAnswerForLanguage(form, true);
         String correctAnswerKk = correctAnswerForLanguage(form, false);
-        int difficulty = form.getDifficulty();
-        if (difficulty < 1 || difficulty > 5) {
-            difficulty = 2;
-        }
-        boolean math = isMathSubject(topic.getSubject());
-        String lectureRu = pedagogicalLectureForLanguage(true, topic, form.getType(), form.getBodyRu(), correctAnswerRu, difficulty, math);
-        String lectureKk = pedagogicalLectureForLanguage(false, topic, form.getType(), form.getBodyKk(), correctAnswerKk, difficulty, math);
+        MiniLectureGenerationRequest aiRequest = toMiniLectureGenerationRequest(topic, form, correctAnswerRu, correctAnswerKk);
+        log.info(
+                "composeMiniLectureDraft: type={}, subjectId={}, topicId={}, gradeIds={}",
+                form.getType(),
+                form.getSubjectId(),
+                topic.getId(),
+                form.getGradeIds()
+        );
+        AiMiniLectureResult lecture = aiProvider.generateMiniLecture(aiRequest);
+        log.info(
+                "composeMiniLectureDraft: ответ AI получен, длина HTML miniLectureRu={}, miniLectureKk={}",
+                lecture.contentRu().length(),
+                lecture.contentKk().length()
+        );
 
+        boolean stubMode = isStubAiProviderConfigured();
         return new MiniLectureDraftResponse(
-                lectureRu,
-                lectureKk,
-                lectureRu,
-                lectureKk,
+                lecture.contentRu(),
+                lecture.contentKk(),
+                lecture.contentRu(),
+                lecture.contentKk(),
+                correctAnswerRu,
+                correctAnswerKk,
+                stubMode
+        );
+    }
+
+    /** {@code true}, если в конфигурации выбран намеренный stub (без сетевого LLM). Не путать с ошибкой провайдера. */
+    private boolean isStubAiProviderConfigured() {
+        String p = aiProviderProperties.getProvider();
+        return p == null || p.isBlank() || "stub".equalsIgnoreCase(p.trim());
+    }
+
+    private MiniLectureGenerationRequest toMiniLectureGenerationRequest(
+            Topic topic,
+            QuestionForm form,
+            String correctAnswerRu,
+            String correctAnswerKk
+    ) {
+        Subject subject = findSubject(form.getSubjectId());
+        Grade grade = grades.findById(form.getGradeIds().get(0))
+                .orElseThrow(() -> new QuestionBankException("grade_not_found"));
+        int gradeNo = grade.getGradeNo() == null ? 0 : grade.getGradeNo();
+        return new MiniLectureGenerationRequest(
+                subject.getTitleRu(),
+                subject.getTitleKk(),
+                grade.getTitleRu(),
+                grade.getTitleKk(),
+                gradeNo,
+                topic.getTitleRu(),
+                topic.getTitleKk(),
+                form.getBodyRu().trim(),
+                form.getBodyKk().trim(),
+                taskOptionsSummaryForLanguage(form, true),
+                taskOptionsSummaryForLanguage(form, false),
                 correctAnswerRu,
                 correctAnswerKk
         );
+    }
+
+    private String taskOptionsSummaryForLanguage(QuestionForm form, boolean russian) {
+        return switch (form.getType()) {
+            case SCQ, MCQ -> choiceOptionsSummaryForLanguage(form, russian);
+            case MATCHING -> matchingPairsSummaryForLanguage(form, russian);
+            case FILL_IN -> fillAnswersSummaryForLanguage(form, russian);
+        };
+    }
+
+    private String choiceOptionsSummaryForLanguage(QuestionForm form, boolean russian) {
+        List<ChoiceOptionForm> active = activeChoiceOptions(form.getOptions()).stream()
+                .filter(option -> !isBlank(option.getTextRu()) || !isBlank(option.getTextKk()))
+                .toList();
+        if (active.isEmpty()) {
+            return "-";
+        }
+        StringJoiner joiner = new StringJoiner("\n");
+        for (ChoiceOptionForm option : active) {
+            String text = russian ? option.getTextRu() : option.getTextKk();
+            joiner.add(label(option) + " — " + text.trim());
+        }
+        return joiner.toString();
+    }
+
+    private String matchingPairsSummaryForLanguage(QuestionForm form, boolean russian) {
+        List<MatchingPairForm> pairs = form.getMatchingPairs().stream()
+                .filter(pair -> !isBlank(pair.getLeftRu()) || !isBlank(pair.getRightRu())
+                        || !isBlank(pair.getLeftKk()) || !isBlank(pair.getRightKk()))
+                .toList();
+        if (pairs.isEmpty()) {
+            return "-";
+        }
+        StringJoiner joiner = new StringJoiner("\n");
+        int index = 1;
+        for (MatchingPairForm pair : pairs) {
+            String left = russian ? pair.getLeftRu() : pair.getLeftKk();
+            String right = russian ? pair.getRightRu() : pair.getRightKk();
+            if (isBlank(left) || isBlank(right)) {
+                continue;
+            }
+            joiner.add(index + ") " + left.trim() + " -> " + right.trim());
+            index++;
+        }
+        String out = joiner.toString();
+        return out.isBlank() ? "-" : out;
+    }
+
+    private String fillAnswersSummaryForLanguage(QuestionForm form, boolean russian) {
+        List<FillAnswerForm> answers = form.getFillAnswers().stream()
+                .filter(answer -> !isBlank(answer.getPlaceholder()) && !isBlank(answer.getAnswer()))
+                .toList();
+        if (answers.isEmpty()) {
+            return "-";
+        }
+        StringJoiner joiner = new StringJoiner("\n");
+        for (FillAnswerForm answer : answers) {
+            String modeNote = russian
+                    ? ("; режим: " + answer.getMatchMode().name())
+                    : ("; режим: " + answer.getMatchMode().name());
+            joiner.add(answer.getPlaceholder().trim() + " = " + answer.getAnswer().trim() + modeNote);
+        }
+        return joiner.toString();
     }
 
     private Specification<Question> filter(
@@ -838,117 +960,6 @@ public class QuestionBankService {
             return first;
         }
         return trimToNull(fallback);
-    }
-
-    /**
-     * Единый текст для ученика: контекст темы/предмета/класса, разбор с верным ответом и короткое закрепление.
-     * Используется и как «объяснение», и как «мини-лекция» (одинаковое содержание).
-     */
-    private String pedagogicalLectureForLanguage(
-            boolean russian,
-            Topic topic,
-            QuestionType type,
-            String body,
-            String correctAnswer,
-            int difficulty,
-            boolean math
-    ) {
-        String subject = russian
-                ? nullToEmpty(topic.getSubject().getTitleRu())
-                : nullToEmpty(topic.getSubject().getTitleKk());
-        String grade = russian
-                ? nullToEmpty(topic.getGrade().getTitleRu())
-                : nullToEmpty(topic.getGrade().getTitleKk());
-        String topicTitle = russian ? topic.getTitleRu() : topic.getTitleKk();
-        String trimmedBody = body == null ? "" : body.trim();
-
-        String typeHint = switch (type) {
-            case SCQ -> russian
-                    ? "Это задание с одним верным вариантом: нужно выбрать единственный ответ, который точно следует из условия."
-                    : "Бұл бір дұрыс нұсқасы бар тапсырма: шарттан дәл шығатын біреуін таңдау керек.";
-            case MCQ -> russian
-                    ? "Здесь может быть несколько верных вариантов: отметьте все, которые одновременно выполняют условие задачи."
-                    : "Мұнда бірнеше дұрыс нұсқа болуы мүмкін: шартты бір мезгілде орындайтын барлық нұсқаларды белгілеңіз.";
-            case MATCHING -> russian
-                    ? "Нужно сопоставить пары так, чтобы смысл и формулы согласовались между левой и правой колонкой."
-                    : "Сол және оң бағандардағы мағына мен формулалар сәйкес келетін жұптарды қосу керек.";
-            case FILL_IN -> russian
-                    ? "В каждый пропуск вставьте значение, которое проходит проверку по правилу (точное совпадение, нормализация, числовой допуск или регулярное выражение — как задано в ключе)."
-                    : "Әр бос орынға тексеру ережесіне сай мәнді қойыңыз (дәл сәйкестік, нормализация, сандық қателік немесе регекс — кілтте қалай көрсетілсе).";
-        };
-
-        String breakdown = switch (type) {
-            case SCQ, MCQ -> russian
-                    ? "Сопоставьте условие с каждым вариантом: отметьте те, что следуют из данных задачи и не противоречат определениям темы «"
-                            + topicTitle + "». Сверьте выбранное с ключом: верно — «" + correctAnswer + "»."
-                    : "Әр нұсқаны шартпен салыстырыңыз: «" + topicTitle
-                            + "» тақырыбының анықтамаларына қайшы келмейтіндерді таңдаңыз. Кілтпен тексеріңіз: дұрысы — «"
-                            + correctAnswer + "».";
-            case MATCHING -> russian
-                    ? "Пройдите пары по порядку: для каждой левой части найдите правую по смыслу. Итоговое соответствие в ключе: "
-                            + correctAnswer + "."
-                    : "Жұптарды ретпен қараңыз: әр сол жақ үшін мағынасы сай оң жақты табыңыз. Кілттегі сәйкестік: "
-                            + correctAnswer + ".";
-            case FILL_IN -> russian
-                    ? "Подставьте в пропуски значения из ключа и проверьте по правилу каждого placeholder. Верные значения: "
-                            + correctAnswer + "."
-                    : "Бос орындарға кілттегі мәндерді қойыңыз және әр placeholder үшін ережеге сәйкестігін тексеріңіз. Дұрыс мәндер: "
-                            + correctAnswer + ".";
-        };
-
-        String reinforcement = math
-                ? (russian
-                ? "Для закрепления придумайте похожий пример с другими числами по той же теме и проверьте ответ тем же способом, что и в разборе выше."
-                : "Нығайту үшін сол тақырып бойынша басқа сандармен ұқсас мысал ойлап, жоғарыдағы тәсілмен жауапты тексеріңіз.")
-                : (russian
-                ? "Для закрепления сформулируйте короткий аналогичный вопрос по теме «" + topicTitle
-                        + "» и проверьте ответ, шаг за шагом повторяя ход из разбора."
-                : "Нығайту үшін «" + topicTitle + "» тақырыбындағы қысқа ұқсас сұрақ құрастырып, жауапты жоғарыдағы тәсілмен тексеріңіз.");
-
-        if (russian) {
-            StringBuilder b = new StringBuilder();
-            b.append("Объяснение для школьника\n");
-            b.append("Предмет: ").append(subject).append(". Класс: ").append(grade).append(". Тема: ").append(topicTitle).append(".\n");
-            b.append("Сложность в банке вопросов: ").append(difficulty).append(" из 5.\n\n");
-            b.append("Текст задания:\n«").append(trimmedBody).append("»\n\n");
-            b.append("Как устроен этот тип задания. ").append(typeHint).append("\n\n");
-            b.append("Разбор и верный ответ\n");
-            b.append(breakdown).append("\n\n");
-            b.append("Кратко: верно — ").append(correctAnswer).append(".\n\n");
-            b.append("Ещё пример на закрепление\n");
-            b.append(reinforcement);
-            return b.toString();
-        }
-
-        StringBuilder b = new StringBuilder();
-        b.append("Мектеп оқушысына түсіндірме\n");
-        b.append("Пән: ").append(subject).append(". Сынып: ").append(grade).append(". Тақырып: ").append(topicTitle).append(".\n");
-        b.append("Сұрақ қиындығы (банк): ").append(difficulty).append(" / 5.\n\n");
-        b.append("Тапсырма мәтіні:\n«").append(trimmedBody).append("»\n\n");
-        b.append("Тапсырма түрі. ").append(typeHint).append("\n\n");
-        b.append("Талдау және дұрыс жауап\n");
-        b.append(breakdown).append("\n\n");
-        b.append("Қысқаша: дұрыс жауап — ").append(correctAnswer).append(".\n\n");
-        b.append("Нығайтуға қосымша мысал\n");
-        b.append(reinforcement);
-        return b.toString();
-    }
-
-    private String nullToEmpty(String value) {
-        return value == null ? "" : value;
-    }
-
-    private boolean isMathSubject(Subject subject) {
-        String code = subject.getCode() == null ? "" : subject.getCode().toLowerCase(Locale.ROOT);
-        String ru = subject.getTitleRu() == null ? "" : subject.getTitleRu().toLowerCase(Locale.ROOT);
-        String kk = subject.getTitleKk() == null ? "" : subject.getTitleKk().toLowerCase(Locale.ROOT);
-        return code.contains("math")
-                || ru.contains("матем")
-                || ru.contains("алгебр")
-                || ru.contains("геометр")
-                || kk.contains("матем")
-                || kk.contains("алгебр")
-                || kk.contains("геометр");
     }
 
     private void applyTopicAndGradeLinks(QuestionVersion version, QuestionForm form) {
