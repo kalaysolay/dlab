@@ -44,6 +44,11 @@ public class AdminContentApiController {
         return contentGraph.listTopics(subjectId, gradeId);
     }
 
+    @GetMapping("/topics/for-subject")
+    List<TopicResponse> topicsForSubject(@RequestParam(required = false) Long subjectId) {
+        return contentGraph.listTopicsForSubject(subjectId);
+    }
+
     @GetMapping("/topics/tree")
     List<TopicTreeNode> topicTree(
             @RequestParam(required = false) Long subjectId,

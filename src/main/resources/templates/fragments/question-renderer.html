@@ -108,7 +108,30 @@
         </div>
     </div>
 
-    <div class="result-detail" th:if="${question.type != 'SCQ' && question.type != 'MCQ' && question.type != 'FILL_IN'}">
+    <div class="result-detail result-matching-detail" th:if="${question.type == 'MATCHING'}">
+        <p class="muted-line matching-result-hint">Сопоставьте левый столбец с тем, что выбрал ученик, и с верным ответом.</p>
+        <div class="result-matching-table-wrap">
+            <table class="result-matching-table">
+                <thead>
+                <tr>
+                    <th scope="col">Слева (условие)</th>
+                    <th scope="col">Выбор ученика</th>
+                    <th scope="col">Верно</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${question.matchingRows}"
+                    th:classappend="${row.rowCorrect} ? '' : 'is-matching-wrong'">
+                    <td th:text="${row.leftText}">—</td>
+                    <td th:text="${row.studentRightText}">—</td>
+                    <td th:text="${row.correctRightText}">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="result-detail" th:if="${question.type != 'SCQ' && question.type != 'MCQ' && question.type != 'FILL_IN' && question.type != 'MATCHING'}">
         <div>
             <strong>Ответ ученика</strong>
             <pre class="result-answer" th:attr="data-kind='student',data-question-type=${question.type}" th:text="${question.studentAnswer}">{}</pre>

@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface TopicRepository extends JpaRepository<Topic, Long> {
 
+    List<Topic> findBySubject_IdOrderByTitleRuAsc(Long subjectId);
+
     List<Topic> findBySubjectIdAndGradeIdOrderByTitleRuAsc(Long subjectId, Long gradeId);
 
     long countBySubjectIdAndGradeId(Long subjectId, Long gradeId);

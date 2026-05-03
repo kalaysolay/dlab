@@ -78,6 +78,15 @@ public class ContentGraphService {
                 .toList();
     }
 
+    /** Все темы предмета (все классы) — для мультивыбора тем у вопроса. */
+    @Transactional(readOnly = true)
+    public List<TopicResponse> listTopicsForSubject(Long subjectId) {
+        Long resolvedSubjectId = resolveSubjectId(subjectId);
+        return topics.findBySubject_IdOrderByTitleRuAsc(resolvedSubjectId).stream()
+                .map(this::toTopicResponse)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<TopicTreeNode> topicTree(Long subjectId, Long gradeId) {
         Long resolvedSubjectId = resolveSubjectId(subjectId);

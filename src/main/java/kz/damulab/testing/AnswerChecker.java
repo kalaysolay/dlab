@@ -141,6 +141,62 @@ public class AnswerChecker {
         }
     }
 
+    /**
+     * Строки для страницы результата теста: сопоставление «левая колонка → ответ ученика → верный ответ».
+     */
+    public List<MatchingResultRow> matchingResultRows(QuestionVersion version, String answerJson, String language) {
+        if (version.getType() != QuestionType.MATCHING) {
+            return List.of();
+        }
+        JsonNode options = readTree(version.getOptionsJson());
+        JsonNode keyPairs = readTree(version.getAnswerKeyJson()).path("pairs");
+        Map<String, String> submittedByLeftNorm = new LinkedHashMap<>();
+        JsonNode root = readTree(answerJson);
+        JsonNode sp = root.path("pairs");
+        if (sp.isObject()) {
+            sp.fields().forEachRemaining(e ->
+                    submittedByLeftNorm.put(normalize(e.getKey()), normalize(e.getValue().asText())));
+        }
+        List<MatchingResultRow> rows = new ArrayList<>();
+        int pairCount = keyPairs.size();
+        for (int index = 0; index < pairCount; index++) {
+            JsonNode keyPair = keyPairs.get(index);
+            JsonNode optionPair = index < options.size() ? options.get(index) : null;
+            if (optionPair == null) {
+                continue;
+            }
+            String leftNorm = normalize(keyPair.path("left").asText());
+            String rightNorm = normalize(keyPair.path("right").asText());
+            String leftLabel = localized(optionPair, "left", language);
+            String correctRightLabel = localized(optionPair, "right", language);
+            String studentRightNorm = submittedByLeftNorm.get(leftNorm);
+            String studentRightLabel;
+            if (studentRightNorm == null || studentRightNorm.isEmpty()) {
+                studentRightLabel = "—";
+            } else {
+                studentRightLabel = findRightLabelForNormalizedValue(options, studentRightNorm, language);
+            }
+            boolean rowOk = studentRightNorm != null && studentRightNorm.equals(rightNorm);
+            rows.add(new MatchingResultRow(leftLabel, studentRightLabel, correctRightLabel, rowOk));
+        }
+        return rows;
+    }
+
+    private String findRightLabelForNormalizedValue(JsonNode options, String normalizedRightValue, String language) {
+        for (JsonNode pair : options) {
+            if (matchesRightValue(pair, normalizedRightValue)) {
+                return localized(pair, "right", language);
+            }
+        }
+        return normalizedRightValue;
+    }
+
+    private boolean matchesRightValue(JsonNode pair, String normalizedRightValue) {
+        String ru = normalize(pair.path("rightRu").asText());
+        String kk = normalize(pair.path("rightKk").asText());
+        return normalizedRightValue.equals(ru) || normalizedRightValue.equals(kk);
+    }
+
     public List<ChoiceDisplay> choices(QuestionVersion version, String language) {
         if (version.getOptionsJson() == null || version.getOptionsJson().isBlank()) {
             return List.of();

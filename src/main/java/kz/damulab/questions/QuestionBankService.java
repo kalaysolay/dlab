@@ -4,12 +4,15 @@ import java.math.BigDecimal;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringJoiner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -34,6 +37,10 @@ import org.springframework.web.multipart.MultipartFile;
 import kz.damulab.audit.AdminContentAuditService;
 import kz.damulab.content.AtomicSkill;
 import kz.damulab.content.AtomicSkillRepository;
+import kz.damulab.content.Grade;
+import kz.damulab.content.GradeRepository;
+import kz.damulab.content.Subject;
+import kz.damulab.content.SubjectRepository;
 import kz.damulab.content.Topic;
 import kz.damulab.content.TopicRepository;
 import kz.damulab.users.AppUser;
@@ -45,6 +52,8 @@ public class QuestionBankService {
     private final QuestionRepository questions;
     private final QuestionVersionRepository versions;
     private final TopicRepository topics;
+    private final SubjectRepository subjects;
+    private final GradeRepository grades;
     private final AtomicSkillRepository skills;
     private final AppUserRepository users;
     private final QuestionImportJobRepository importJobs;
@@ -57,6 +66,8 @@ public class QuestionBankService {
             QuestionRepository questions,
             QuestionVersionRepository versions,
             TopicRepository topics,
+            SubjectRepository subjects,
+            GradeRepository grades,
             AtomicSkillRepository skills,
             AppUserRepository users,
             QuestionImportJobRepository importJobs,
@@ -68,6 +79,8 @@ public class QuestionBankService {
         this.questions = questions;
         this.versions = versions;
         this.topics = topics;
+        this.subjects = subjects;
+        this.grades = grades;
         this.skills = skills;
         this.users = users;
         this.importJobs = importJobs;
@@ -106,12 +119,16 @@ public class QuestionBankService {
         }
         java.util.Optional<QuestionVersion> pending = pendingDraft(question);
         QuestionVersion source = pending.orElse(currentVersion);
+        Long gradeIdForFilter = source.getGradeLinks().stream()
+                .map(l -> l.getGrade().getId())
+                .min(Long::compareTo)
+                .orElse(null);
         return new QuestionEditView(
                 question.getId(),
                 source.getVersionNo(),
                 question.getStatus().apiValue(),
-                source.getTopic().getSubject().getId(),
-                source.getTopic().getGrade().getId(),
+                source.getSubject().getId(),
+                gradeIdForFilter,
                 toEditForm(question, source),
                 pending.isPresent(),
                 pending.map(QuestionVersion::getVersionNo).orElse(null),
@@ -210,6 +227,8 @@ public class QuestionBankService {
         Question question = questions.save(new Question(status, currentUser()));
         QuestionVersion version = buildVersion(question, 1, form);
         versions.save(version);
+        applyTopicAndGradeLinks(version, form);
+        versions.save(version);
         question.setCurrentVersion(version);
         audit.record("question_created", "Question", question.getId(), form.getType().name());
         return toResponse(question);
@@ -307,18 +326,25 @@ public class QuestionBankService {
             if (existingDraft != null) {
                 QuestionVersion replacement = buildVersion(question, existingDraft.getVersionNo(), form);
                 existingDraft.replaceContent(replacement);
+                applyTopicAndGradeLinks(existingDraft, form);
+                versions.save(existingDraft);
             } else {
                 QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
+                versions.save(replacement);
+                applyTopicAndGradeLinks(replacement, form);
                 versions.save(replacement);
             }
         } else if (question.getStatus() == QuestionStatus.APPROVED) {
             QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
+            versions.save(replacement);
+            applyTopicAndGradeLinks(replacement, form);
             versions.save(replacement);
             question.setCurrentVersion(replacement);
             question.changeStatus(QuestionStatus.NEEDS_REVIEW);
         } else {
             QuestionVersion replacement = buildVersion(question, nextVersionNo(question), form);
             current.replaceContent(replacement);
+            applyTopicAndGradeLinks(current, form);
             question.changeStatus(initialStatus(form.getStatus()));
         }
         audit.record("question_updated", "Question", question.getId(), form.getType().name());
@@ -384,10 +410,10 @@ public class QuestionBankService {
         if (form == null || form.getType() == null) {
             throw new QuestionBankException("question_type_required");
         }
-        if (form.getTopicId() == null) {
+        if (form.getTopicIds() == null || form.getTopicIds().isEmpty()) {
             throw new QuestionBankException("topic_not_found");
         }
-        Topic topic = findTopic(form.getTopicId());
+        Topic topic = findTopic(form.getTopicIds().get(0));
         if (isBlank(form.getBodyRu()) || isBlank(form.getBodyKk())) {
             throw new QuestionBankException("question_body_required");
         }
@@ -398,7 +424,7 @@ public class QuestionBankService {
         if (difficulty < 1 || difficulty > 5) {
             difficulty = 2;
         }
-        boolean math = isMathTopic(topic);
+        boolean math = isMathSubject(topic.getSubject());
         String lectureRu = pedagogicalLectureForLanguage(true, topic, form.getType(), form.getBodyRu(), correctAnswerRu, difficulty, math);
         String lectureKk = pedagogicalLectureForLanguage(false, topic, form.getType(), form.getBodyKk(), correctAnswerKk, difficulty, math);
 
@@ -421,16 +447,19 @@ public class QuestionBankService {
             String query
     ) {
         return (root, criteriaQuery, cb) -> {
+            criteriaQuery.distinct(true);
             Join<Question, QuestionVersion> version = root.join("currentVersion", JoinType.LEFT);
             java.util.ArrayList<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
             if (subjectId != null) {
-                predicates.add(cb.equal(version.get("topic").get("subject").get("id"), subjectId));
+                predicates.add(cb.equal(version.get("subject").get("id"), subjectId));
             }
             if (gradeId != null) {
-                predicates.add(cb.equal(version.get("topic").get("grade").get("id"), gradeId));
+                Join<?, ?> gradeJoin = version.join("gradeLinks", JoinType.INNER);
+                predicates.add(cb.equal(gradeJoin.get("grade").get("id"), gradeId));
             }
             if (topicId != null) {
-                predicates.add(cb.equal(version.get("topic").get("id"), topicId));
+                Join<?, ?> topicJoin = version.join("topicLinks", JoinType.INNER);
+                predicates.add(cb.equal(topicJoin.get("topic").get("id"), topicId));
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
@@ -452,7 +481,18 @@ public class QuestionBankService {
 
     private QuestionForm toEditForm(Question question, QuestionVersion version) {
         QuestionForm form = new QuestionForm();
-        form.setTopicId(version.getTopic().getId());
+        form.setSubjectId(version.getSubject().getId());
+        List<Long> topicIds = version.getTopicLinks().stream()
+                .sorted(Comparator.comparing(QuestionVersionTopic::isPrimaryTopic).reversed()
+                        .thenComparing(l -> l.getTopic().getId()))
+                .map(l -> l.getTopic().getId())
+                .toList();
+        form.setTopicIds(new ArrayList<>(topicIds));
+        List<Long> gradeIds = version.getGradeLinks().stream()
+                .map(l -> l.getGrade().getId())
+                .sorted()
+                .toList();
+        form.setGradeIds(new ArrayList<>(gradeIds));
         form.setAtomicSkillId(version.getAtomicSkill() == null ? null : version.getAtomicSkill().getId());
         form.setType(version.getType());
         form.setDifficulty(version.getDifficulty());
@@ -582,10 +622,36 @@ public class QuestionBankService {
         if (form.getType() == null) {
             throw new QuestionBankException("question_type_required");
         }
-        Topic topic = findTopic(form.getTopicId());
+        if (form.getSubjectId() == null) {
+            throw new QuestionBankException("subject_not_found");
+        }
+        findSubject(form.getSubjectId());
+        if (form.getTopicIds() == null || form.getTopicIds().isEmpty()) {
+            throw new QuestionBankException("topic_not_found");
+        }
+        if (form.getGradeIds() == null || form.getGradeIds().isEmpty()) {
+            throw new QuestionBankException("grade_not_found");
+        }
+        Set<Long> topicIdSet = new HashSet<>(form.getTopicIds());
+        if (topicIdSet.size() != form.getTopicIds().size()) {
+            throw new QuestionBankException("question_topics_duplicate");
+        }
+        for (Long topicId : form.getTopicIds()) {
+            Topic topic = findTopic(topicId);
+            if (!Objects.equals(topic.getSubject().getId(), form.getSubjectId())) {
+                throw new QuestionBankException("topic_subject_mismatch");
+            }
+        }
+        Set<Long> gradeIdSet = new HashSet<>(form.getGradeIds());
+        if (gradeIdSet.size() != form.getGradeIds().size()) {
+            throw new QuestionBankException("question_grades_duplicate");
+        }
+        for (Long gradeId : form.getGradeIds()) {
+            grades.findById(gradeId).orElseThrow(() -> new QuestionBankException("grade_not_found"));
+        }
         if (form.getAtomicSkillId() != null) {
             AtomicSkill skill = findSkill(form.getAtomicSkillId());
-            if (!Objects.equals(skill.getTopic().getId(), topic.getId())) {
+            if (!topicIdSet.contains(skill.getTopic().getId())) {
                 throw new QuestionBankException("skill_topic_mismatch");
             }
         }
@@ -631,8 +697,22 @@ public class QuestionBankService {
         if (filled.size() < 2) {
             throw new QuestionBankException("choice_requires_two_options");
         }
-        if (filled.stream().anyMatch(option -> isBlank(option.getTextRu()) || isBlank(option.getTextKk()))) {
-            throw new QuestionBankException("choice_option_text_required");
+        List<Integer> incompleteIndexes = new ArrayList<>();
+        for (int i = 0; i < options.size(); i++) {
+            ChoiceOptionForm option = options.get(i);
+            if (option.isSoftDeleted()) {
+                continue;
+            }
+            boolean anyText = !isBlank(option.getTextRu()) || !isBlank(option.getTextKk());
+            if (!anyText) {
+                continue;
+            }
+            if (isBlank(option.getTextRu()) || isBlank(option.getTextKk())) {
+                incompleteIndexes.add(i);
+            }
+        }
+        if (!incompleteIndexes.isEmpty()) {
+            throw new QuestionBankException("choice_option_text_required", incompleteIndexes);
         }
     }
 
@@ -675,7 +755,7 @@ public class QuestionBankService {
     }
 
     private QuestionVersion buildVersion(Question question, int versionNo, QuestionForm form) {
-        Topic topic = findTopic(form.getTopicId());
+        Subject subject = subjects.getReferenceById(form.getSubjectId());
         AtomicSkill skill = form.getAtomicSkillId() == null ? null : findSkill(form.getAtomicSkillId());
         String studentFacingRu = coalesceStudentText(form.getMiniLectureRu(), form.getExplanationRu());
         String studentFacingKk = coalesceStudentText(form.getMiniLectureKk(), form.getExplanationKk());
@@ -683,7 +763,7 @@ public class QuestionBankService {
                 question,
                 versionNo,
                 form.getType(),
-                topic,
+                subject,
                 skill,
                 form.getDifficulty(),
                 form.getBodyRu().trim(),
@@ -858,10 +938,10 @@ public class QuestionBankService {
         return value == null ? "" : value;
     }
 
-    private boolean isMathTopic(Topic topic) {
-        String code = topic.getSubject().getCode() == null ? "" : topic.getSubject().getCode().toLowerCase(Locale.ROOT);
-        String ru = topic.getSubject().getTitleRu() == null ? "" : topic.getSubject().getTitleRu().toLowerCase(Locale.ROOT);
-        String kk = topic.getSubject().getTitleKk() == null ? "" : topic.getSubject().getTitleKk().toLowerCase(Locale.ROOT);
+    private boolean isMathSubject(Subject subject) {
+        String code = subject.getCode() == null ? "" : subject.getCode().toLowerCase(Locale.ROOT);
+        String ru = subject.getTitleRu() == null ? "" : subject.getTitleRu().toLowerCase(Locale.ROOT);
+        String kk = subject.getTitleKk() == null ? "" : subject.getTitleKk().toLowerCase(Locale.ROOT);
         return code.contains("math")
                 || ru.contains("матем")
                 || ru.contains("алгебр")
@@ -869,6 +949,25 @@ public class QuestionBankService {
                 || kk.contains("матем")
                 || kk.contains("алгебр")
                 || kk.contains("геометр");
+    }
+
+    private void applyTopicAndGradeLinks(QuestionVersion version, QuestionForm form) {
+        version.getTopicLinks().clear();
+        version.getGradeLinks().clear();
+        versions.flush();
+        List<Long> topicIds = form.getTopicIds();
+        for (int i = 0; i < topicIds.size(); i++) {
+            Topic topic = topics.getReferenceById(topicIds.get(i));
+            version.getTopicLinks().add(new QuestionVersionTopic(version, topic, i == 0));
+        }
+        for (Long gradeId : form.getGradeIds()) {
+            Grade grade = grades.getReferenceById(gradeId);
+            version.getGradeLinks().add(new QuestionVersionGrade(version, grade));
+        }
+    }
+
+    private Subject findSubject(Long id) {
+        return subjects.findById(id).orElseThrow(() -> new QuestionBankException("subject_not_found"));
     }
 
     private String optionsJson(QuestionForm form) {
@@ -968,14 +1067,27 @@ public class QuestionBankService {
         Integer pendingVersionNo = version == null
                 ? null
                 : pendingDraft(question).map(QuestionVersion::getVersionNo).orElse(null);
+        Topic primary = version == null ? null : version.getPrimaryTopic();
+        List<Long> topicIds = version == null ? List.of() : version.getTopicLinks().stream()
+                .sorted(Comparator.comparing(QuestionVersionTopic::isPrimaryTopic).reversed()
+                        .thenComparing(l -> l.getTopic().getId()))
+                .map(l -> l.getTopic().getId())
+                .toList();
+        List<Long> gradeIds = version == null ? List.of() : version.getGradeLinks().stream()
+                .map(l -> l.getGrade().getId())
+                .sorted()
+                .toList();
         return new QuestionResponse(
                 question.getId(),
                 question.getStatus().apiValue(),
                 version == null ? null : version.getId(),
                 version == null ? 0 : version.getVersionNo(),
                 version == null ? null : version.getType().name(),
-                version == null ? null : version.getTopic().getId(),
-                version == null ? null : version.getTopic().getTitleRu(),
+                version == null ? null : version.getSubject().getId(),
+                topicIds,
+                primary == null ? null : primary.getId(),
+                primary == null ? null : primary.getTitleRu(),
+                gradeIds,
                 version == null || version.getAtomicSkill() == null ? null : version.getAtomicSkill().getId(),
                 version == null || version.getAtomicSkill() == null ? null : version.getAtomicSkill().getTitleRu(),
                 version == null ? 0 : version.getDifficulty(),
@@ -999,12 +1111,13 @@ public class QuestionBankService {
         int errorRate = attempts == 0 ? 0 : Math.round((incorrect * 100.0f) / attempts);
         int discriminativePower = discrimination == null ? 0 : discrimination.power();
         String qualitySignal = qualitySignal(question, attempts, errorRate, discriminativePower, openFlagCount);
+        Topic primaryTopic = version == null ? null : version.getPrimaryTopic();
         return new QuestionHealthItemResponse(
                 question.getId(),
                 version == null ? null : version.getId(),
                 question.getStatus().apiValue(),
                 version == null ? null : version.getType().name(),
-                version == null ? null : version.getTopic().getTitleRu(),
+                primaryTopic == null ? null : primaryTopic.getTitleRu(),
                 version == null ? null : version.getBodyRu(),
                 attempts,
                 incorrect,
@@ -1103,7 +1216,11 @@ public class QuestionBankService {
     private QuestionForm formFromExcelRow(Row row, DataFormatter formatter) {
         QuestionForm form = new QuestionForm();
         form.setType(QuestionType.valueOf(cell(row, 0, formatter).trim().toUpperCase(Locale.ROOT)));
-        form.setTopicId(Long.valueOf(cell(row, 1, formatter).trim()));
+        Long topicId = Long.valueOf(cell(row, 1, formatter).trim());
+        Topic topic = topics.findById(topicId).orElseThrow(() -> new QuestionBankException("topic_not_found"));
+        form.setSubjectId(topic.getSubject().getId());
+        form.setTopicIds(new ArrayList<>(List.of(topicId)));
+        form.setGradeIds(new ArrayList<>(List.of(topic.getGrade().getId())));
         form.setDifficulty(Integer.parseInt(cell(row, 2, formatter).trim()));
         form.setBodyRu(cell(row, 3, formatter));
         form.setBodyKk(cell(row, 4, formatter));

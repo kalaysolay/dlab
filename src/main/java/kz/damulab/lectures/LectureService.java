@@ -360,7 +360,10 @@ public class LectureService {
             if (questionVersion.getQuestion().getStatus() != QuestionStatus.PUBLISHED) {
                 throw new LectureException("checkpoint_question_not_published");
             }
-            if (!Objects.equals(questionVersion.getTopic().getId(), version.getTopic().getId())) {
+            Long lectureTopicId = version.getTopic().getId();
+            boolean topicMatches = questionVersion.getTopicLinks().stream()
+                    .anyMatch(link -> Objects.equals(link.getTopic().getId(), lectureTopicId));
+            if (!topicMatches) {
                 throw new LectureException("checkpoint_topic_mismatch");
             }
             checkpoints.save(new LectureCheckpoint(version, questionVersion, order++, LectureControlMode.MANUAL));

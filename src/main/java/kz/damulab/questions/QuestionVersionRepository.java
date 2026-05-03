@@ -10,8 +10,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface QuestionVersionRepository extends JpaRepository<QuestionVersion, Long> {
 
-    boolean existsByTopicId(Long topicId);
-
     boolean existsByAtomicSkillId(Long atomicSkillId);
 
     Optional<QuestionVersion> findTopByQuestionIdOrderByVersionNoDesc(Long questionId);
@@ -27,10 +25,11 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
             select v
             from Question question
             join question.currentVersion v
-            join v.topic topic
             where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
-              and (:subjectId is null or topic.subject.id = :subjectId)
-              and (:gradeId is null or topic.grade.id = :gradeId)
+              and (:subjectId is null or v.subject.id = :subjectId)
+              and (:gradeId is null or exists (
+                  select 1 from QuestionVersionGrade g
+                  where g.questionVersion = v and g.grade.id = :gradeId))
               and (:difficulty is null or v.difficulty = :difficulty)
             order by v.createdAt asc
             """)
@@ -45,10 +44,11 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
             select count(question.id)
             from Question question
             join question.currentVersion v
-            join v.topic topic
             where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
-              and topic.subject.id = :subjectId
-              and topic.grade.id = :gradeId
+              and v.subject.id = :subjectId
+              and exists (
+                  select 1 from QuestionVersionGrade g
+                  where g.questionVersion = v and g.grade.id = :gradeId)
             """)
     long countPublishedForSubjectAndGrade(
             @Param("subjectId") Long subjectId,
@@ -56,12 +56,12 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
     );
 
     @Query("""
-            select topic.subject.id, topic.grade.id, count(question.id)
+            select v.subject.id, link.grade.id, count(question.id)
             from Question question
             join question.currentVersion v
-            join v.topic topic
+            join v.gradeLinks link
             where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
-            group by topic.subject.id, topic.grade.id
+            group by v.subject.id, link.grade.id
             having count(question.id) >= :minCount
             """)
     List<Object[]> countPublishedGroupedBySubjectAndGrade(@Param("minCount") long minCount);
@@ -71,7 +71,9 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
             from Question question
             join question.currentVersion v
             where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
-              and v.topic.id = :topicId
+              and exists (
+                  select 1 from QuestionVersionTopic vt
+                  where vt.questionVersion = v and vt.topic.id = :topicId)
             order by v.createdAt asc
             """)
     List<QuestionVersion> findPublishedByTopicId(

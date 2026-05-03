@@ -37,6 +37,9 @@ import kz.damulab.questions.QuestionRepository;
 @ActiveProfiles("test")
 class QuestionImportHealthIntegrationTest {
 
+    private record TopicFixture(long topicId, long subjectId, long gradeId) {
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -54,14 +57,14 @@ class QuestionImportHealthIntegrationTest {
 
     @Test
     void adminCanImportJsonQuestionsIntoNeedsReview() throws Exception {
-        Long topicId = createTopic("import-topic-");
+        TopicFixture tf = createTopic("import-topic-");
         String marker = "JSON import " + UUID.randomUUID();
 
         mockMvc.perform(post("/api/admin/question-imports")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(importBody(topicId, marker, true)))
+                        .content(importBody(tf, marker, true)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("completed"))
                 .andExpect(jsonPath("$.importedRows").value(1))
@@ -77,14 +80,14 @@ class QuestionImportHealthIntegrationTest {
 
     @Test
     void invalidImportRowCreatesRowErrorWithoutCreatingQuestion() throws Exception {
-        Long topicId = createTopic("bad-import-topic-");
+        TopicFixture tf = createTopic("bad-import-topic-");
         long before = questions.count();
 
         mockMvc.perform(post("/api/admin/question-imports")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(importBody(topicId, "bad import " + UUID.randomUUID(), false)))
+                        .content(importBody(tf, "bad import " + UUID.randomUUID(), false)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("failed"))
                 .andExpect(jsonPath("$.importedRows").value(0))
@@ -97,13 +100,13 @@ class QuestionImportHealthIntegrationTest {
 
     @Test
     void healthEndpointAndFlagActionExposeProblemReviewFlow() throws Exception {
-        Long topicId = createTopic("health-topic-");
+        TopicFixture tf = createTopic("health-topic-");
         String marker = "Health marker " + UUID.randomUUID();
         String response = mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, marker)))
+                        .content(scqBody(tf, marker)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -146,13 +149,13 @@ class QuestionImportHealthIntegrationTest {
 
     @Test
     void adminCanImportExcelQuestions() throws Exception {
-        Long topicId = createTopic("excel-import-topic-");
+        TopicFixture tf = createTopic("excel-import-topic-");
         String source = "Excel import " + UUID.randomUUID();
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "questions.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                excelBytes(topicId, source)
+                excelBytes(tf.topicId(), source)
         );
 
         mockMvc.perform(multipart("/api/admin/question-imports/excel")
@@ -181,13 +184,15 @@ class QuestionImportHealthIntegrationTest {
                 .andExpect(content().string(containsString("Качество вопросов")));
     }
 
-    private String importBody(Long topicId, String source, boolean valid) {
+    private String importBody(TopicFixture tf, String source, boolean valid) {
         String correctA = valid ? "false" : "true";
         return """
                 {
                   "questions": [
                     {
-                      "topicId": %d,
+                      "subjectId": %d,
+                      "topicIds": [%d],
+                      "gradeIds": [%d],
                       "type": "SCQ",
                       "difficulty": 2,
                       "bodyRu": "Импортный вопрос",
@@ -202,13 +207,15 @@ class QuestionImportHealthIntegrationTest {
                     }
                   ]
                 }
-                """.formatted(topicId, source, correctA);
+                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId(), source, correctA);
     }
 
-    private String scqBody(Long topicId, String bodyRu) {
+    private String scqBody(TopicFixture tf, String bodyRu) {
         return """
                 {
-                  "topicId": %d,
+                  "subjectId": %d,
+                  "topicIds": [%d],
+                  "gradeIds": [%d],
                   "type": "SCQ",
                   "difficulty": 2,
                   "bodyRu": "%s",
@@ -220,10 +227,10 @@ class QuestionImportHealthIntegrationTest {
                     {"label":"C","textRu":"30","textKk":"30","correct":false}
                   ]
                 }
-                """.formatted(topicId, bodyRu);
+                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId(), bodyRu);
     }
 
-    private Long createTopic(String prefix) throws Exception {
+    private TopicFixture createTopic(String prefix) throws Exception {
         Long subjectId = subjects.findAllByOrderByTitleRuAsc().stream()
                 .filter(subject -> "math".equals(subject.getCode()))
                 .findFirst()
@@ -253,7 +260,7 @@ class QuestionImportHealthIntegrationTest {
                 .getResponse()
                 .getContentAsString();
         JsonNode json = objectMapper.readTree(response);
-        return json.path("id").asLong();
+        return new TopicFixture(json.path("id").asLong(), subjectId, gradeId);
     }
 
     private byte[] excelBytes(Long topicId, String source) throws Exception {

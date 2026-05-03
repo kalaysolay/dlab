@@ -8,14 +8,19 @@ import kz.damulab.content.ContentDependencyChecker;
 public class QuestionContentDependencyChecker implements ContentDependencyChecker {
 
     private final QuestionVersionRepository questionVersions;
+    private final QuestionVersionTopicRepository versionTopics;
 
-    public QuestionContentDependencyChecker(QuestionVersionRepository questionVersions) {
+    public QuestionContentDependencyChecker(
+            QuestionVersionRepository questionVersions,
+            QuestionVersionTopicRepository versionTopics
+    ) {
         this.questionVersions = questionVersions;
+        this.versionTopics = versionTopics;
     }
 
     @Override
     public boolean hasTopicDependency(Long topicId) {
-        return questionVersions.existsByTopicId(topicId);
+        return versionTopics.existsByTopicId(topicId);
     }
 
     @Override

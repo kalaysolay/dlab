@@ -277,6 +277,11 @@ public class TestingHubService {
                 answerChecker.publicCorrectAnswer(version),
                 answerChecker.choices(version, language),
                 matchingPairs(version, language),
+                answerChecker.matchingResultRows(
+                        version,
+                        answer == null ? "{}" : answer.getAnswerJson(),
+                        language
+                ),
                 explanation(version, language)
         );
     }
@@ -305,12 +310,13 @@ public class TestingHubService {
     private SessionQuestionResponse toQuestionResponse(TestSessionQuestion question, boolean answered) {
         QuestionVersion version = question.getQuestionVersion();
         String language = question.getSession().getLanguage();
+        var primaryTopic = version.getPrimaryTopic();
         return new SessionQuestionResponse(
                 question.getId(),
                 question.getOrderNo(),
                 version.getType().name(),
                 body(version, language),
-                version.getTopic().getId(),
+                primaryTopic == null ? null : primaryTopic.getId(),
                 topicTitle(version, language),
                 version.getAtomicSkill() == null ? null : version.getAtomicSkill().getId(),
                 skillTitle(version, language),
@@ -386,7 +392,11 @@ public class TestingHubService {
     }
 
     private String topicTitle(QuestionVersion version, String language) {
-        return localized(version.getTopic().getTitleRu(), version.getTopic().getTitleKk(), language);
+        var topic = version.getPrimaryTopic();
+        if (topic == null) {
+            return "";
+        }
+        return localized(topic.getTitleRu(), topic.getTitleKk(), language);
     }
 
     private String skillTitle(QuestionVersion version, String language) {

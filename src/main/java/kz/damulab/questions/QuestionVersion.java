@@ -1,7 +1,11 @@
 package kz.damulab.questions;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,9 +16,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 import kz.damulab.content.AtomicSkill;
+import kz.damulab.content.Subject;
 import kz.damulab.content.Topic;
 
 @Entity
@@ -37,8 +43,14 @@ public class QuestionVersion {
     private QuestionType type;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "topic_id", nullable = false)
-    private Topic topic;
+    @JoinColumn(name = "subject_id", nullable = false)
+    private Subject subject;
+
+    @OneToMany(mappedBy = "questionVersion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuestionVersionTopic> topicLinks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "questionVersion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuestionVersionGrade> gradeLinks = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "atomic_skill_id")
@@ -87,7 +99,7 @@ public class QuestionVersion {
             Question question,
             int versionNo,
             QuestionType type,
-            Topic topic,
+            Subject subject,
             AtomicSkill atomicSkill,
             int difficulty,
             String bodyRu,
@@ -103,7 +115,7 @@ public class QuestionVersion {
         this.question = question;
         this.versionNo = versionNo;
         this.type = type;
-        this.topic = topic;
+        this.subject = subject;
         this.atomicSkill = atomicSkill;
         this.difficulty = difficulty;
         this.bodyRu = bodyRu;
@@ -119,7 +131,7 @@ public class QuestionVersion {
 
     public void replaceContent(QuestionVersion replacement) {
         this.type = replacement.type;
-        this.topic = replacement.topic;
+        this.subject = replacement.subject;
         this.atomicSkill = replacement.atomicSkill;
         this.difficulty = replacement.difficulty;
         this.bodyRu = replacement.bodyRu;
@@ -135,6 +147,15 @@ public class QuestionVersion {
 
     public void markPublished() {
         this.publishedAt = OffsetDateTime.now();
+    }
+
+    public Topic getPrimaryTopic() {
+        return topicLinks.stream()
+                .filter(QuestionVersionTopic::isPrimaryTopic)
+                .map(QuestionVersionTopic::getTopic)
+                .findFirst()
+                .or(() -> topicLinks.stream().min(Comparator.comparing(l -> l.getTopic().getId())).map(QuestionVersionTopic::getTopic))
+                .orElse(null);
     }
 
     public Long getId() {
@@ -153,8 +174,16 @@ public class QuestionVersion {
         return type;
     }
 
-    public Topic getTopic() {
-        return topic;
+    public Subject getSubject() {
+        return subject;
+    }
+
+    public List<QuestionVersionTopic> getTopicLinks() {
+        return topicLinks;
+    }
+
+    public List<QuestionVersionGrade> getGradeLinks() {
+        return gradeLinks;
     }
 
     public AtomicSkill getAtomicSkill() {

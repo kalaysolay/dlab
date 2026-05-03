@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import kz.damulab.content.ContentGraphService;
+import kz.damulab.content.TopicResponse;
 
 @Controller
 public class AdminQuestionPageController {
@@ -95,7 +96,7 @@ public class AdminQuestionPageController {
         model.addAttribute("activeAdminNav", "questions");
         model.addAttribute("mode", "create");
         if (!model.containsAttribute("questionForm")) {
-            model.addAttribute("questionForm", defaultForm());
+            model.addAttribute("questionForm", defaultForm(resolvedSubjectId, resolvedGradeId));
         }
         return "admin/question-form";
     }
@@ -164,9 +165,10 @@ public class AdminQuestionPageController {
         try {
             QuestionResponse created = questionBank.createQuestion(form);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос создан");
-            Long topicForRedirect = filterTopicId != null ? filterTopicId : created.topicId();
+            Long topicForRedirect = filterTopicId != null ? filterTopicId : created.primaryTopicId();
             return "redirect:/admin/questions" + buildFilterQuery(filterSubjectId, filterGradeId, topicForRedirect, filterStatus, filterType, filterQuery, filterQuality);
         } catch (QuestionBankException ex) {
+            rejectChoiceOptionFieldErrors(bindingResult, ex);
             bindingResult.reject("question", humanError(ex.getCode()));
             addReferenceModel(model, resolveSubjectId(subjectId), resolveGradeId(gradeId));
             addFilterModel(model, filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
@@ -214,6 +216,7 @@ public class AdminQuestionPageController {
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос обновлен");
             return "redirect:/admin/questions" + buildFilterQuery(filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
         } catch (QuestionBankException ex) {
+            rejectChoiceOptionFieldErrors(bindingResult, ex);
             bindingResult.reject("question", humanError(ex.getCode()));
             addReferenceModel(model, resolvedSubjectId, resolvedGradeId);
             addFilterModel(model, filterSubjectId, filterGradeId, filterTopicId, filterStatus, filterType, filterQuery, filterQuality);
@@ -226,6 +229,16 @@ public class AdminQuestionPageController {
             model.addAttribute("draftVersionNo", existing.draftVersionNo());
             model.addAttribute("liveVersionNo", existing.liveVersionNo());
             return "admin/question-form";
+        }
+    }
+
+    private void rejectChoiceOptionFieldErrors(BindingResult bindingResult, QuestionBankException ex) {
+        if (!"choice_option_text_required".equals(ex.getCode()) || ex.getInvalidChoiceOptionIndexes().isEmpty()) {
+            return;
+        }
+        for (int idx : ex.getInvalidChoiceOptionIndexes()) {
+            bindingResult.rejectValue("options[" + idx + "].textRu", "choice.option.text", "Нужен текст на русском");
+            bindingResult.rejectValue("options[" + idx + "].textKk", "choice.option.text", "Нужен текст на казахском");
         }
     }
 
@@ -348,6 +361,7 @@ public class AdminQuestionPageController {
         model.addAttribute("subjects", contentGraph.listSubjects());
         model.addAttribute("grades", contentGraph.listGrades());
         model.addAttribute("topics", contentGraph.listTopics(subjectId, gradeId));
+        model.addAttribute("topicsChecklist", contentGraph.listTopicsForSubject(subjectId));
         model.addAttribute("selectedSubjectId", subjectId);
         model.addAttribute("selectedGradeId", gradeId);
         model.addAttribute("questionTypes", QuestionType.values());
@@ -356,8 +370,16 @@ public class AdminQuestionPageController {
         model.addAttribute("fillModes", FillMatchMode.values());
     }
 
-    private QuestionForm defaultForm() {
+    private QuestionForm defaultForm(Long subjectId, Long gradeId) {
         QuestionForm form = new QuestionForm();
+        form.setSubjectId(subjectId);
+        java.util.List<TopicResponse> topics = contentGraph.listTopicsForSubject(subjectId);
+        if (!topics.isEmpty()) {
+            form.setTopicIds(new java.util.ArrayList<>(List.of(topics.get(0).id())));
+        } else {
+            form.setTopicIds(new java.util.ArrayList<>());
+        }
+        form.setGradeIds(new java.util.ArrayList<>(List.of(gradeId)));
         form.setStatus(QuestionStatus.DRAFT);
         form.setType(QuestionType.SCQ);
         form.setOptions(new java.util.ArrayList<>(List.of(
@@ -407,7 +429,13 @@ public class AdminQuestionPageController {
             case "fill_in_answer_required" -> "Заполните placeholder, ответ и правило проверки";
             case "fill_in_tolerance_required" -> "Для числового допуска укажите неотрицательный tolerance";
             case "question_correct_answer_required" -> "Сначала задайте корректный правильный ответ";
-            case "skill_topic_mismatch" -> "Атомарный навык должен принадлежать выбранной теме";
+            case "skill_topic_mismatch" -> "Атомарный навык должен принадлежать одной из выбранных тем";
+            case "subject_not_found" -> "Укажите предмет";
+            case "topic_not_found" -> "Выберите минимум одну тему";
+            case "grade_not_found" -> "Выберите минимум один класс";
+            case "topic_subject_mismatch" -> "Тема не относится к выбранному предмету";
+            case "question_topics_duplicate" -> "Темы не должны повторяться";
+            case "question_grades_duplicate" -> "Классы не должны повторяться";
             case "question_source_required" -> "Источник вопроса обязателен";
             case "question_flag_reason_required" -> "Укажите причину флага";
             case "question_not_approved" -> "Сначала одобрите вопрос";

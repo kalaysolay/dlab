@@ -151,7 +151,9 @@ class TestingHubIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "FILL_IN",
                                   "difficulty": 5,
                                   "bodyRu": "Завершите: [[1]] + [[2]] = 10",
@@ -162,7 +164,7 @@ class TestingHubIntegrationTest {
                                     {"placeholder":"[[2]]","answer":"6","mode":"EXACT"}
                                   ]
                                 }
-                                """.formatted(topicId, marker)))
+                                """.formatted(subjectId, topicId, gradeId, marker)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()

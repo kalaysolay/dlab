@@ -68,16 +68,19 @@ public class AnalyticsService {
         for (AnswerEvaluation evaluation : sessionEvaluations) {
             TestSessionQuestion sessionQuestion = evaluation.getSessionQuestion();
             QuestionVersion version = sessionQuestion.getQuestionVersion();
-            aggregate(aggregates, "topic:" + version.getTopic().getId(), version.getTopic(), null, evaluation, sessionQuestion);
-            if (version.getAtomicSkill() != null) {
-                aggregate(
-                        aggregates,
-                        "skill:" + version.getAtomicSkill().getId(),
-                        version.getTopic(),
-                        version.getAtomicSkill(),
-                        evaluation,
-                        sessionQuestion
-                );
+            Topic primaryTopic = version.getPrimaryTopic();
+            if (primaryTopic != null) {
+                aggregate(aggregates, "topic:" + primaryTopic.getId(), primaryTopic, null, evaluation, sessionQuestion);
+                if (version.getAtomicSkill() != null) {
+                    aggregate(
+                            aggregates,
+                            "skill:" + version.getAtomicSkill().getId(),
+                            primaryTopic,
+                            version.getAtomicSkill(),
+                            evaluation,
+                            sessionQuestion
+                    );
+                }
             }
         }
         OffsetDateTime attemptedAt = result.getCreatedAt();
@@ -194,11 +197,15 @@ public class AnalyticsService {
                 .map(evaluation -> {
                     TestSessionQuestion sessionQuestion = evaluation.getSessionQuestion();
                     QuestionVersion version = sessionQuestion.getQuestionVersion();
+                    Topic primaryTopic = version.getPrimaryTopic();
+                    String topicTitle = primaryTopic == null
+                            ? ""
+                            : localized(primaryTopic.getTitleRu(), primaryTopic.getTitleKk(), language);
                     return new LastErrorResponse(
                             sessionQuestion.getSession().getId(),
                             sessionQuestion.getId(),
                             localized(version.getBodyRu(), version.getBodyKk(), language),
-                            localized(version.getTopic().getTitleRu(), version.getTopic().getTitleKk(), language),
+                            topicTitle,
                             version.getAtomicSkill() == null
                                     ? null
                                     : localized(version.getAtomicSkill().getTitleRu(), version.getAtomicSkill().getTitleKk(), language),

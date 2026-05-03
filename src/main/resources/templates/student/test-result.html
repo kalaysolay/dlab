@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Р РµР·СѓР»СЊС‚Р°С‚ С‚РµСЃС‚Р°</title>
+    <title>Результат теста</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
@@ -13,35 +13,35 @@
     <main class="page student-test-result-page">
         <section class="panel result-hero">
             <div>
-                <p class="section-kicker">РС‚РѕРі</p>
-                <h1 class="page-title">Р РµР·СѓР»СЊС‚Р°С‚С‹ СЃРµСЃСЃРёРё #<span th:text="${result.sessionId}">1</span></h1>
-                <p class="lede">РџСЂРѕРІРµСЂРєР° РІС‹РїРѕР»РЅРµРЅР° РЅР° СЃРµСЂРІРµСЂРµ РїРѕ СЃРѕС…СЂР°РЅРµРЅРЅС‹Рј РѕС‚РІРµС‚Р°Рј.</p>
+                <p class="section-kicker">Итог</p>
+                <h1 class="page-title">Результаты сессии #<span th:text="${result.sessionId}">1</span></h1>
+                <p class="lede">Проверка выполнена на сервере по сохранённым ответам.</p>
             </div>
             <div class="result-hero-score">
                 <strong th:text="${result.percent + '%'}">80%</strong>
-                <span th:text="${result.correctAnswers + ' РёР· ' + result.totalQuestions}">4 РёР· 5</span>
+                <span th:text="${result.correctAnswers + ' из ' + result.totalQuestions}">4 из 5</span>
             </div>
         </section>
 
         <section class="panel result-metrics">
             <article class="result-metric-card">
-                <span>РђР±СЃРѕР»СЋС‚РЅС‹Р№ Р±Р°Р»Р»</span>
+                <span>Абсолютный балл</span>
                 <strong th:text="${result.score + ' / ' + result.maxScore}">4 / 5</strong>
             </article>
             <article class="result-metric-card">
-                <span>Р’РµСЂРЅРѕ</span>
+                <span>Верно</span>
                 <strong th:text="${result.correctAnswers}">4</strong>
             </article>
             <article class="result-metric-card">
-                <span>РћС€РёР±РєРё</span>
+                <span>Ошибки</span>
                 <strong th:text="${result.totalQuestions - result.correctAnswers}">1</strong>
             </article>
         </section>
 
         <section class="panel result-nav-panel">
             <div class="page-head compact-head">
-                <h2 class="section-title">РќР°РІРёРіР°С†РёСЏ РїРѕ РѕС‚РІРµС‚Р°Рј</h2>
-                <button class="button" id="nextWrongQuestion" type="button">РЎР»РµРґСѓСЋС‰Р°СЏ РѕС€РёР±РєР°</button>
+                <h2 class="section-title">Навигация по ответам</h2>
+                <button class="button" id="nextWrongQuestion" type="button">Следующая ошибка</button>
             </div>
             <div class="test-nav result-nav" th:if="${!#lists.isEmpty(result.questions)}">
                 <button type="button"
@@ -52,16 +52,16 @@
         </section>
 
         <section class="panel result-focus-panel">
-            <h2 class="section-title">Р”РµС‚Р°Р»РёР·Р°С†РёСЏ</h2>
+            <h2 class="section-title">Детализация</h2>
             <div class="result-list result-focus-list" id="resultList">
                 <th:block th:each="question : ${result.questions}">
                     <th:block th:replace="~{fragments/question-renderer :: resultQuestion(${question})}"></th:block>
                 </th:block>
             </div>
             <div class="actions result-actions">
-                <a class="button primary" th:href="@{/student/tests}">РџСЂРѕР№С‚Рё РµС‰Рµ С‚РµСЃС‚</a>
-                <a class="button" th:href="@{/student/analytics}">РћС‚РєСЂС‹С‚СЊ Р°РЅР°Р»РёС‚РёРєСѓ</a>
-                <a class="button" th:href="@{/student}">Р’ РєР°Р±РёРЅРµС‚</a>
+                <a class="button primary" th:href="@{/student/tests}">Пройти ещё тест</a>
+                <a class="button" th:href="@{/student/analytics}">Открыть аналитику</a>
+                <a class="button" th:href="@{/student}">В кабинет</a>
             </div>
         </section>
     </main>

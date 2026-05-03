@@ -404,12 +404,16 @@ public class QuizService {
 
     private QuizRoundResponse toRoundResponse(QuizRoom room, QuizRound round, boolean answered, String language, OffsetDateTime responseTime) {
         QuestionVersion version = round.getQuestionVersion();
+        var primaryTopic = version.getPrimaryTopic();
+        String topicLine = primaryTopic == null
+                ? ""
+                : localized(primaryTopic.getTitleRu(), primaryTopic.getTitleKk(), language);
         return new QuizRoundResponse(
                 round.getId(),
                 round.getOrderNo(),
                 version.getType().name(),
                 localized(version.getBodyRu(), version.getBodyKk(), language),
-                localized(version.getTopic().getTitleRu(), version.getTopic().getTitleKk(), language),
+                topicLine,
                 version.getAtomicSkill() == null ? null : localized(version.getAtomicSkill().getTitleRu(), version.getAtomicSkill().getTitleKk(), language),
                 version.getDifficulty(),
                 round.getPoints(),

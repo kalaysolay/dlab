@@ -18,6 +18,7 @@ public record QuestionResultResponse(
         Object correctAnswer,
         List<ChoiceDisplay> options,
         List<Map<String, String>> matchingPairs,
+        List<MatchingResultRow> matchingRows,
         String explanation
 ) {
 }

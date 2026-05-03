@@ -41,6 +41,9 @@ import kz.damulab.content.SubjectRepository;
 @ActiveProfiles("test")
 class LectureIntegrationTest {
 
+    private record TopicFixture(long topicId, long subjectId, long gradeId) {
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -58,14 +61,14 @@ class LectureIntegrationTest {
 
     @Test
     void adminCanPublishLectureWithAutoCheckpointAndAttachment() throws Exception {
-        Long topicId = createTopic("lecture-auto-topic-");
-        createPublishedQuestion(topicId);
+        TopicFixture tf = createTopic("lecture-auto-topic-");
+        createPublishedQuestion(tf);
 
         String response = mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(lectureBody(topicId, "AUTO", 1, true)))
+                        .content(lectureBody(tf.topicId(), "AUTO", 1, true)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/api/admin/lectures/")))
                 .andExpect(jsonPath("$.status").value("draft"))
@@ -109,7 +112,7 @@ class LectureIntegrationTest {
 
     @Test
     void ruAndKkContentAreStoredSeparatelyAndRichHtmlIsSanitized() throws Exception {
-        Long topicId = createTopic("lecture-sanitized-topic-");
+        TopicFixture tf = createTopic("lecture-sanitized-topic-");
 
         String response = mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -125,7 +128,7 @@ class LectureIntegrationTest {
                                   "source": "Ручной ввод",
                                   "controlMode": "NONE"
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.topicId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.contentRu").value(containsString("Формула")))
                 .andExpect(jsonPath("$.contentRu").value(org.hamcrest.Matchers.not(containsString("<script>"))))
@@ -140,19 +143,19 @@ class LectureIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(lectureBody(topicId, "NONE", 0, false)))
+                        .content(lectureBody(tf.topicId(), "NONE", 0, false)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.versionNo").value(1));
     }
 
     @Test
     void lecturePagesAreServerRenderedAndStudentViewShowsAttachment() throws Exception {
-        Long topicId = createTopic("lecture-page-topic-");
+        TopicFixture tf = createTopic("lecture-page-topic-");
         Long lectureId = idFrom(mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(lectureBody(topicId, "NONE", 0, true)))
+                        .content(lectureBody(tf.topicId(), "NONE", 0, true)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -185,7 +188,7 @@ class LectureIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(lectureBody(topicId, "NONE", 0, false)))
+                        .content(lectureBody(tf.topicId(), "NONE", 0, false)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("published"))
                 .andExpect(jsonPath("$.versionNo").value(1));
@@ -199,7 +202,7 @@ class LectureIntegrationTest {
 
     @Test
     void adminPageMultipartUploadStoresAttachmentAndServesBinary() throws Exception {
-        Long topicId = createTopic("lecture-upload-topic-");
+        TopicFixture tf = createTopic("lecture-upload-topic-");
         String marker = UUID.randomUUID().toString().substring(0, 8);
         MockMultipartFile file = new MockMultipartFile(
                 "attachmentFiles",
@@ -212,7 +215,7 @@ class LectureIntegrationTest {
                         .file(file)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
-                        .param("topicId", String.valueOf(topicId))
+                        .param("topicId", String.valueOf(tf.topicId()))
                         .param("titleRu", "Upload " + marker)
                         .param("titleKk", "Upload " + marker)
                         .param("contentRu", "Контент для проверки upload")
@@ -249,7 +252,7 @@ class LectureIntegrationTest {
 
     @Test
     void adminPageMultipartUpdateCanReplaceAttachmentAndDeletePreviousStorageFile() throws Exception {
-        Long topicId = createTopic("lecture-replace-topic-");
+        TopicFixture tf = createTopic("lecture-replace-topic-");
         String marker = UUID.randomUUID().toString().substring(0, 8);
         MockMultipartFile firstFile = new MockMultipartFile(
                 "attachmentFiles",
@@ -262,7 +265,7 @@ class LectureIntegrationTest {
                         .file(firstFile)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
-                        .param("topicId", String.valueOf(topicId))
+                        .param("topicId", String.valueOf(tf.topicId()))
                         .param("titleRu", "Replace " + marker)
                         .param("titleKk", "Replace " + marker)
                         .param("contentRu", "RU replace " + marker)
@@ -305,7 +308,7 @@ class LectureIntegrationTest {
                         .file(replacementFile)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
-                        .param("topicId", String.valueOf(topicId))
+                        .param("topicId", String.valueOf(tf.topicId()))
                         .param("titleRu", "Replace " + marker)
                         .param("titleKk", "Replace " + marker)
                         .param("contentRu", "RU replace update " + marker)
@@ -349,14 +352,14 @@ class LectureIntegrationTest {
 
     @Test
     void manualCheckpointIdsArePersistedWhenLectureIsSubmittedFromPageForm() throws Exception {
-        Long topicId = createTopic("lecture-manual-submit-topic-");
-        Long checkpointVersionId = createPublishedQuestionVersion(topicId);
+        TopicFixture tf = createTopic("lecture-manual-submit-topic-");
+        Long checkpointVersionId = createPublishedQuestionVersion(tf);
         String marker = UUID.randomUUID().toString().substring(0, 8);
 
         mockMvc.perform(multipart("/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
-                        .param("topicId", String.valueOf(topicId))
+                        .param("topicId", String.valueOf(tf.topicId()))
                         .param("titleRu", "Manual submit " + marker)
                         .param("titleKk", "Manual submit " + marker)
                         .param("contentRu", "Manual checkpoint RU " + marker)
@@ -381,7 +384,7 @@ class LectureIntegrationTest {
 
     @Test
     void sanitizerKeepsSafeRichContentAndHardensLinksAndFormula() throws Exception {
-        Long topicId = createTopic("lecture-sanitizer-rich-topic-");
+        TopicFixture tf = createTopic("lecture-sanitizer-rich-topic-");
 
         mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -396,7 +399,7 @@ class LectureIntegrationTest {
                                   "contentKk": "safe content",
                                   "controlMode": "NONE"
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.topicId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.contentRu").value(org.hamcrest.Matchers.not(containsString("<script>"))))
                 .andExpect(jsonPath("$.contentRu").value(containsString("<table>")))
@@ -410,7 +413,7 @@ class LectureIntegrationTest {
 
     @Test
     void lectureAttachmentsValidationRejectsInvalidTypeMismatchAndLimit() throws Exception {
-        Long topicId = createTopic("lecture-attachments-topic-");
+        TopicFixture tf = createTopic("lecture-attachments-topic-");
 
         mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -426,7 +429,7 @@ class LectureIntegrationTest {
                                     {"title": "malware.bin", "url": "https://example.org/malware.bin", "mediaType": "exe"}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.topicId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("lecture_attachment_media_type_invalid"));
 
@@ -444,7 +447,7 @@ class LectureIntegrationTest {
                                     {"title": "diagram.png", "url": "https://example.org/diagram.png", "mediaType": "pdf"}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.topicId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("lecture_attachment_type_url_mismatch"));
 
@@ -470,23 +473,23 @@ class LectureIntegrationTest {
                                     {"title":"a9.pdf","url":"https://example.org/a9.pdf","mediaType":"pdf"}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.topicId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("lecture_attachment_limit_exceeded"));
     }
 
     @Test
     void topicWithLectureCannotBeDeleted() throws Exception {
-        Long topicId = createTopic("lecture-blocks-topic-");
+        TopicFixture tf = createTopic("lecture-blocks-topic-");
 
         mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(lectureBody(topicId, "NONE", 0, false)))
+                        .content(lectureBody(tf.topicId(), "NONE", 0, false)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(delete("/api/admin/topics/{id}", topicId)
+        mockMvc.perform(delete("/api/admin/topics/{id}", tf.topicId())
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
                 .andExpect(status().isConflict())
@@ -500,14 +503,16 @@ class LectureIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
-    private void createPublishedQuestion(Long topicId) throws Exception {
+    private void createPublishedQuestion(TopicFixture tf) throws Exception {
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "SCQ",
                                   "difficulty": 2,
                                   "bodyRu": "Найдите 25%% от 80",
@@ -519,7 +524,7 @@ class LectureIntegrationTest {
                                     {"label":"C","textRu":"25","textKk":"25","correct":false}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -535,14 +540,16 @@ class LectureIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private Long createPublishedQuestionVersion(Long topicId) throws Exception {
+    private Long createPublishedQuestionVersion(TopicFixture tf) throws Exception {
         String response = mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "SCQ",
                                   "difficulty": 2,
                                   "bodyRu": "РЈРєР°Р¶РёС‚Рµ 30%% РѕС‚ 100",
@@ -554,7 +561,7 @@ class LectureIntegrationTest {
                                     {"label":"C","textRu":"40","textKk":"40","correct":false}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -599,7 +606,7 @@ class LectureIntegrationTest {
                 """.formatted(topicLine, attachmentLine, controlMode, autoCount);
     }
 
-    private Long createTopic(String prefix) throws Exception {
+    private TopicFixture createTopic(String prefix) throws Exception {
         Long subjectId = subjects.findAllByOrderByTitleRuAsc().stream()
                 .filter(subject -> "math".equals(subject.getCode()))
                 .findFirst()
@@ -628,7 +635,7 @@ class LectureIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        return idFrom(response);
+        return new TopicFixture(idFrom(response), subjectId, gradeId);
     }
 
     private Long idFrom(String response) {

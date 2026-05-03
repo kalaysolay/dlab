@@ -198,8 +198,11 @@ public class AiContentFactoryService {
 
     private QuestionForm toQuestionForm(AiGeneratedQuestionItem item) {
         AiGenerationJob job = item.getBatch().getJob();
+        var jobTopic = job.getTopic();
         QuestionForm form = new QuestionForm();
-        form.setTopicId(job.getTopic().getId());
+        form.setSubjectId(jobTopic.getSubject().getId());
+        form.setTopicIds(new java.util.ArrayList<>(java.util.List.of(jobTopic.getId())));
+        form.setGradeIds(new java.util.ArrayList<>(java.util.List.of(jobTopic.getGrade().getId())));
         form.setAtomicSkillId(job.getAtomicSkill() == null ? null : job.getAtomicSkill().getId());
         form.setType(item.getQuestionType());
         form.setDifficulty(item.getDifficulty());

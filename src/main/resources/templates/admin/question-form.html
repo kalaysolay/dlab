@@ -51,8 +51,8 @@
 
                 <h2 class="section-title">Базовые параметры</h2>
                 <div class="notice">
-                    <strong>Порядок выбора</strong>
-                    <span>Сначала выберите предмет и класс. После этого список тем обновится автоматически; если тем нет, добавьте их в разделе "Темы".</span>
+                    <strong>Предмет, темы и классы</strong>
+                    <span>Один предмет на вопрос. Тем и классов можно выбрать несколько; первая отмеченная тема в списке ниже считается основной для аналитики. Используйте поиск, чтобы отфильтровать длинные списки.</span>
                 </div>
                 <div class="notice" th:if="${mode == 'edit' and hasPendingDraft}">
                     <strong>Это черновик v<span th:text="${draftVersionNo}">2</span></strong>
@@ -65,33 +65,45 @@
                     <strong>Версионирование</strong>
                     <span>Редактирование published/approved вопроса сохраняет новую версию для review, не ломая уже опубликованный контент в student flow.</span>
                 </div>
-                <div class="form-grid">
-                    <label class="field">
+                <div class="form-grid question-meta-grid">
+                    <label class="field field-subject">
                         <span>Предмет</span>
-                        <select id="question-subject" name="subjectId">
+                        <select id="question-subject" th:field="*{subjectId}" required>
                             <option th:each="subject : ${subjects}"
                                     th:value="${subject.id}"
-                                    th:selected="${subject.id == selectedSubjectId}"
                                     th:text="${subject.titleRu}">Математика</option>
                         </select>
+                        <small class="field-error" th:if="${#fields.hasErrors('subjectId')}" th:errors="*{subjectId}">Ошибка</small>
                     </label>
-                    <label class="field">
-                        <span>Класс</span>
-                        <select id="question-grade" name="gradeId">
-                            <option th:each="grade : ${grades}"
-                                    th:value="${grade.id}"
-                                    th:selected="${grade.id == selectedGradeId}"
-                                    th:text="${grade.titleRu}">4 класс</option>
-                        </select>
+                    <label class="field full-width field-topics">
+                        <span>Темы (минимум одна)</span>
+                        <input type="search" id="topic-checklist-filter" class="checklist-filter" placeholder="Поиск по названию или коду темы…" autocomplete="off">
+                        <div id="topic-checklist" class="checklist-box topic-grade-checklist">
+                            <label class="checkbox-field checklist-item"
+                                   th:each="t : ${topicsChecklist}"
+                                   th:attr="data-search-text=${#strings.toLowerCase(t.titleRu + ' ' + t.titleKk + ' ' + t.code)}">
+                                <input type="checkbox" name="topicIds" th:value="${t.id}"
+                                       th:checked="${questionForm.topicIds != null && questionForm.topicIds.contains(t.id)}">
+                                <span th:text="${t.titleRu}">Тема</span>
+                                <span class="muted-line" th:text="${' · ' + t.code}">code</span>
+                            </label>
+                        </div>
+                        <small id="question-topic-hint" class="muted-line">Список обновляется при смене предмета.</small>
+                        <small class="field-error" th:if="${#fields.hasErrors('topicIds')}" th:errors="*{topicIds}">Ошибка</small>
                     </label>
-                    <label class="field">
-                        <span>Тема</span>
-                        <select id="question-topic" th:field="*{topicId}" required>
-                            <option value="">Выберите тему</option>
-                            <option th:each="topic : ${topics}" th:value="${topic.id}" th:text="${topic.titleRu}">Проценты</option>
-                        </select>
-                        <small id="question-topic-hint" class="muted-line">Темы показаны для текущего предмета и класса.</small>
-                        <small class="field-error" th:if="${#fields.hasErrors('topicId')}" th:errors="*{topicId}">Ошибка</small>
+                    <label class="field full-width field-grades">
+                        <span>Классы (минимум один)</span>
+                        <input type="search" id="grade-checklist-filter" class="checklist-filter" placeholder="Поиск по классу…" autocomplete="off">
+                        <div id="grade-checklist" class="checklist-box topic-grade-checklist topic-grade-checklist--compact">
+                            <label class="checkbox-field checklist-item"
+                                   th:each="g : ${grades}"
+                                   th:attr="data-search-text=${#strings.toLowerCase(g.titleRu + ' ' + g.gradeNo)}">
+                                <input type="checkbox" name="gradeIds" th:value="${g.id}"
+                                       th:checked="${questionForm.gradeIds != null && questionForm.gradeIds.contains(g.id)}">
+                                <span th:text="${g.titleRu}">4 класс</span>
+                            </label>
+                        </div>
+                        <small class="field-error" th:if="${#fields.hasErrors('gradeIds')}" th:errors="*{gradeIds}">Ошибка</small>
                     </label>
                     <label class="field">
                         <span>Тип вопроса</span>
@@ -166,20 +178,21 @@
 
                 <section class="question-type-panel active" data-panel="SCQ">
                     <h2 class="section-title">SCQ / MCQ варианты</h2>
-                    <div id="choice-options-list" class="stack">
-                        <div class="option-row"
-                             th:each="option, iter : *{options}"
-                             th:classappend="${option.softDeleted} ? 'is-soft-deleted'">
+                        <div id="choice-options-list" class="stack">
+                        <div th:each="option, iter : *{options}"
+                             th:class="|option-row ${option.softDeleted ? 'is-soft-deleted' : ''} ${(#fields.hasErrors('options[__${iter.index}__].textRu') or #fields.hasErrors('options[__${iter.index}__].textKk')) ? 'option-row-error' : ''}|">
                             <input type="hidden" class="option-label-input" th:field="*{options[__${iter.index}__].label}">
                             <input type="hidden" class="option-soft-delete-input" th:field="*{options[__${iter.index}__].softDeleted}">
                             <strong class="option-label" th:text="${option.label}">A</strong>
                             <label class="field">
                                 <span>RU</span>
-                                <input th:field="*{options[__${iter.index}__].textRu}">
+                                <input th:field="*{options[__${iter.index}__].textRu}" th:classappend="${#fields.hasErrors('options[__${iter.index}__].textRu')} ? 'input-invalid'">
+                                <small class="field-error" th:if="${#fields.hasErrors('options[__${iter.index}__].textRu')}" th:errors="*{options[__${iter.index}__].textRu}"></small>
                             </label>
                             <label class="field">
                                 <span>KK</span>
-                                <input th:field="*{options[__${iter.index}__].textKk}">
+                                <input th:field="*{options[__${iter.index}__].textKk}" th:classappend="${#fields.hasErrors('options[__${iter.index}__].textKk')} ? 'input-invalid'">
+                                <small class="field-error" th:if="${#fields.hasErrors('options[__${iter.index}__].textKk')}" th:errors="*{options[__${iter.index}__].textKk}"></small>
                             </label>
                             <label class="checkbox-field">
                                 <input class="option-correct-input" type="checkbox" th:field="*{options[__${iter.index}__].correct}">
@@ -280,8 +293,10 @@
 <script>
     const typeSelect = document.getElementById('question-type');
     const subjectSelect = document.getElementById('question-subject');
-    const gradeSelect = document.getElementById('question-grade');
-    const topicSelect = document.getElementById('question-topic');
+    const topicChecklist = document.getElementById('topic-checklist');
+    const topicChecklistFilter = document.getElementById('topic-checklist-filter');
+    const gradeChecklist = document.getElementById('grade-checklist');
+    const gradeChecklistFilter = document.getElementById('grade-checklist-filter');
     const questionForm = document.getElementById('question-form');
     const bodyRuInput = document.getElementById('question-body-ru');
     const bodyKkInput = document.getElementById('question-body-kk');
@@ -511,69 +526,84 @@
         hint.classList.toggle('muted-line', !isError);
     }
 
-    function setQuestionTopicPlaceholder(text) {
-        topicSelect.innerHTML = '';
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = text;
-        topicSelect.appendChild(option);
-        topicSelect.value = '';
+    function bindChecklistFilter(filterInput, container) {
+        if (!filterInput || !container) {
+            return;
+        }
+        filterInput.addEventListener('input', () => {
+            const q = filterInput.value.trim().toLowerCase();
+            container.querySelectorAll('.checklist-item').forEach((row) => {
+                const hay = (row.getAttribute('data-search-text') || row.textContent || '').toLowerCase();
+                row.style.display = !q || hay.includes(q) ? '' : 'none';
+            });
+        });
+    }
+    bindChecklistFilter(topicChecklistFilter, topicChecklist);
+    bindChecklistFilter(gradeChecklistFilter, gradeChecklist);
+
+    function renderTopicChecklist(topics, previouslyCheckedIds) {
+        if (!topicChecklist) {
+            return;
+        }
+        const keep = new Set((previouslyCheckedIds || []).map(String));
+        topicChecklist.innerHTML = '';
+        topics.forEach((topic) => {
+            const id = String(topic.id);
+            const label = document.createElement('label');
+            label.className = 'checkbox-field checklist-item';
+            const title = (topic.titleRu || topic.titleKk || ('Тема ' + id));
+            const code = topic.code || '';
+            label.setAttribute('data-search-text', (title + ' ' + (topic.titleKk || '') + ' ' + code).toLowerCase());
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.name = 'topicIds';
+            cb.value = id;
+            cb.checked = keep.has(id);
+            label.appendChild(cb);
+            const span = document.createElement('span');
+            span.textContent = title;
+            label.appendChild(span);
+            if (code) {
+                const muted = document.createElement('span');
+                muted.className = 'muted-line';
+                muted.textContent = ' · ' + code;
+                label.appendChild(muted);
+            }
+            topicChecklist.appendChild(label);
+        });
+        setQuestionTopicHint(
+                topics.length
+                        ? 'Отметьте минимум одну тему; первая в списке среди выбранных — основная.'
+                        : 'Для этого предмета нет тем. Добавьте их в разделе «Темы».',
+                topics.length === 0
+        );
     }
 
-    async function syncTopics() {
-        if (!subjectSelect || !gradeSelect || !topicSelect) {
+    async function syncTopicsForSubject() {
+        if (!subjectSelect || !topicChecklist) {
             return;
         }
-        if (!subjectSelect.value || !gradeSelect.value) {
-            setQuestionTopicPlaceholder('Сначала выберите предмет и класс');
-            setQuestionTopicHint('Тема станет доступна после выбора предмета и класса.', false);
+        const sid = subjectSelect.value;
+        if (!sid) {
+            renderTopicChecklist([], []);
             return;
         }
-        const prev = topicSelect.value;
-        topicSelect.disabled = true;
-        setQuestionTopicPlaceholder('Загружаем темы...');
-        setQuestionTopicHint('Обновляем темы для выбранного предмета и класса.', false);
-        const params = new URLSearchParams({
-            subjectId: subjectSelect.value,
-            gradeId: gradeSelect.value
-        });
+        const prev = Array.from(topicChecklist.querySelectorAll('input[name=\"topicIds\"]:checked')).map((el) => el.value);
         try {
-            const response = await fetch('/api/content/references?' + params.toString(), { credentials: 'same-origin' });
+            const response = await fetch('/api/admin/topics/for-subject?subjectId=' + encodeURIComponent(sid), { credentials: 'same-origin' });
             if (!response.ok) {
                 throw new Error('topic refresh failed');
             }
-            const data = await response.json();
-            const topics = Array.isArray(data.topics) ? data.topics : [];
-            topicSelect.innerHTML = '';
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = topics.length ? 'Выберите тему' : 'Нет тем для этой пары';
-            topicSelect.appendChild(placeholder);
-            topics.forEach((topic) => {
-                const opt = document.createElement('option');
-                opt.value = String(topic.id);
-                opt.textContent = topic.titleRu || topic.titleKk || ('Тема ' + topic.id);
-                topicSelect.appendChild(opt);
-            });
-            const stillExists = topics.some((topic) => String(topic.id) === prev);
-            topicSelect.value = stillExists ? prev : '';
-            setQuestionTopicHint(
-                    topics.length
-                            ? 'Выберите тему перед сохранением вопроса.'
-                            : 'Для этих предмета и класса нет тем. Сначала добавьте тему в разделе "Темы".',
-                    topics.length === 0
-            );
+            const topics = await response.json();
+            renderTopicChecklist(Array.isArray(topics) ? topics : [], prev);
         } catch (error) {
-            setQuestionTopicPlaceholder('Не удалось загрузить темы');
-            setQuestionTopicHint('Проверьте связь и повторите выбор предмета или класса.', true);
-        } finally {
-            topicSelect.disabled = false;
+            renderTopicChecklist([], []);
+            setQuestionTopicHint('Не удалось загрузить темы для предмета.', true);
         }
     }
 
-    if (subjectSelect && gradeSelect) {
-        subjectSelect.addEventListener('change', syncTopics);
-        gradeSelect.addEventListener('change', syncTopics);
+    if (subjectSelect) {
+        subjectSelect.addEventListener('change', syncTopicsForSubject);
     }
 
     function parseIndexedField(target, key, value) {
@@ -611,7 +641,9 @@
     function buildQuestionPayload() {
         const formData = new FormData(questionForm);
         const payload = {
-            topicId: null,
+            subjectId: null,
+            topicIds: [],
+            gradeIds: [],
             atomicSkillId: null,
             type: null,
             difficulty: 2,
@@ -635,8 +667,18 @@
                 return;
             }
             switch (key) {
-                case 'topicId':
-                    payload.topicId = value ? Number(value) : null;
+                case 'subjectId':
+                    payload.subjectId = value ? Number(value) : null;
+                    break;
+                case 'topicIds':
+                    if (value) {
+                        payload.topicIds.push(Number(value));
+                    }
+                    break;
+                case 'gradeIds':
+                    if (value) {
+                        payload.gradeIds.push(Number(value));
+                    }
                     break;
                 case 'atomicSkillId':
                     payload.atomicSkillId = value ? Number(value) : null;
@@ -685,8 +727,11 @@
     }
 
     function preGenerateCheck(payload) {
-        if (!payload.topicId) {
-            return 'Выберите тему.';
+        if (!payload.subjectId || !payload.topicIds || payload.topicIds.length < 1) {
+            return 'Выберите предмет и минимум одну тему.';
+        }
+        if (!payload.gradeIds || payload.gradeIds.length < 1) {
+            return 'Отметьте минимум один класс.';
         }
         if (!String(payload.bodyRu || '').trim() || !String(payload.bodyKk || '').trim()) {
             return 'Заполните текст вопроса на RU и KK.';

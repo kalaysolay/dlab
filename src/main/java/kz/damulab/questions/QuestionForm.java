@@ -3,15 +3,22 @@ package kz.damulab.questions;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public class QuestionForm {
 
     @NotNull
-    private Long topicId;
+    private Long subjectId;
+
+    @NotEmpty
+    private List<Long> topicIds = new ArrayList<>();
+
+    @NotEmpty
+    private List<Long> gradeIds = new ArrayList<>();
 
     private Long atomicSkillId;
 
@@ -40,12 +47,28 @@ public class QuestionForm {
     private List<MatchingPairForm> matchingPairs = new ArrayList<>();
     private List<FillAnswerForm> fillAnswers = new ArrayList<>();
 
-    public Long getTopicId() {
-        return topicId;
+    public Long getSubjectId() {
+        return subjectId;
     }
 
-    public void setTopicId(Long topicId) {
-        this.topicId = topicId;
+    public void setSubjectId(Long subjectId) {
+        this.subjectId = subjectId;
+    }
+
+    public List<Long> getTopicIds() {
+        return topicIds;
+    }
+
+    public void setTopicIds(List<Long> topicIds) {
+        this.topicIds = topicIds == null ? new ArrayList<>() : topicIds;
+    }
+
+    public List<Long> getGradeIds() {
+        return gradeIds;
+    }
+
+    public void setGradeIds(List<Long> gradeIds) {
+        this.gradeIds = gradeIds == null ? new ArrayList<>() : gradeIds;
     }
 
     public Long getAtomicSkillId() {

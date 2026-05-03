@@ -537,6 +537,83 @@ a:hover {
     gap: 16px;
 }
 
+.admin-shell .question-meta-grid {
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .admin-shell .question-meta-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .admin-shell .field-subject {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 720px) {
+    .admin-shell .question-meta-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-shell .field-subject select {
+    width: 100%;
+    max-width: 100%;
+    min-height: 2.5rem;
+    height: auto;
+}
+
+.admin-shell .topic-grade-checklist {
+    max-height: 14rem;
+    overflow: auto;
+    border: 1px solid var(--line, #d1d5db);
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    margin-top: 0.35rem;
+    background: var(--surface, #fff);
+}
+
+.admin-shell .topic-grade-checklist--compact {
+    max-height: 12rem;
+}
+
+.admin-shell .topic-grade-checklist .checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.4rem 0.2rem;
+    border-radius: 4px;
+}
+
+.admin-shell .topic-grade-checklist .checklist-item input[type="checkbox"] {
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--accent, #5b62e9);
+}
+
+.admin-shell .topic-grade-checklist .checklist-item span {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.4;
+}
+
+.admin-shell .option-row-error {
+    outline: 2px solid var(--danger, #c53030);
+    outline-offset: 2px;
+    border-radius: 8px;
+    padding: 4px;
+    margin: 2px 0;
+}
+
+.admin-shell .input-invalid {
+    border-color: var(--danger, #c53030) !important;
+    box-shadow: 0 0 0 1px rgba(197, 48, 48, 0.2);
+}
+
 .alert {
     padding: 12px 14px;
     border-radius: 6px;
@@ -3682,6 +3759,51 @@ h2 {
 
 .student-test-result-page .result-mini-lecture-body {
     margin-top: 8px;
+}
+
+.student-test-result-page .result-matching-detail {
+    margin-top: 12px;
+}
+
+.student-test-result-page .matching-result-hint {
+    margin: 0 0 10px;
+}
+
+.student-test-result-page .result-matching-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.student-test-result-page .result-matching-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+    background: #fff;
+}
+
+.student-test-result-page .result-matching-table th,
+.student-test-result-page .result-matching-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.student-test-result-page .result-matching-table th {
+    background: #f1f5f9;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.student-test-result-page .result-matching-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.student-test-result-page .result-matching-table tr.is-matching-wrong td {
+    background: #fff5f5;
 }
 
 .student-test-result-page .result-focus-list pre {

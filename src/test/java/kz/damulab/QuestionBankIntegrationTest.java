@@ -1,8 +1,6 @@
 package kz.damulab;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -49,15 +47,18 @@ class QuestionBankIntegrationTest {
     @Autowired
     private AdminContentAuditLogRepository auditLogs;
 
+    private record TopicFixture(long topicId, long subjectId, long gradeId) {
+    }
+
     @Test
     void adminCanCreateScqQuestionAndApproveIt() throws Exception {
-        Long topicId = createTopic("scq-topic-");
+        TopicFixture tf = createTopic("scq-topic-");
 
         String response = mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Найдите 20% от 350", true)))
+                        .content(scqBody(tf, "Найдите 20% от 350", true)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/api/admin/questions/")))
                 .andExpect(jsonPath("$.type").value("SCQ"))
@@ -80,12 +81,12 @@ class QuestionBankIntegrationTest {
 
     @Test
     void draftQuestionCannotBePublishedWithoutApproval() throws Exception {
-        Long topicId = createTopic("draft-publish-topic-");
+        TopicFixture tf = createTopic("draft-publish-topic-");
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Find 20% of 350", true)))
+                        .content(scqBody(tf, "Find 20% of 350", true)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -100,20 +101,20 @@ class QuestionBankIntegrationTest {
 
     @Test
     void scqRequiresExactlyOneCorrectAnswer() throws Exception {
-        Long topicId = createTopic("bad-scq-topic-");
+        TopicFixture tf = createTopic("bad-scq-topic-");
 
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Найдите 10% от 100", false)))
+                        .content(scqBody(tf, "Найдите 10% от 100", false)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("scq_requires_exactly_one_correct"));
     }
 
     @Test
     void softDeletedChoiceOptionsAreIgnored() throws Exception {
-        Long topicId = createTopic("soft-delete-choice-topic-");
+        TopicFixture tf = createTopic("soft-delete-choice-topic-");
 
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -121,7 +122,9 @@ class QuestionBankIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "SCQ",
                                   "difficulty": 2,
                                   "bodyRu": "РќР°Р№РґРёС‚Рµ 20%% РѕС‚ 350",
@@ -133,13 +136,13 @@ class QuestionBankIntegrationTest {
                                     {"label":"C","textRu":"75","textKk":"75","correct":true,"soft_delete":true}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isCreated());
     }
 
     @Test
     void mcqRequiresAtLeastOneCorrectAnswer() throws Exception {
-        Long topicId = createTopic("mcq-topic-");
+        TopicFixture tf = createTopic("mcq-topic-");
 
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -147,7 +150,9 @@ class QuestionBankIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "MCQ",
                                   "difficulty": 2,
                                   "bodyRu": "Выберите верные утверждения",
@@ -158,14 +163,14 @@ class QuestionBankIntegrationTest {
                                     {"label":"B","textRu":"50%% = 1/3","textKk":"50%% = 1/3","correct":false}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("mcq_requires_one_correct"));
     }
 
     @Test
     void matchingAndFillInQuestionsCanBeCreated() throws Exception {
-        Long topicId = createTopic("matching-fill-topic-");
+        TopicFixture tf = createTopic("matching-fill-topic-");
 
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -173,7 +178,9 @@ class QuestionBankIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "MATCHING",
                                   "difficulty": 3,
                                   "bodyRu": "Соотнесите проценты и дроби",
@@ -184,7 +191,7 @@ class QuestionBankIntegrationTest {
                                     {"leftRu":"25%%","leftKk":"25%%","rightRu":"0.25","rightKk":"0.25"}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.type").value("MATCHING"));
 
@@ -194,7 +201,9 @@ class QuestionBankIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "FILL_IN",
                                   "difficulty": 2,
                                   "bodyRu": "15%% от 200 равно [[1]]",
@@ -204,14 +213,14 @@ class QuestionBankIntegrationTest {
                                     {"placeholder":"[[1]]","answer":"30","matchMode":"NUMERIC_TOLERANCE","tolerance":0.01}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.type").value("FILL_IN"));
     }
 
     @Test
     void adminCanGenerateMiniLectureDraftForQuestionForm() throws Exception {
-        Long topicId = createTopic("mini-lecture-topic-");
+        TopicFixture tf = createTopic("mini-lecture-topic-");
 
         mockMvc.perform(post("/api/admin/questions/mini-lecture/generate")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -219,7 +228,9 @@ class QuestionBankIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "topicId": %d,
+                                  "subjectId": %d,
+                                  "topicIds": [%d],
+                                  "gradeIds": [%d],
                                   "type": "SCQ",
                                   "difficulty": 2,
                                   "bodyRu": "Найдите 20%% от 350",
@@ -231,23 +242,23 @@ class QuestionBankIntegrationTest {
                                     {"label":"C","textRu":"75","textKk":"75","correct":false}
                                   ]
                                 }
-                                """.formatted(topicId)))
+                                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.correctAnswerRu").value(containsString("B")))
                 .andExpect(jsonPath("$.correctAnswerRu").value(containsString("70")))
-                .andExpect(jsonPath("$.explanationRu").value(containsString("Правильный ответ")))
+                .andExpect(jsonPath("$.explanationRu").value(containsString("Разбор и верный ответ")))
                 .andExpect(jsonPath("$.miniLectureRu").value(containsString("Объяснение для школьника")))
                 .andExpect(jsonPath("$.miniLectureKk").value(containsString("Мектеп оқушысына")));
     }
 
     @Test
     void publishedQuestionEditKeepsPublishedVersionLive() throws Exception {
-        Long topicId = createTopic("version-topic-");
+        TopicFixture tf = createTopic("version-topic-");
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Найдите 20% от 350", true)))
+                        .content(scqBody(tf, "Найдите 20% от 350", true)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -267,7 +278,7 @@ class QuestionBankIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Найдите 25% от 400", true)))
+                        .content(scqBody(tf, "Найдите 25% от 400", true)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.versionNo").value(1))
                 .andExpect(jsonPath("$.status").value("published"))
@@ -292,15 +303,15 @@ class QuestionBankIntegrationTest {
 
     @Test
     void topicWithQuestionCannotBeDeleted() throws Exception {
-        Long topicId = createTopic("question-blocks-topic-");
+        TopicFixture tf = createTopic("question-blocks-topic-");
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Найдите 5% от 200", true)))
+                        .content(scqBody(tf, "Найдите 5% от 200", true)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(delete("/api/admin/topics/{id}", topicId)
+        mockMvc.perform(delete("/api/admin/topics/{id}", tf.topicId())
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
                 .andExpect(status().isConflict())
@@ -309,12 +320,12 @@ class QuestionBankIntegrationTest {
 
     @Test
     void adminQuestionPagesAreServerRendered() throws Exception {
-        Long topicId = createTopic("question-edit-page-topic-");
+        TopicFixture tf = createTopic("question-edit-page-topic-");
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Вопрос для edit page", true)))
+                        .content(scqBody(tf, "Вопрос для edit page", true)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -352,12 +363,12 @@ class QuestionBankIntegrationTest {
                 .findFirst()
                 .orElseThrow()
                 .getId();
-        Long topicId = createTopic("question-edit-submit-topic-");
+        TopicFixture tf = createTopic("question-edit-submit-topic-");
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(topicId, "Исходный текст", true)))
+                        .content(scqBody(tf, "Исходный текст", true)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -368,8 +379,10 @@ class QuestionBankIntegrationTest {
                         .with(csrf())
                         .param("filterSubjectId", String.valueOf(filterSubjectId))
                         .param("filterGradeId", String.valueOf(filterGradeId))
-                        .param("filterTopicId", String.valueOf(topicId))
-                        .param("topicId", String.valueOf(topicId))
+                        .param("filterTopicId", String.valueOf(tf.topicId()))
+                        .param("subjectId", String.valueOf(tf.subjectId()))
+                        .param("topicIds", String.valueOf(tf.topicId()))
+                        .param("gradeIds", String.valueOf(tf.gradeId()))
                         .param("type", "SCQ")
                         .param("difficulty", "2")
                         .param("bodyRu", "Обновленный текст")
@@ -400,7 +413,7 @@ class QuestionBankIntegrationTest {
                 .andExpect(header().string("Location", containsString("/admin/questions?")))
                 .andExpect(header().string("Location", containsString("subjectId=" + filterSubjectId)))
                 .andExpect(header().string("Location", containsString("gradeId=" + filterGradeId)))
-                .andExpect(header().string("Location", containsString("topicId=" + topicId)));
+                .andExpect(header().string("Location", containsString("topicId=" + tf.topicId())));
 
         mockMvc.perform(get("/api/admin/questions/{id}", questionId)
                         .with(user("admin@damulab.kz").roles("ADMIN")))
@@ -417,19 +430,19 @@ class QuestionBankIntegrationTest {
 
     @Test
     void adminQuestionListFiltersBySubjectAndGrade() throws Exception {
-        Long mathTopicId = createTopic("filter-math-", "math", 4);
-        Long kazakhTopicId = createTopic("filter-kk-", "kazakh_language", 4);
+        TopicFixture mathTf = createTopic("filter-math-", "math", 4);
+        TopicFixture kazakhTf = createTopic("filter-kk-", "kazakh_language", 4);
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(mathTopicId, "FILTER_MATH_UNIQUE_BODY", true)))
+                        .content(scqBody(mathTf, "FILTER_MATH_UNIQUE_BODY", true)))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scqBody(kazakhTopicId, "FILTER_KK_UNIQUE_BODY", true)))
+                        .content(scqBody(kazakhTf, "FILTER_KK_UNIQUE_BODY", true)))
                 .andExpect(status().isCreated());
 
         Long kazakhSubjectId = subjects.findAllByOrderByTitleRuAsc().stream()
@@ -460,11 +473,13 @@ class QuestionBankIntegrationTest {
                 .andExpect(content().string(not(containsString("FILTER_MATH_UNIQUE_BODY"))));
     }
 
-    private String scqBody(Long topicId, String bodyRu, boolean exactlyOneCorrect) {
+    private String scqBody(TopicFixture tf, String bodyRu, boolean exactlyOneCorrect) {
         String correctA = exactlyOneCorrect ? "false" : "true";
         return """
                 {
-                  "topicId": %d,
+                  "subjectId": %d,
+                  "topicIds": [%d],
+                  "gradeIds": [%d],
                   "type": "SCQ",
                   "difficulty": 2,
                   "bodyRu": "%s",
@@ -476,14 +491,14 @@ class QuestionBankIntegrationTest {
                     {"label":"C","textRu":"75","textKk":"75","correct":false}
                   ]
                 }
-                """.formatted(topicId, bodyRu, correctA);
+                """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId(), bodyRu, correctA);
     }
 
-    private Long createTopic(String prefix) throws Exception {
+    private TopicFixture createTopic(String prefix) throws Exception {
         return createTopic(prefix, "math", 4);
     }
 
-    private Long createTopic(String prefix, String subjectCode, int gradeNo) throws Exception {
+    private TopicFixture createTopic(String prefix, String subjectCode, int gradeNo) throws Exception {
         Long subjectId = subjects.findAllByOrderByTitleRuAsc().stream()
                 .filter(subject -> subjectCode.equals(subject.getCode()))
                 .findFirst()
@@ -512,7 +527,7 @@ class QuestionBankIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        return idFrom(response);
+        return new TopicFixture(idFrom(response), subjectId, gradeId);
     }
 
     private Long idFrom(String response) {
