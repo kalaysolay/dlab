@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Горизонтальная карточка достижения (иконка слева, текст справа), в духе «персональных достижений».
+  Параметры фрагмента — примитивы, чтобы и реальные AchievementView, и заглушки без DTO подключались одинаково.
+-->
+<article xmlns:th="http://www.thymeleaf.org"
+         class="achievement-java-row"
+         th:fragment="achievementRow (code, earned, title, description, progCurrent, progRequired)"
+         th:classappend="${earned} ? ' is-earned' : ' is-locked'">
+    <div class="achievement-java-icon-wrap" aria-hidden="true">
+        <div class="achievement-java-icon-ring">
+            <img class="achievement-java-img" loading="lazy" width="72" height="72"
+                 th:alt="${title}"
+                 th:src="@{|/img/achievements/${code}.svg|}"/>
+            <span class="achievement-java-check" aria-hidden="true"></span>
+        </div>
+    </div>
+    <div class="achievement-java-copy">
+        <h3 class="achievement-java-title" th:text="${title}">Первый срез</h3>
+        <p class="achievement-java-desc" th:text="${description}">Завершен первый предметный срез.</p>
+        <p class="achievement-java-meter"
+           th:text="|${progCurrent}/${progRequired}|">0/1</p>
+    </div>
+</article>
+</body>
+</html>
