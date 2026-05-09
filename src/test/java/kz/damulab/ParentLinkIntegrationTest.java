@@ -2,6 +2,7 @@ package kz.damulab;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -65,6 +66,8 @@ class ParentLinkIntegrationTest {
                                 {
                                   "fullName": "New Child",
                                   "email": "%s",
+                                  "password": "password123",
+                                  "confirmPassword": "password123",
                                   "gradeNo": 3,
                                   "preferredLanguage": "kk"
                                 }
@@ -116,7 +119,7 @@ class ParentLinkIntegrationTest {
                         .with(user("student@damulab.kz").roles("STUDENT"))
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").isNotEmpty())
+                .andExpect(jsonPath("$.code").value(matchesPattern("\\d{6}")))
                 .andExpect(jsonPath("$.qrSvg").value(containsString("<svg")))
                 .andExpect(jsonPath("$.qrSvg").value(containsString("QR код привязки")));
     }
@@ -124,7 +127,8 @@ class ParentLinkIntegrationTest {
     @Test
     void expiredLinkCodeCannotBeUsed() throws Exception {
         StudentProfile student = studentProfiles.findByUserEmailIgnoreCase("student@damulab.kz").orElseThrow();
-        String code = "EX" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+        int codeSuffix = Math.abs(UUID.randomUUID().hashCode()) % 1_000_000;
+        String code = "%06d".formatted(codeSuffix);
         linkCodes.save(new LinkCode(student, code, OffsetDateTime.now().minusMinutes(1)));
 
         mockMvc.perform(post("/api/parent/link-codes/{code}/attach", code)
@@ -151,6 +155,8 @@ class ParentLinkIntegrationTest {
                         .with(csrf())
                         .param("fullName", "Form Child")
                         .param("email", "form-child-" + UUID.randomUUID() + "@example.test")
+                        .param("password", "password123")
+                        .param("confirmPassword", "password123")
                         .param("gradeNo", "2")
                         .param("preferredLanguage", "ru"))
                 .andExpect(status().is3xxRedirection())
@@ -203,6 +209,8 @@ class ParentLinkIntegrationTest {
         CreateChildFormAdapter(String fullName, String email) {
             setFullName(fullName);
             setEmail(email);
+            setPassword("password123");
+            setConfirmPassword("password123");
             setGradeNo(4);
             setPreferredLanguage("ru");
         }

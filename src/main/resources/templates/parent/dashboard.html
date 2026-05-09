@@ -100,9 +100,18 @@
                 </div>
                 <div class="field">
                     <label for="email">Email для входа</label>
-                    <input id="email" type="email" th:field="*{email}" autocomplete="email" placeholder="Можно оставить пустым">
-                    <small>Если email не указан, система создаст технический login для demo-ребенка.</small>
+                    <input id="email" type="email" th:field="*{email}" autocomplete="email" required>
                     <small class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></small>
+                </div>
+                <div class="field">
+                    <label for="password">Пароль</label>
+                    <input id="password" type="password" th:field="*{password}" autocomplete="new-password" minlength="8" required>
+                    <small class="field-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></small>
+                </div>
+                <div class="field">
+                    <label for="confirmPassword">Подтверждение пароля</label>
+                    <input id="confirmPassword" type="password" th:field="*{confirmPassword}" autocomplete="new-password" minlength="8" required>
+                    <small class="field-error" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></small>
                 </div>
                 <div class="field">
                     <label for="gradeNo">Класс</label>
@@ -136,7 +145,7 @@
                 </div>
                 <div class="field">
                     <label for="code">Одноразовый код</label>
-                    <input id="code" type="text" th:field="*{code}" inputmode="latin" maxlength="12" placeholder="ABCD2345" required>
+                    <input id="code" type="text" th:field="*{code}" inputmode="numeric" pattern="[0-9]{6,12}" maxlength="12" placeholder="123456" required>
                     <small class="field-error" th:if="${#fields.hasErrors('code')}" th:errors="*{code}"></small>
                 </div>
                 <button class="button" type="submit">Привязать</button>

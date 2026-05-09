@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 public class AttachChildForm {
 
     @NotBlank
-    @Pattern(regexp = "[A-Z0-9]{6,12}")
+    @Pattern(regexp = "[0-9]{6,12}")
     private String code;
 
     public String getCode() {
@@ -14,6 +14,6 @@ public class AttachChildForm {
     }
 
     public void setCode(String code) {
-        this.code = code == null ? null : code.trim().toUpperCase();
+        this.code = code == null ? null : code.trim();
     }
 }

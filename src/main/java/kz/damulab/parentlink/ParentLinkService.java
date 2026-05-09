@@ -5,7 +5,6 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,8 +23,8 @@ import kz.damulab.users.StudentProfileRepository;
 @Service
 public class ParentLinkService {
 
-    private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final int CODE_LENGTH = 8;
+    private static final String CODE_ALPHABET = "0123456789";
+    private static final int CODE_LENGTH = 6;
 
     private final ParentProfileRepository parentProfiles;
     private final StudentProfileRepository studentProfiles;
@@ -79,7 +78,7 @@ public class ParentLinkService {
     @Transactional
     public ChildResponse createChild(String parentEmail, CreateChildForm form) {
         ParentProfile parent = findParent(parentEmail);
-        String email = normalizeOrGenerateChildEmail(form.getEmail());
+        String email = normalizeEmail(form.getEmail());
         if (users.existsByEmailIgnoreCase(email)) {
             throw new ParentLinkException("child_email_exists");
         }
@@ -88,7 +87,7 @@ public class ParentLinkService {
                 .orElseThrow(() -> new IllegalStateException("Missing role: STUDENT"));
         AppUser user = new AppUser(
                 email,
-                passwordEncoder.encode(UUID.randomUUID().toString()),
+                passwordEncoder.encode(form.getPassword()),
                 form.getFullName().trim(),
                 null
         );
@@ -178,9 +177,9 @@ public class ParentLinkService {
         );
     }
 
-    private String normalizeOrGenerateChildEmail(String email) {
+    private String normalizeEmail(String email) {
         if (email == null || email.isBlank()) {
-            return "child-" + UUID.randomUUID() + "@child.damulab.local";
+            throw new ParentLinkException("child_email_required");
         }
         return email.trim().toLowerCase(Locale.ROOT);
     }
@@ -193,7 +192,7 @@ public class ParentLinkService {
         if (code == null) {
             return "";
         }
-        return code.trim().toUpperCase(Locale.ROOT);
+        return code.trim();
     }
 
     private String generateUniqueCode() {
