@@ -83,6 +83,34 @@ class StudentEngagementIntegrationTest {
     }
 
     @Test
+    void finishSessionJsonIncludesFreshAchievementUnlockPayload() throws Exception {
+        String email = registerStudent("achievement-unlock-json");
+        JsonNode session = startSession(email);
+        Long sessionId = session.path("id").asLong();
+        for (JsonNode question : session.path("questions")) {
+            mockMvc.perform(patch("/api/test-sessions/{sessionId}/answers", sessionId)
+                            .with(user(email).roles("STUDENT"))
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(answerBody(question)))
+                    .andExpect(status().isOk());
+        }
+        mockMvc.perform(post("/api/test-sessions/{sessionId}/finish", sessionId)
+                        .with(user(email).roles("STUDENT"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newlyUnlockedAchievements.length()").value(1))
+                .andExpect(jsonPath("$.newlyUnlockedAchievements[0].code").value("first-test-finished"))
+                .andExpect(jsonPath("$.newlyUnlockedAchievements[0].title").exists());
+
+        mockMvc.perform(post("/api/test-sessions/{sessionId}/finish", sessionId)
+                        .with(user(email).roles("STUDENT"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newlyUnlockedAchievements.length()").value(0));
+    }
+
+    @Test
     void studentDashboardPageShowsMissionStreakAndAchievements() throws Exception {
         String email = registerStudent("engagement-page");
 

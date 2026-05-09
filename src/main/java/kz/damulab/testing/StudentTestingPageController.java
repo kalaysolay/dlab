@@ -21,6 +21,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.SubjectRepository;
+import kz.damulab.gamification.AchievementUnlockPayload;
 
 @Controller
 public class StudentTestingPageController {
@@ -108,14 +109,18 @@ public class StudentTestingPageController {
     String finish(
             Principal principal,
             @PathVariable Long sessionId,
-            HttpServletRequest request
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes
     ) {
         TestSessionResponse session = testingHub.getSession(principal.getName(), sessionId);
         for (SessionQuestionResponse question : session.questions()) {
             JsonNode answer = answerFromRequest(question, request);
             testingHub.submitAnswer(principal.getName(), sessionId, new SubmitAnswerRequest(question.id(), answer));
         }
-        testingHub.finishSession(principal.getName(), sessionId);
+        TestResultResponse outcome = testingHub.finishSession(principal.getName(), sessionId);
+        if (!outcome.newlyUnlockedAchievements().isEmpty()) {
+            redirectAttributes.addFlashAttribute("achievementToasts", outcome.newlyUnlockedAchievements());
+        }
         return "redirect:/student/test-sessions/" + sessionId + "/result";
     }
 

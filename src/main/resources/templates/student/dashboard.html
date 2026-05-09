@@ -140,35 +140,25 @@
                     <div class="section-kicker" th:text="#{student.dashboard.achievements.kicker}">Достижения</div>
                     <h2 th:text="#{student.dashboard.achievements.title}">Награды за регулярную работу</h2>
                 </div>
-                <button class="button" type="button" data-modal-open="achievements-modal" th:text="#{student.dashboard.achievements.openAll}">Открыть все</button>
+                <button class="achievement-open-all linkish-button" type="button" data-modal-open="achievements-modal">
+                    <span th:text="#{student.dashboard.achievements.openAll}">Посмотреть все</span>
+                    <span class="chev" aria-hidden="true">›</span>
+                </button>
             </div>
-            <div class="achievement-grid" th:if="${!#lists.isEmpty(dashboard.achievements())}">
-                <article class="achievement-card"
-                         th:each="achievement, iter : ${dashboard.achievements()}"
-                         th:if="${iter.index < 3}"
-                         th:classappend="${achievement.earned()} ? ' earned' : ' locked'">
-                    <span class="badge" th:classappend="${achievement.earned()} ? ' success' : ''"
-                          th:text="${achievement.earned()} ? #{student.achievement.status.earned} : #{student.achievement.status.progress}">Получено</span>
-                    <h3 th:text="${achievement.title()}">Первый срез</h3>
-                    <p th:text="${achievement.description()}">Завершен первый предметный срез.</p>
-                </article>
+            <div class="achievement-java-grid" th:if="${!#lists.isEmpty(dashboard.achievements())}">
+                <!-- th:each на родителе: иначе th:replace на том же теге вычисляет параметры фрагмента до появления ach в контексте (ach == null). -->
+                <th:block th:each="ach, iterStat : ${dashboard.achievements()}">
+                    <article th:if="${iterStat.index < 3}"
+                             th:replace="~{fragments/student-achievement-row :: achievementRow (${ach.code()}, ${ach.earned()}, ${ach.title()}, ${ach.description()}, ${ach.progressCurrent()}, ${ach.requiredValue()})}"></article>
+                </th:block>
             </div>
-            <div class="achievement-grid" th:if="${#lists.isEmpty(dashboard.achievements())}">
-                <article class="achievement-card locked">
-                    <span class="badge" th:text="#{student.achievement.status.progress}">В процессе</span>
-                    <h3 th:text="#{student.achievement.placeholder1.title}">Стабильный старт</h3>
-                    <p th:text="#{student.achievement.placeholder1.body}">Завершите первый тест, чтобы открыть стартовую награду.</p>
-                </article>
-                <article class="achievement-card locked">
-                    <span class="badge" th:text="#{student.achievement.status.progress}">В процессе</span>
-                    <h3 th:text="#{student.achievement.placeholder2.title}">Серия в 3 дня</h3>
-                    <p th:text="#{student.achievement.placeholder2.body}">Учитесь 3 дня подряд и зафиксируйте ритм.</p>
-                </article>
-                <article class="achievement-card locked">
-                    <span class="badge" th:text="#{student.achievement.status.progress}">В процессе</span>
-                    <h3 th:text="#{student.achievement.placeholder3.title}">Первый прогресс</h3>
-                    <p th:text="#{student.achievement.placeholder3.body}">Поднимите средний результат, чтобы открыть новую карточку.</p>
-                </article>
+            <div class="achievement-java-grid" th:if="${#lists.isEmpty(dashboard.achievements())}"
+                 th:with="t1=#{student.achievement.placeholder1.title},b1=#{student.achievement.placeholder1.body},
+                         t2=#{student.achievement.placeholder2.title},b2=#{student.achievement.placeholder2.body},
+                         t3=#{student.achievement.placeholder3.title},b3=#{student.achievement.placeholder3.body}">
+                <article th:replace="~{fragments/student-achievement-row :: achievementRow ('achievement-placeholder', false, ${t1}, ${b1}, 0, 1)}"></article>
+                <article th:replace="~{fragments/student-achievement-row :: achievementRow ('achievement-placeholder', false, ${t2}, ${b2}, 0, 3)}"></article>
+                <article th:replace="~{fragments/student-achievement-row :: achievementRow ('achievement-placeholder', false, ${t3}, ${b3}, 0, 5)}"></article>
             </div>
         </section>
     </main>

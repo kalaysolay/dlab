@@ -8,6 +8,8 @@ public record AchievementView(
         String description,
         boolean earned,
         OffsetDateTime earnedAt,
-        int requiredValue
+        int requiredValue,
+        /** Текущее значение метрики (completed_tests или current_streak), обрезанное до цели для UI «N/M». */
+        int progressCurrent
 ) {
 }

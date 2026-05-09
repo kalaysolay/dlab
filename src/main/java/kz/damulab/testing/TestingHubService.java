@@ -23,6 +23,7 @@ import kz.damulab.content.Grade;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.Subject;
 import kz.damulab.content.SubjectRepository;
+import kz.damulab.gamification.AchievementUnlockPayload;
 import kz.damulab.gamification.StudentEngagementService;
 import kz.damulab.questions.QuestionVersion;
 import kz.damulab.questions.QuestionVersionRepository;
@@ -194,8 +195,8 @@ public class TestingHubService {
         session.finish();
         TestResult result = results.save(new TestResult(session, questions.size(), correctAnswers, score, maxScore, percent));
         analyticsService.updateMastery(result);
-        engagementService.recordUsefulActivity(result);
-        return resultResponse(result, session);
+        List<AchievementUnlockPayload> unlocked = engagementService.recordUsefulActivity(result);
+        return resultResponse(result, session, unlocked);
     }
 
     @Transactional(readOnly = true)
@@ -238,6 +239,14 @@ public class TestingHubService {
     }
 
     private TestResultResponse resultResponse(TestResult result, TestSession session) {
+        return resultResponse(result, session, List.of());
+    }
+
+    private TestResultResponse resultResponse(
+            TestResult result,
+            TestSession session,
+            List<AchievementUnlockPayload> newlyUnlocked
+    ) {
         Map<Long, StudentAnswer> answerByQuestion = answerMap(session.getId());
         Map<Long, AnswerEvaluation> evaluationByQuestion = evaluationMap(session.getId());
         List<QuestionResultResponse> questionResults = sessionQuestions.findBySessionIdOrderByOrderNoAsc(session.getId()).stream()
@@ -252,7 +261,8 @@ public class TestingHubService {
                 result.getMaxScore(),
                 result.getPercent(),
                 result.getCreatedAt(),
-                questionResults
+                questionResults,
+                List.copyOf(newlyUnlocked)
         );
     }
 

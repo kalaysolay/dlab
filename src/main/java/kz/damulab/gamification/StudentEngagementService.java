@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -51,22 +52,29 @@ public class StudentEngagementService {
         this.clock = clock;
     }
 
+    /**
+     * Регистрирует активность после первого {@link TestResult} сессии: streak и выдача достижений в одном commit.
+     *
+     * @return только что сохранённые в этой транзакции строки игровизации (для in-app toast / JSON finish),
+     *         не путать с админским push-модулем
+     */
     @Transactional
-    public void recordUsefulActivity(TestResult result) {
+    public List<AchievementUnlockPayload> recordUsefulActivity(TestResult result) {
         StudentProfile student = result.getSession().getStudentProfile();
         OffsetDateTime occurredAt = OffsetDateTime.now(clock);
-        recordUsefulActivity(student, occurredAt);
+        return recordUsefulActivity(student, occurredAt);
     }
 
+    /** См. {@link #recordUsefulActivity(TestResult)}: тот же сценарий, если событие не пришло через тестовую сессию. */
     @Transactional
-    public void recordUsefulActivity(StudentProfile student, OffsetDateTime occurredAt) {
+    public List<AchievementUnlockPayload> recordUsefulActivity(StudentProfile student, OffsetDateTime occurredAt) {
         OffsetDateTime timestamp = occurredAt == null ? OffsetDateTime.now(clock) : occurredAt;
         LocalDate activityDate = timestamp.withOffsetSameInstant(ZoneOffset.UTC).toLocalDate();
         Streak streak = streaks.findByStudentProfileId(student.getId())
                 .orElseGet(() -> new Streak(student));
         streak.recordActivity(activityDate, timestamp);
         streaks.save(streak);
-        awardEligibleAchievements(student, streak, timestamp);
+        return awardEligibleAchievements(student, streak, timestamp);
     }
 
     @Transactional(readOnly = true)
@@ -91,7 +99,8 @@ public class StudentEngagementService {
                         item.getUpdatedAt()
                 ))
                 .toList();
-        List<AchievementView> achievementViews = achievementViews(student, language);
+        int currentStreakValue = streak == null ? 0 : streak.getCurrentCount();
+        List<AchievementView> achievementViews = achievementViews(student, language, completedTests, currentStreakValue);
         return new StudentDashboardView(
                 student.getId(),
                 student.getUser().getFullName(),
@@ -104,19 +113,33 @@ public class StudentEngagementService {
         );
     }
 
-    private void awardEligibleAchievements(StudentProfile student, Streak streak, OffsetDateTime earnedAt) {
+    /**
+     * Выдаёт все достижения, выполненные после текущих метрик, и возвращает список текстовых наград
+     * (локализован под язык профиля) для клиентского UX.
+     */
+    private List<AchievementUnlockPayload> awardEligibleAchievements(StudentProfile student, Streak streak, OffsetDateTime earnedAt) {
         long completedTests = results.countBySessionStudentProfileId(student.getId());
         Map<String, Long> metrics = Map.of(
                 COMPLETED_TESTS, completedTests,
                 CURRENT_STREAK, (long) streak.getCurrentCount()
         );
+        String language = student.getPreferredLanguage();
+        List<AchievementUnlockPayload> unlocked = new ArrayList<>();
         achievements.findByActiveTrueOrderByRequiredValueAscCodeAsc().stream()
                 .filter(achievement -> metrics.getOrDefault(achievement.getMetricCode(), 0L) >= achievement.getRequiredValue())
                 .filter(achievement -> !studentAchievements.existsByStudentProfileIdAndAchievementId(student.getId(), achievement.getId()))
-                .forEach(achievement -> studentAchievements.save(new StudentAchievement(student, achievement, earnedAt)));
+                .forEach(achievement -> {
+                    studentAchievements.save(new StudentAchievement(student, achievement, earnedAt));
+                    unlocked.add(new AchievementUnlockPayload(
+                            achievement.getCode(),
+                            achievement.getTitle(language),
+                            achievement.getDescription(language)
+                    ));
+                });
+        return unlocked;
     }
 
-    private List<AchievementView> achievementViews(StudentProfile student, String language) {
+    private List<AchievementView> achievementViews(StudentProfile student, String language, long completedTests, int currentStreak) {
         Map<Long, StudentAchievement> earnedByAchievementId = studentAchievements
                 .findByStudentProfileIdOrderByEarnedAtDesc(student.getId())
                 .stream()
@@ -134,10 +157,21 @@ public class StudentEngagementService {
                             achievement.getDescription(language),
                             earned != null,
                             earned == null ? null : earned.getEarnedAt(),
-                            achievement.getRequiredValue()
+                            achievement.getRequiredValue(),
+                            clampedMetricProgress(achievement, completedTests, currentStreak)
                     );
                 })
                 .toList();
+    }
+
+    /** Значение «заполненности» шкалы без перескока через цель: удобно для отображения N/M до выдачи. */
+    private int clampedMetricProgress(Achievement achievement, long completedTests, int currentStreak) {
+        int required = achievement.getRequiredValue();
+        return switch (achievement.getMetricCode()) {
+            case COMPLETED_TESTS -> (int) Math.min(completedTests, required);
+            case CURRENT_STREAK -> Math.min(currentStreak, required);
+            default -> 0;
+        };
     }
 
     private DailyMissionView dailyMission(

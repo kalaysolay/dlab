@@ -408,6 +408,19 @@
 
     showResultRow(0);
 </script>
+<script th:if="${achievementToasts != null}" th:inline="javascript">
+    document.addEventListener("DOMContentLoaded", () => {
+        const items = /*[[${achievementToasts}]]*/ [];
+        const toastTitle = /*[[#{student.toast.achievement.title}]]*/ "Новое достижение";
+        if (!items || !items.length || !window.DamulabUi || typeof window.DamulabUi.showToast !== "function") {
+            return;
+        }
+        items.forEach((item) => {
+            const line = (item && item.title ? item.title : "") + (item && item.description ? " — " + item.description : "");
+            window.DamulabUi.showToast({ kind: "success", title: toastTitle, body: line, ttlMs: 9000 });
+        });
+    });
+</script>
 </body>
 </html>
 

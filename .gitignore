@@ -47,5 +47,5 @@ Mockups
 docs/
 
 # Agent hints and parent-link API spec (local / volatile)
-/AGENTS.md
-/docs/PARENT_LINK_API.md
+AGENTS.md
+/docs/*

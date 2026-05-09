@@ -1358,6 +1358,217 @@ a:hover {
     line-height: 1.45;
 }
 
+/* Достижения: иконка слева, текст справа (ориентир — «персональные достижения» одностраничного кабинета). */
+.achievement-java-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px 22px;
+    margin-top: 18px;
+}
+
+@media (max-width: 1024px) {
+    .achievement-java-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.achievement-java-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 104px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.achievement-java-row.is-locked {
+    background: var(--surface-muted);
+}
+
+.achievement-java-icon-wrap {
+    flex: 0 0 auto;
+}
+
+.achievement-java-icon-ring {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    padding: 3px;
+    background: linear-gradient(145deg, #34d399, #10b981);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
+}
+
+.achievement-java-row.is-locked .achievement-java-icon-ring {
+    background: #cbd5e1;
+    box-shadow: none;
+}
+
+.achievement-java-img {
+    display: block;
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
+}
+
+.achievement-java-row.is-locked .achievement-java-img {
+    filter: grayscale(0.9) opacity(0.72);
+}
+
+.achievement-java-check {
+    display: none;
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #16a34a;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+.achievement-java-row.is-earned .achievement-java-check {
+    display: block;
+}
+
+.achievement-java-check::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 3px;
+    width: 6px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.achievement-java-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.achievement-java-title {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+.achievement-java-desc {
+    margin: 0 0 8px;
+    color: #334155;
+    font-size: 0.93rem;
+    line-height: 1.45;
+}
+
+.achievement-java-meter {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #16a34a;
+}
+
+.achievement-java-row.is-locked .achievement-java-meter {
+    color: #64748b;
+}
+
+.achievement-open-all.linkish-button {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 650;
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.achievement-open-all.linkish-button:hover {
+    text-decoration: underline;
+}
+
+.achievement-open-all .chev {
+    font-size: 1.1rem;
+    line-height: 1;
+    opacity: 0.85;
+}
+
+.toast-stack {
+    position: fixed;
+    right: 16px;
+    top: 96px;
+    z-index: 4500;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(360px, calc(100vw - 32px));
+    pointer-events: none;
+}
+
+.toast-card {
+    pointer-events: auto;
+    position: relative;
+    padding: 12px 38px 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.toast-card.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-success {
+    border-color: #bbf7d0;
+    background: linear-gradient(135deg, #ecfdf3 0%, #fff 55%);
+}
+
+.toast-title {
+    display: block;
+    font-size: 0.95rem;
+    margin: 0 0 4px;
+}
+
+.toast-body {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.toast-close {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    border: 0;
+    background: transparent;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 4px 8px;
+}
+
+.toast-close:hover {
+    color: #0f172a;
+}
+
 .notification-settings {
     display: grid;
     gap: 10px;
@@ -4077,7 +4288,8 @@ h2 {
 .child-card:hover,
 .lecture-card:hover,
 .test-type-card:hover,
-.achievement-card:hover {
+.achievement-card:hover,
+.achievement-java-row:hover {
     transform: translateY(-2px);
     box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
 }
@@ -5748,6 +5960,120 @@ h2 {
 @media (max-width: 1020px) {
     .analytics-grid,
     .quiz-hub-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/*
+ * Модалка «Мои достижения»: в файле несколько блоков `.modal-card` с width ~680px (последний выигрывает),
+ * из‑за чего сетка 3×1 сжимала текст. Переопределяем только для `.achievements-dialog` + «наградный» визуал.
+ */
+.modal-card.achievements-dialog {
+    width: min(1180px, calc(100vw - 28px));
+    max-width: min(1180px, calc(100vw - 28px));
+    padding: 22px 26px 28px;
+    border-radius: 22px;
+    border: 1px solid rgba(234, 179, 8, 0.22);
+    background:
+        radial-gradient(120% 80% at 10% -10%, rgba(254, 243, 199, 0.75) 0%, transparent 55%),
+        radial-gradient(90% 60% at 100% 0%, rgba(220, 252, 231, 0.5) 0%, transparent 50%),
+        linear-gradient(180deg, #fffef9 0%, #fff 42%, #f8fafc 100%);
+    box-shadow:
+        0 28px 64px rgba(15, 23, 42, 0.16),
+        0 0 0 1px rgba(255, 255, 255, 0.65) inset;
+}
+
+.modal-card.achievements-dialog .modal-head {
+    padding-bottom: 4px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.modal-card.achievements-dialog .modal-head h2 {
+    font-size: 1.22rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #13224a;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.modal-card.achievements-dialog .achievement-java-grid {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 16px;
+}
+
+.modal-card.achievements-dialog .achievement-java-row {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: linear-gradient(145deg, #fff 0%, #f8fafc 100%);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+}
+
+.modal-card.achievements-dialog .achievement-java-row.is-earned {
+    border-color: rgba(234, 179, 8, 0.45);
+    background: linear-gradient(145deg, #fffbeb 0%, #fff 55%, #f0fdf4 100%);
+    box-shadow:
+        0 8px 26px rgba(234, 179, 8, 0.12),
+        0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+.modal-card.achievements-dialog .achievement-java-row.is-locked {
+    opacity: 0.96;
+}
+
+.modal-card.achievements-dialog .achievement-java-icon-ring {
+    width: 54px;
+    height: 54px;
+    padding: 2px;
+}
+
+.modal-card.achievements-dialog .achievement-java-img {
+    width: 50px;
+    height: 50px;
+}
+
+.modal-card.achievements-dialog .achievement-java-check {
+    width: 19px;
+    height: 19px;
+}
+
+.modal-card.achievements-dialog .achievement-java-copy {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+
+.modal-card.achievements-dialog .achievement-java-title {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.28;
+}
+
+.modal-card.achievements-dialog .achievement-java-desc {
+    margin: 0 0 6px;
+    font-size: 0.8rem;
+    line-height: 1.38;
+    color: #475569;
+}
+
+.modal-card.achievements-dialog .achievement-java-meter {
+    margin: 0;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+@media (max-width: 960px) {
+    .modal-card.achievements-dialog .achievement-java-grid {
         grid-template-columns: 1fr;
     }
 }
