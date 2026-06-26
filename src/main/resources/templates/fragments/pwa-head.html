@@ -1,7 +1,27 @@
 <!DOCTYPE html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head th:fragment="pwaHead">
-    <meta name="theme-color" content="#4f46e5">
+    <!--
+        PWA-заголовок: manifest, тема, иконки.
+        Подключается на всех страницах через th:replace="~{fragments/pwa-head :: pwaHead}".
+        theme-color совпадает с manifest.webmanifest (#1668dc) — критично для Android Chrome.
+        apple-touch-icon + apple-mobile-web-app-capable обеспечивают iOS standalone-режим.
+        vapid-public-key (если задан) используется pwa.js для подписки на push-уведомления.
+    -->
+    <meta name="theme-color" content="#1668dc">
+
+    <!-- iOS PWA: standalone-режим + иконка на домашнем экране -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Damulab">
+    <link rel="apple-touch-icon" th:href="@{/icons/icon-192.png}">
+
+    <!-- Web Push: VAPID public key для PushManager.subscribe().
+         Не рендерится, если ключ не задан (stub-режим). -->
+    <meta th:if="${vapidPublicKey != null and !#strings.isEmpty(vapidPublicKey)}"
+          name="vapid-public-key"
+          th:content="${vapidPublicKey}">
+
     <link rel="preload" th:href="@{/fonts/manrope/Manrope-wght.ttf}" as="font" type="font/ttf" crossorigin>
     <link rel="preload" th:href="@{/fonts/nunito/Nunito-wght.ttf}" as="font" type="font/ttf" crossorigin>
     <link rel="stylesheet" th:href="@{/css/fonts.css}">

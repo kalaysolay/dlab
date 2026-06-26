@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Нет соединения — Damulab.kz</title>
+    <!--
+        Офлайн-страница: отдаётся service worker'ом при отсутствии сети
+        и отсутствии закэшированного ответа на запрос.
+        Кэшируется при установке SW в SHELL_ASSETS.
+    -->
+    <meta name="theme-color" content="#1668dc">
+    <link rel="icon" type="image/svg+xml" th:href="@{/icons/damulab-icon.svg}">
+    <link rel="apple-touch-icon" th:href="@{/icons/icon-192.png}">
+    <link rel="manifest" th:href="@{/manifest.webmanifest}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header class="topbar">
+        <a class="brand brand-link" href="/">
+            <span class="brand-mark">
+                <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path>
+                    <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path>
+                </svg>
+            </span>
+            <span class="brand-copy">
+                <strong>Damulab.kz</strong>
+            </span>
+        </a>
+    </header>
+    <main class="page" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:60vh;text-align:center;padding:40px 20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+            <path d="M10.71 5.05A16 16 0 0 1 22.56 9"></path>
+            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+        <h1 style="font-size:1.5rem;font-weight:800;color:#1e293b;margin:0;">Нет подключения к сети</h1>
+        <p style="color:#475569;max-width:360px;margin:0;line-height:1.6;">
+            Проверьте интернет-соединение и попробуйте снова.
+            Ранее открытые страницы могут быть доступны в кэше.
+        </p>
+        <button class="button primary" onclick="window.location.reload()" style="margin-top:8px;">
+            Повторить
+        </button>
+        <a href="/" class="button" style="margin-top:0;">На главную</a>
+    </main>
+</div>
+</body>
+</html>

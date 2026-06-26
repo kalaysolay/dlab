@@ -215,7 +215,7 @@ public class AnalyticsService {
                             answers.findBySessionQuestionId(sessionQuestion.getId())
                                     .map(answer -> parseMap(answer.getAnswerJson()))
                                     .orElse(Map.of()),
-                            localized(version.getExplanationRu(), version.getExplanationKk(), language),
+                            studentFacingExplanation(version, language),
                             evaluation.getEvaluatedAt()
                     );
                 })
@@ -335,6 +335,15 @@ public class AnalyticsService {
             return "watch";
         }
         return "strong";
+    }
+
+    /** Сначала мини-лекция, иначе короткое legacy-поле explanation. */
+    private String studentFacingExplanation(QuestionVersion version, String language) {
+        String mini = localized(version.getMiniLectureRu(), version.getMiniLectureKk(), language);
+        if (mini != null && !mini.isBlank()) {
+            return mini;
+        }
+        return localized(version.getExplanationRu(), version.getExplanationKk(), language);
     }
 
     private String localized(String ru, String kk, String language) {

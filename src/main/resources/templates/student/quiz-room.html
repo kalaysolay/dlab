@@ -106,7 +106,23 @@
                     <span class="badge success" th:if="${round.answered}">Ответ сохранен</span>
                     <span class="muted-line" th:text="${round.topicTitle}">Тема</span>
                 </div>
-                <h2 th:text="${round.body}">Текст вопроса</h2>
+                <!-- Для обычных типов вопросов — заголовок как есть -->
+                <h2 th:if="${round.type != 'FILL_IN'}" th:text="${round.body}">Текст вопроса</h2>
+
+                <!--
+                    FILL_IN: текст вопроса содержит метки [[1]], [[2]] и т.д.
+                    JS (renderInlineFillQuestions) подставит input'ы прямо в текст.
+                    Скрытый .fill-inline-bank хранит поля до подстановки.
+                -->
+                <div class="fill-inline-question" th:if="${round.type == 'FILL_IN'}" th:attr="data-fill-body=${round.body}">
+                    <h2 class="fill-inline-body" th:text="${round.body}">Текст вопроса</h2>
+                    <div class="fill-inline-bank" hidden>
+                        <input th:each="placeholder,fillStat : ${round.fillPlaceholders}"
+                               th:name="${'fill_' + round.id + '_' + fillStat.index}"
+                               th:attr="data-fill-placeholder=${placeholder}"
+                               autocomplete="off">
+                    </div>
+                </div>
 
                 <div class="answer-block" th:if="${round.type == 'SCQ'}">
                     <label class="answer-option" th:each="option : ${round.options}">
@@ -138,12 +154,6 @@
                     </label>
                 </div>
 
-                <div class="answer-block fill-answer" th:if="${round.type == 'FILL_IN'}">
-                    <label class="field" th:each="placeholder,fillStat : ${round.fillPlaceholders}" th:attr="data-placeholder=${placeholder}">
-                        <span th:text="${placeholder}">[[1]]</span>
-                        <input th:name="${'fill_' + round.id + '_' + fillStat.index}" autocomplete="off">
-                    </label>
-                </div>
             </section>
 
             <section class="panel">

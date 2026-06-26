@@ -49,3 +49,6 @@ docs/
 # Agent hints and parent-link API spec (local / volatile)
 AGENTS.md
 /docs/*
+
+# Local audit files (not for repo)
+GAME_AUDIT.md

@@ -19,6 +19,8 @@ spring:
 
 server:
   port: 8080
+  # За nginx/Caddy: учитывать X-Forwarded-Proto/Host, чтобы редиректы шли на https://
+  forward-headers-strategy: framework
   servlet:
     encoding:
       charset: UTF-8
@@ -39,6 +41,16 @@ damulab:
     min-published-per-subject-grade: 1
   ui:
     server-time-zone: Asia/Almaty
+  # Web Push / VAPID: при пустых ключах активируется StubPushProvider (без реальных уведомлений).
+  # Генерация ключей: npx web-push generate-vapid-keys
+  # VAPID_PUBLIC_KEY — Base64url EC public key; передаётся клиенту для PushManager.subscribe().
+  # VAPID_PRIVATE_KEY — Base64url EC private key; используется только на сервере.
+  push:
+    vapid-public-key: ${VAPID_PUBLIC_KEY:}
+    vapid-private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_SUBJECT:mailto:admin@damulab.kz}
+    # Интервал опроса очереди push-уведомлений (мс)
+    worker-delay-ms: 60000
   # Базовые значения; профиль local переопределяет в application-local.yml (openai + real по умолчанию).
   # Если real=false: провайдер openai не вызывается (кроме тестов со своими overrides).
   ai:
@@ -54,5 +66,6 @@ damulab:
       model: ${DEEPSEEK_MODEL:deepseek-chat}
       api-key: ${DEEPSEEK_API_KEY:}
     mini-lecture:
-      openai-model: ${OPENAI_MINI_LECTURE_MODEL:gpt-4o}
-      deepseek-model: ${DEEPSEEK_MINI_LECTURE_MODEL:deepseek-chat}
+      # Пусто = та же модель, что damulab.ai.openai.model (OPENAI_MODEL). Отдельно: OPENAI_MINI_LECTURE_MODEL.
+      openai-model: ${OPENAI_MINI_LECTURE_MODEL:}
+      deepseek-model: ${DEEPSEEK_MINI_LECTURE_MODEL:}

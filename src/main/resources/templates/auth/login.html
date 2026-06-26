@@ -12,9 +12,8 @@
     <header th:replace="~{fragments/header :: header}"></header>
     <main class="page auth-grid auth-page">
         <section class="auth-copy">
-            <span class="badge success">Damulab.kz</span>
-            <h1 class="page-title" th:text="#{login.pageTitle}">Единый вход в Damulab</h1>
-            <p class="lede" th:text="#{login.lede}">Один вход для ученика, родителя и администратора. Роль определяется аккаунтом после авторизации.</p>
+            <h1 class="page-title" th:text="#{login.pageTitle}">Войдите в Damulab</h1>
+            <p class="lede" th:text="#{login.lede}">Один аккаунт для ученика и родителя. После входа откроется нужный кабинет.</p>
             <div class="warm-card">
                 <strong th:text="#{login.cardTitle}">Простой старт</strong>
                 <p th:text="#{login.cardBody}">Родитель не проходит тесты, но видит статистику ребенка в своем кабинете.</p>
@@ -38,9 +37,11 @@
                 </div>
                 <button class="button primary" type="submit" th:text="#{login.submit}">Войти</button>
             </form>
+            <!-- Подсказка с demo-паролями отключена перед прод-деплоем
             <p class="muted-line" th:text="#{login.demoHint}">
                 Demo: admin@damulab.kz / student@damulab.kz / parent@damulab.kz, пароль password.
             </p>
+            -->
         </section>
     </main>
 </div>

@@ -48,7 +48,7 @@ class MiniLectureStructuredPayloadTest {
         MiniLectureStructuredPayload payload = MiniLectureJsonParser.parse(mapper, SAMPLE_JSON);
         AiMiniLectureResult html = MiniLectureHtmlComposer.toResult(payload);
         assertThat(html.contentRu()).contains("class=\"mini-lecture\"");
-        assertThat(html.contentRu()).contains("Теория");
+        assertThat(html.contentRu()).contains("Объяснение");
         assertThat(html.contentKk()).contains("class=\"mini-lecture\"");
     }
 }

@@ -131,11 +131,32 @@ class QuizArenaIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("round_not_open")));
 
-        clock.set(BASE_TIME.plusSeconds(6));
+        clock.set(BASE_TIME.plusSeconds(8));
 
         submitAnswer(code, HOST, firstRound)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("late_answer")));
+    }
+
+    @Test
+    void timeoutAutoSubmitAcceptsAnswerShortlyAfterRoundEnds() throws Exception {
+        JsonNode active = startTwoStudentRoom(1, 5);
+        String code = active.path("code").asText();
+        JsonNode firstRound = active.path("rounds").get(0);
+
+        clock.set(BASE_TIME.plusSeconds(6));
+
+        submitAnswer(code, HOST, firstRound)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rounds[0].answered").value(true));
+
+        submitAnswer(code, GUEST, firstRound).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/quiz/rooms/{code}/results", code)
+                        .with(user(HOST).roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("finished"))
+                .andExpect(jsonPath("$.results[0].percent").value(100));
     }
 
     @Test
@@ -144,7 +165,7 @@ class QuizArenaIntegrationTest {
         String code = active.path("code").asText();
         JsonNode firstRound = active.path("rounds").get(0);
 
-        clock.set(BASE_TIME.plusSeconds(6));
+        clock.set(BASE_TIME.plusSeconds(8));
 
         submitAnswer(code, HOST, firstRound)
                 .andExpect(status().isBadRequest())

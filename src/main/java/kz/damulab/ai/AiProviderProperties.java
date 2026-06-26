@@ -54,10 +54,27 @@ public class AiProviderProperties {
         this.miniLecture = miniLecture == null ? new MiniLecture() : miniLecture;
     }
 
+    public String resolvedMiniLectureOpenAiModel() {
+        return resolveMiniLectureModel(miniLecture.getOpenaiModel(), openai.getModel());
+    }
+
+    public String resolvedMiniLectureDeepSeekModel() {
+        return resolveMiniLectureModel(miniLecture.getDeepseekModel(), deepseek.getModel());
+    }
+
+    private static String resolveMiniLectureModel(String configured, String fallback) {
+        if (configured != null && !configured.isBlank()) {
+            return configured.trim();
+        }
+        return fallback;
+    }
+
     public static class MiniLecture {
 
-        private String openaiModel = "gpt-4o";
-        private String deepseekModel = "deepseek-chat";
+        /** null/blank — использовать {@link Provider#getModel()} (OPENAI_MODEL / DEEPSEEK_MODEL). */
+        private String openaiModel;
+        /** null/blank — использовать {@link Provider#getModel()}. */
+        private String deepseekModel;
 
         public String getOpenaiModel() {
             return openaiModel;

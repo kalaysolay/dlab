@@ -8,7 +8,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 abstract class ExternalAiProviderSupport {
+
+    private static final Logger log = LoggerFactory.getLogger(ExternalAiProviderSupport.class);
 
     private final ObjectMapper objectMapper;
     private final AiDraftSchemaValidator validator;
@@ -16,6 +21,24 @@ abstract class ExternalAiProviderSupport {
     protected ExternalAiProviderSupport(ObjectMapper objectMapper, AiDraftSchemaValidator validator) {
         this.objectMapper = objectMapper;
         this.validator = validator;
+    }
+
+    protected AiMiniLectureResult finalizeMiniLecture(
+            String outputJson,
+            MiniLectureGenerationRequest request,
+            String operation,
+            String model,
+            int attempt
+    ) {
+        AiCallLogger.logInboundRaw(log, operation, model, attempt, outputJson);
+        MiniLectureStructuredPayload payload = parseMiniLectureStructured(outputJson);
+        AiCallLogger.logMiniLectureParsed(log, operation, payload);
+        MiniLectureQualityValidator.validate(payload, request);
+        return MiniLectureHtmlComposer.toResult(payload);
+    }
+
+    protected static boolean isMiniLectureQualityFailure(AiProviderException ex) {
+        return "ai_mini_lecture_too_brief".equals(ex.getCode());
     }
 
     protected Map<String, Object> miniLectureStructuredJsonSchema() {

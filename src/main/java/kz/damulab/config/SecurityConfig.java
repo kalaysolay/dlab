@@ -11,6 +11,7 @@ import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 
 @Configuration
 public class SecurityConfig {
@@ -28,11 +29,17 @@ public class SecurityConfig {
                                 "/css/**",
                                 "/js/**",
                                 "/icons/**",
+                                "/fonts/**",
                                 "/manifest.webmanifest",
                                 "/service-worker.js",
-                                "/favicon.ico"
+                                "/favicon.ico",
+                                "/access-denied",
+                                // Офлайн-страница кэшируется SW и отдаётся без сети — должна быть публичной
+                                "/offline"
                         ).permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        // Web Push: сохранение подписки браузера; только аутентифицированный STUDENT
+                        .requestMatchers("/api/push/subscribe").hasRole("STUDENT")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/analytics/**").hasAnyRole("STUDENT", "PARENT")
                         .requestMatchers("/api/quiz/**").hasRole("STUDENT")
@@ -44,7 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/parent/**").hasRole("PARENT")
                         .anyRequest().authenticated()
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**", "/api/push/**"))
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler((request, response, authentication) ->
@@ -55,6 +62,7 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/")
                         .permitAll()
                 )
+                .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler()))
                 .build();
     }
 
@@ -84,5 +92,20 @@ public class SecurityConfig {
     private boolean hasRole(Authentication authentication, String role) {
         return authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals(role));
+    }
+
+    /**
+     * HTML-запросы без нужной роли ведём на дружелюбную страницу, API — короткий 403 JSON.
+     */
+    private AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            if (request.getRequestURI().startsWith("/api/")) {
+                response.setStatus(403);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"access_denied\"}");
+                return;
+            }
+            redirectStrategy.sendRedirect(request, response, "/access-denied");
+        };
     }
 }

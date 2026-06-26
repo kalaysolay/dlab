@@ -398,6 +398,11 @@ public class TestingHubService {
     }
 
     private String explanation(QuestionVersion version, String language) {
+        return studentFacingExplanation(version, language);
+    }
+
+    /** Сначала мини-лекция, иначе короткое legacy-поле explanation. */
+    private String studentFacingExplanation(QuestionVersion version, String language) {
         String mini = localized(version.getMiniLectureRu(), version.getMiniLectureKk(), language);
         if (mini != null && !mini.isBlank()) {
             return mini;

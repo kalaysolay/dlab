@@ -53,6 +53,20 @@
                         <input id="sessionResultPushEnabled" th:field="*{sessionResultPushEnabled}" type="checkbox">
                         <span>Push после завершения сессии</span>
                     </label>
+                    <!--
+                        Кнопка подписки на Web Push браузерные уведомления.
+                        Показывается только при настроенном VAPID (vapidPublicKey непустой).
+                        pwa.js управляет состоянием кнопки через checkPushStatus() и subscribeToPush().
+                    -->
+                    <div class="push-subscribe-section"
+                         th:if="${vapidPublicKey != null and !#strings.isEmpty(vapidPublicKey)}">
+                        <p class="push-subscribe-hint">
+                            Включите push-уведомления, чтобы получать сигналы прямо в браузере или на экране телефона.
+                        </p>
+                        <button id="pwa-push-subscribe-btn" class="button" type="button">
+                            Включить push-уведомления
+                        </button>
+                    </div>
                 </fieldset>
                 <button class="button primary" type="submit">Сохранить</button>
             </form>

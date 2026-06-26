@@ -6,19 +6,19 @@ package kz.damulab.ai;
 public final class MiniLectureHtmlComposer {
 
     private static final String[] SECTION_LABELS_RU = {
-            "Теория",
-            "Разбор вопроса",
+            "Объяснение",
+            "Разбор задачи",
             "Типичная ошибка",
-            "Разбор примера",
-            "Краткие выводы"
+            "Похожий пример",
+            "Что запомнить"
     };
 
     private static final String[] SECTION_LABELS_KK = {
-            "Теория",
-            "Сұрақты талдау",
-            "Жиі кездесетін қателер",
+            "Түсіндіру",
+            "Есепті талдау",
+            "Жиі кездесетін қате",
             "Ұқсас мысал",
-            "Қорытынды"
+            "Есте сақтау"
     };
 
     private MiniLectureHtmlComposer() {

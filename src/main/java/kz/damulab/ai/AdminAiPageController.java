@@ -65,7 +65,7 @@ public class AdminAiPageController {
         }
         try {
             AiGenerationJobResponse job = aiContentFactory.createQuestionGenerationJob(form);
-            redirectAttributes.addFlashAttribute("successMessage", "AI job создан");
+            redirectAttributes.addFlashAttribute("successMessage", "Генерация запущена — AI-" + job.id());
             return "redirect:/admin/questions/ai-generate?jobId=" + job.id();
         } catch (AiContentFactoryException ex) {
             bindingResult.reject("ai", humanError(ex.getCode()));
@@ -79,7 +79,7 @@ public class AdminAiPageController {
     String retry(@PathVariable Long jobId, RedirectAttributes redirectAttributes) {
         try {
             aiContentFactory.retry(jobId);
-            redirectAttributes.addFlashAttribute("successMessage", "Повторный запуск выполнен");
+            redirectAttributes.addFlashAttribute("successMessage", "Повторный запуск запущен — ожидайте результат");
         } catch (AiContentFactoryException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }

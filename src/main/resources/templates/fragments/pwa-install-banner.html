@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+    Баннер установки PWA — только для мобильных (управляется pwa.js).
+    Вынесен из .topbar, чтобы не ломать вёрстку шапки и не перекрывать клики.
+    data-mode: android (кнопка «Установить») | ios (инструкция для Safari).
+-->
+<div id="pwa-install-banner"
+     class="pwa-install-banner"
+     hidden
+     aria-live="polite"
+     th:fragment="pwaInstallBanner">
+    <div class="pwa-install-banner-inner">
+        <span id="pwa-install-banner-text" class="pwa-install-banner-text">
+            Установите Damulab как приложение
+        </span>
+        <button id="pwa-install-btn"
+                class="button primary pwa-install-btn"
+                type="button"
+                hidden>
+            Установить
+        </button>
+        <button id="pwa-install-dismiss"
+                class="pwa-install-dismiss"
+                type="button"
+                aria-label="Закрыть">
+            ✕
+        </button>
+    </div>
+</div>
+</body>
+</html>

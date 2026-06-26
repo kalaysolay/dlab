@@ -2,7 +2,6 @@ package kz.damulab.ai;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,11 +28,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class AiContentFactoryService {
 
-    private final AiProvider provider;
+    private final AiGenerationJobRunner runner;
     private final AiGenerationJobRepository jobs;
     private final AiGeneratedQuestionBatchRepository batches;
     private final AiGeneratedQuestionItemRepository items;
@@ -44,10 +45,9 @@ public class AiContentFactoryService {
     private final AdminContentAuditService audit;
     private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
-    private final AiDraftSchemaValidator draftSchemaValidator;
 
     public AiContentFactoryService(
-            AiProvider provider,
+            AiGenerationJobRunner runner,
             AiGenerationJobRepository jobs,
             AiGeneratedQuestionBatchRepository batches,
             AiGeneratedQuestionItemRepository items,
@@ -57,10 +57,9 @@ public class AiContentFactoryService {
             QuestionBankService questionBank,
             AdminContentAuditService audit,
             ObjectMapper objectMapper,
-            EntityManager entityManager,
-            AiDraftSchemaValidator draftSchemaValidator
+            EntityManager entityManager
     ) {
-        this.provider = provider;
+        this.runner = runner;
         this.jobs = jobs;
         this.batches = batches;
         this.items = items;
@@ -71,9 +70,13 @@ public class AiContentFactoryService {
         this.audit = audit;
         this.objectMapper = objectMapper;
         this.entityManager = entityManager;
-        this.draftSchemaValidator = draftSchemaValidator;
     }
 
+    /**
+     * Создаёт AI job в статусе PENDING и сразу возвращает ответ.
+     * Фактический вызов провайдера запускается асинхронно через {@link AiGenerationJobRunner#execute}
+     * после коммита транзакции — чтобы job был виден в БД до начала выполнения.
+     */
     @Transactional
     public AiGenerationJobResponse createQuestionGenerationJob(AiQuestionGenerationForm form) {
         Topic topic = findTopic(form.getTopicId());
@@ -90,9 +93,16 @@ public class AiContentFactoryService {
                 toJson(request),
                 currentUser()
         ));
-        runProvider(job, request);
         audit.record("ai_job_created", "AiGenerationJob", job.getId(), job.getStatus().name());
-        return getJob(job.getId());
+        Long jobId = job.getId();
+        // Запускаем провайдера после коммита: job уже в БД, polling сразу увидит его
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                runner.execute(jobId);
+            }
+        });
+        return getJob(jobId);
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +115,10 @@ public class AiContentFactoryService {
         return toJobResponse(job, batch, itemResponses);
     }
 
+    /**
+     * Перезапускает провайдер для failed job.
+     * Job помечается RUNNING сразу (до коммита), провайдер запускается асинхронно после коммита.
+     */
     @Transactional
     public AiGenerationJobResponse retry(Long id) {
         AiGenerationJob job = findJob(id);
@@ -112,9 +126,16 @@ public class AiContentFactoryService {
             throw new AiContentFactoryException("ai_job_retry_requires_failed_status");
         }
         job.incrementRetry();
-        runProvider(job, fromJson(job.getRequestPayloadJson(), AiQuestionGenerationRequest.class));
+        job.markRunning();
         audit.record("ai_job_retried", "AiGenerationJob", job.getId(), job.getStatus().name());
-        return getJob(job.getId());
+        Long jobId = job.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                runner.execute(jobId);
+            }
+        });
+        return getJob(jobId);
     }
 
     @Transactional
@@ -156,27 +177,6 @@ public class AiContentFactoryService {
         Topic topic = findTopic(form.getTopicId());
         AtomicSkill skill = resolveSkill(form.getAtomicSkillId(), topic);
         return buildRequest(form, topic, skill);
-    }
-
-    private void runProvider(AiGenerationJob job, AiQuestionGenerationRequest request) {
-        job.markRunning();
-        try {
-            AiQuestionGenerationResult result = provider.generateQuestions(request);
-            AiGeneratedQuestionBatch batch = batches.save(new AiGeneratedQuestionBatch(job));
-            for (AiGeneratedQuestionDraft draft : result.questions()) {
-                draftSchemaValidator.validate(draft);
-                items.save(new AiGeneratedQuestionItem(
-                        batch,
-                        draft,
-                        toOptionsJson(draft),
-                        toAnswerKeyJson(draft),
-                        toJson(draft.flags())
-                ));
-            }
-            job.markSucceeded(result.providerName(), result.modelName());
-        } catch (AiProviderException ex) {
-            job.markFailed(ex.getCode(), ex.getMessage());
-        }
     }
 
     private AiQuestionGenerationRequest buildRequest(AiQuestionGenerationForm form, Topic topic, AtomicSkill skill) {
@@ -223,52 +223,6 @@ public class AiContentFactoryService {
             }));
         }
         return form;
-    }
-
-    private String toOptionsJson(AiGeneratedQuestionDraft draft) {
-        if (draft.questionType() == QuestionType.MATCHING) {
-            return toJson(draft.matchingPairs().stream()
-                    .map(pair -> Map.of(
-                            "leftRu", pair.leftRu(),
-                            "leftKk", pair.leftKk(),
-                            "rightRu", pair.rightRu(),
-                            "rightKk", pair.rightKk()
-                    ))
-                    .toList());
-        }
-        if (draft.questionType() == QuestionType.FILL_IN) {
-            return toJson(List.of());
-        }
-        return toJson(draft.options().stream()
-                .map(option -> Map.<String, Object>of(
-                        "label", option.label().toUpperCase(Locale.ROOT),
-                        "textRu", option.textRu(),
-                        "textKk", option.textKk(),
-                        "correct", option.correct()
-                ))
-                .toList());
-    }
-
-    private String toAnswerKeyJson(AiGeneratedQuestionDraft draft) {
-        return switch (draft.questionType()) {
-            case SCQ, MCQ -> toJson(draft.options().stream()
-                    .filter(AiGeneratedChoiceOption::correct)
-                    .map(option -> option.label().toUpperCase(Locale.ROOT))
-                    .toList());
-            case MATCHING -> toJson(Map.of("pairs", draft.matchingPairs().stream()
-                    .map(pair -> Map.of("left", pair.leftRu(), "right", pair.rightRu()))
-                    .toList()));
-            case FILL_IN -> toJson(draft.fillAnswers().stream()
-                    .map(answer -> {
-                        Map<String, Object> value = new java.util.LinkedHashMap<>();
-                        value.put("placeholder", answer.placeholder());
-                        value.put("answer", answer.answer());
-                        value.put("matchMode", answer.matchMode());
-                        value.put("tolerance", answer.tolerance());
-                        return value;
-                    })
-                    .toList());
-        };
     }
 
     private AiGenerationJobResponse toJobResponse(
@@ -361,14 +315,6 @@ public class AiContentFactoryService {
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
-            throw new AiContentFactoryException("ai_payload_invalid");
-        }
-    }
-
-    private <T> T fromJson(String json, Class<T> type) {
-        try {
-            return objectMapper.readValue(json, type);
         } catch (JsonProcessingException ex) {
             throw new AiContentFactoryException("ai_payload_invalid");
         }

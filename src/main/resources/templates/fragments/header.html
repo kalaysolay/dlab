@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
-<header class="topbar" th:fragment="header">
+<header class="site-header" th:fragment="header">
+    <div class="topbar">
     <span class="public-parent-header-scope" sec:authorize="isAnonymous() or hasRole('PARENT')" hidden></span>
     <a class="brand brand-link" sec:authorize="isAnonymous()" th:href="@{/}">
         <span class="brand-mark">
@@ -44,6 +45,8 @@
             <button class="link-button" type="submit" th:text="#{nav.logout}">Выйти</button>
         </form>
     </nav>
+    </div>
+    <div th:replace="~{fragments/pwa-install-banner :: pwaInstallBanner}"></div>
     <script th:src="@{/js/pwa.js}" defer></script>
 </header>
 </body>

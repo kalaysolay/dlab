@@ -23,6 +23,48 @@
                     <a class="button" th:href="@{/parent}" th:text="#{home.hero.cta.parent}">Как подключить ребенка</a>
                 </div>
             </div>
+            <!-- Иллюстрация: абстрактный дашборд ученика. Inline SVG — без внешних зависимостей -->
+            <div class="hero-visual" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 300" fill="none" role="img" aria-hidden="true" style="width:100%;max-width:480px;height:auto;">
+                    <!-- Фоновая карточка -->
+                    <rect x="0" y="0" width="440" height="300" rx="24" fill="#f8faff" stroke="#e0e7ff" stroke-width="1.5"/>
+                    <!-- Заголовок дашборда -->
+                    <rect x="24" y="28" width="90" height="10" rx="5" fill="#c7d2fe"/>
+                    <rect x="24" y="46" width="60" height="8" rx="4" fill="#e0e7ff"/>
+                    <!-- Карточка 1: Математика — высокий прогресс -->
+                    <rect x="24" y="70" width="392" height="58" rx="14" fill="white" filter="url(#s)"/>
+                    <rect x="44" y="84" width="14" height="14" rx="4" fill="#e0e7ff"/>
+                    <rect x="68" y="84" width="80" height="9" rx="4" fill="#e2e8f0"/>
+                    <rect x="68" y="99" width="180" height="7" rx="3.5" fill="#e2e8f0"/>
+                    <rect x="68" y="99" width="130" height="7" rx="3.5" fill="#6366f1"/>
+                    <rect x="380" y="84" width="24" height="24" rx="6" fill="#eef2ff"/>
+                    <!-- Карточка 2: Биология — средний прогресс -->
+                    <rect x="24" y="140" width="392" height="58" rx="14" fill="white" filter="url(#s)"/>
+                    <rect x="44" y="154" width="14" height="14" rx="4" fill="#d1fae5"/>
+                    <rect x="68" y="154" width="68" height="9" rx="4" fill="#e2e8f0"/>
+                    <rect x="68" y="169" width="180" height="7" rx="3.5" fill="#e2e8f0"/>
+                    <rect x="68" y="169" width="80" height="7" rx="3.5" fill="#10b981"/>
+                    <rect x="380" y="154" width="24" height="24" rx="6" fill="#ecfdf5"/>
+                    <!-- Нижний ряд: метрики -->
+                    <rect x="24" y="216" width="118" height="52" rx="14" fill="white" filter="url(#s)"/>
+                    <rect x="38" y="229" width="44" height="7" rx="3.5" fill="#e2e8f0"/>
+                    <rect x="38" y="244" width="60" height="10" rx="5" fill="#e0e7ff"/>
+                    <rect x="38" y="244" width="44" height="10" rx="5" fill="#6366f1" opacity="0.5"/>
+                    <rect x="158" y="216" width="118" height="52" rx="14" fill="white" filter="url(#s)"/>
+                    <rect x="172" y="229" width="44" height="7" rx="3.5" fill="#e2e8f0"/>
+                    <rect x="172" y="244" width="60" height="10" rx="5" fill="#d1fae5"/>
+                    <rect x="172" y="244" width="36" height="10" rx="5" fill="#10b981" opacity="0.5"/>
+                    <rect x="292" y="216" width="124" height="52" rx="14" fill="white" filter="url(#s)"/>
+                    <rect x="306" y="229" width="44" height="7" rx="3.5" fill="#e2e8f0"/>
+                    <rect x="306" y="244" width="60" height="10" rx="5" fill="#fef3c7"/>
+                    <rect x="306" y="244" width="52" height="10" rx="5" fill="#f59e0b" opacity="0.5"/>
+                    <defs>
+                        <filter id="s" x="-8%" y="-12%" width="116%" height="140%">
+                            <feDropShadow dx="0" dy="2" stdDeviation="5" flood-color="rgba(15,23,42,0.07)"/>
+                        </filter>
+                    </defs>
+                </svg>
+            </div>
         </section>
 
         <section class="feature-grid public-quick-links" th:aria-label="#{home.quick.aria}" aria-label="Быстрый старт">

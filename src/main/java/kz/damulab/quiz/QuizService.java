@@ -37,6 +37,12 @@ public class QuizService {
     private static final int DEFAULT_QUESTION_COUNT = 5;
     private static final int DEFAULT_ROUND_SECONDS = 20;
     private static final int DEFAULT_MAX_PLAYERS = 4;
+    /**
+     * Короткое окно после {@code endsAt} раунда: принять ответ, который клиент отправил
+     * по истечении таймера, если участник ещё не успел нажать «Отправить» вручную.
+     * Покрывает сетевую задержку и гонку с {@link #enforceTimeouts}.
+     */
+    private static final int TIMEOUT_AUTO_SUBMIT_GRACE_SECONDS = 2;
     private static final char[] CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
 
     private final QuizRoomRepository rooms;
@@ -189,18 +195,25 @@ public class QuizService {
         QuizRound round = rounds.findByIdAndRoomId(request.roundId(), room.getId())
                 .orElseThrow(() -> new QuizException("round_not_found"));
         OffsetDateTime requestTime = now();
-        if (isLate(room, round, requestTime)) {
+        QuizAnswer existing = answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).orElse(null);
+        boolean late = isLate(room, round, requestTime);
+        boolean graceSubmit = late && canAcceptTimeoutAutoSubmit(room, round, requestTime, existing, request.answer());
+
+        if (!graceSubmit) {
             enforceTimeoutsLocked(room, requestTime);
-            throw new QuizException("late_answer");
-        }
-        enforceTimeoutsLocked(room, requestTime);
-        if (room.getStatus() != QuizRoomStatus.ACTIVE) {
+            if (late) {
+                throw new QuizException("late_answer");
+            }
+            if (room.getStatus() != QuizRoomStatus.ACTIVE) {
+                throw new QuizException("room_not_active");
+            }
+            validateRoundWindow(room, round, requestTime);
+        } else if (room.getStatus() != QuizRoomStatus.ACTIVE) {
             throw new QuizException("room_not_active");
         }
-        validateRoundWindow(room, round, requestTime);
+
         AnswerCheckResult check = answerChecker.check(round.getQuestionVersion(), request.answer(), round.getPoints());
         String answerJson = toJson(request.answer());
-        QuizAnswer existing = answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).orElse(null);
         if (existing == null) {
             if (!insertAnswerIfAbsent(round.getId(), participant.getId(), answerJson, check.correct(), check.pointsAwarded())) {
                 answers.findByRoundIdAndParticipantId(round.getId(), participant.getId())
@@ -211,6 +224,9 @@ public class QuizService {
             existing.replace(answerJson, check.correct(), check.pointsAwarded());
         }
         boolean finished = finishIfComplete(room);
+        if (!finished) {
+            finished = enforceTimeoutsLocked(room, requestTime);
+        }
         eventPublisher.publish(finished ? "room.finished" : "answer.progress", room);
         return room(room.getCode(), studentEmail);
     }
@@ -310,7 +326,12 @@ public class QuizService {
         boolean timeoutSaved = false;
         List<QuizParticipant> roomParticipants = participants.findByRoomIdOrderByJoinedAtAscIdAsc(room.getId());
         for (QuizRound round : rounds.findByRoomIdOrderByOrderNoAsc(room.getId())) {
-            if (now.isBefore(roundEndsAt(room, round))) {
+            OffsetDateTime endsAt = roundEndsAt(room, round);
+            if (now.isBefore(endsAt)) {
+                continue;
+            }
+            // Даём время на авто-отправку выбранного, но не нажатого ответа (см. TIMEOUT_AUTO_SUBMIT_GRACE_SECONDS).
+            if (now.isBefore(endsAt.plusSeconds(TIMEOUT_AUTO_SUBMIT_GRACE_SECONDS))) {
                 continue;
             }
             for (QuizParticipant participant : roomParticipants) {
@@ -453,6 +474,47 @@ public class QuizService {
 
     private boolean isLate(QuizRoom room, QuizRound round, OffsetDateTime now) {
         return room.getStartedAt() != null && !now.isBefore(roundEndsAt(room, round));
+    }
+
+    /**
+     * Разрешает позднюю отправку только для авто-сабмита по таймауту: ответ непустой,
+     * реального ответа ещё не было (или сохранена заглушка {@code {}} от {@link #enforceTimeouts}).
+     */
+    private boolean canAcceptTimeoutAutoSubmit(
+            QuizRoom room,
+            QuizRound round,
+            OffsetDateTime now,
+            QuizAnswer existing,
+            JsonNode answer
+    ) {
+        if (!hasAnswerContent(answer)) {
+            return false;
+        }
+        if (existing != null && !isTimeoutPlaceholder(existing)) {
+            return false;
+        }
+        OffsetDateTime endsAt = roundEndsAt(room, round);
+        return !now.isBefore(endsAt) && now.isBefore(endsAt.plusSeconds(TIMEOUT_AUTO_SUBMIT_GRACE_SECONDS));
+    }
+
+    private boolean isTimeoutPlaceholder(QuizAnswer answer) {
+        return "{}".equals(answer.getAnswerJson());
+    }
+
+    private boolean hasAnswerContent(JsonNode answer) {
+        if (answer == null || answer.isNull() || (answer.isObject() && answer.isEmpty())) {
+            return false;
+        }
+        JsonNode selected = answer.get("selected");
+        if (selected != null && selected.isArray() && !selected.isEmpty()) {
+            return true;
+        }
+        JsonNode pairs = answer.get("pairs");
+        if (pairs != null && pairs.isObject() && !pairs.isEmpty()) {
+            return true;
+        }
+        JsonNode fillAnswers = answer.get("answers");
+        return fillAnswers != null && fillAnswers.isObject() && !fillAnswers.isEmpty();
     }
 
     private OffsetDateTime roundStartsAt(QuizRoom room, QuizRound round) {

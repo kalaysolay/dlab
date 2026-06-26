@@ -6,9 +6,10 @@
     <title>AI генерация вопросов</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
-</head>
-<body>
+</head><body>
 <div class="app-shell admin-shell">
+    <!-- Toast-стек для in-app уведомлений о ходе генерации -->
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
     <main class="page admin-layout">
         <th:block th:with="activeAdminNav='question-ai'">
             <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
@@ -29,7 +30,7 @@
                 <span>В provider DTO уходят только предмет, класс, тема, навык, тип, сложность, язык и инструкция методиста. Персональные данные и прямые идентификаторы не отправляются.</span>
             </div>
 
-            <form class="form wide-form" method="post" th:action="@{/admin/questions/ai-generate}" th:object="${aiForm}">
+            <form id="ai-gen-form" class="form wide-form" method="post" th:action="@{/admin/questions/ai-generate}" th:object="${aiForm}">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <div th:if="${#fields.hasGlobalErrors()}" class="alert error">
                     <div th:each="err : ${#fields.globalErrors()}" th:text="${err}">Ошибка</div>
@@ -92,9 +93,25 @@
                     </label>
                 </div>
                 <div class="actions">
-                    <button class="button primary" type="submit">Сгенерировать</button>
+                    <button id="ai-gen-submit" class="button primary" type="submit">Сгенерировать</button>
                 </div>
             </form>
+
+            <!-- Прогресс-блок: показывается JS во время асинхронной генерации -->
+            <div id="ai-gen-progress" class="ai-gen-progress" style="display:none" aria-live="polite">
+                <span class="ai-gen-spinner" aria-hidden="true"></span>
+                <span id="ai-gen-progress-text" class="ai-gen-progress-text">Генерируем вопросы...</span>
+            </div>
+
+            <!--
+                Если страница загружена с jobId в pending/running статусе (например, после перезагрузки),
+                admin-ai-generate.js автоматически стартует polling через window.aiGenJobId/Status.
+            -->
+            <script th:if="${job != null}"
+                    th:inline="javascript">
+                window.aiGenJobId = /*[[${job.id}]]*/ null;
+                window.aiGenJobStatus = /*[[${job.status}]]*/ null;
+            </script>
 
             <section th:if="${job != null}" class="subpanel ai-job-panel">
                 <div class="page-head compact-head">
@@ -112,13 +129,18 @@
                     <div class="metric"><strong th:text="${job.topicTitleRu}">Проценты</strong><span>Тема</span></div>
                 </div>
 
+                <!-- Состояние: ожидание или выполнение (polling запущен JS-скриптом) -->
+                <div th:if="${job.status == 'pending' || job.status == 'running'}" class="notice">
+                    <strong th:text="${job.status == 'running'} ? 'Выполняется' : 'В очереди'">Выполняется</strong>
+                    <span>AI-провайдер обрабатывает запрос. Страница обновится автоматически.</span>
+                </div>
+
                 <div th:if="${job.status == 'failed'}" class="notice alert error">
                     <strong>Сбой генерации</strong>
                     <span th:text="${job.errorCode + ': ' + job.errorMessage}">stub_provider_failure</span>
-                    <form method="post" th:action="@{/admin/ai/jobs/{id}/retry(id=${job.id})}">
-                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <button class="button" type="submit">Повторить</button>
-                    </form>
+                    <!-- data-ai-retry-job перехватывается admin-ai-generate.js (async retry + polling) -->
+                    <button class="button" type="button"
+                            th:attr="data-ai-retry-job=${job.id}">Повторить</button>
                 </div>
 
                 <div class="empty-state" th:if="${job.status == 'succeeded' && #lists.isEmpty(job.items)}">
@@ -196,6 +218,8 @@
     </main>
     <div th:replace="~{fragments/modal :: modalShell}"></div>
 </div>
+<script th:src="@{/js/toast.js}" defer></script>
+<script th:src="@{/js/admin-ai-generate.js}" defer></script>
 <script>
     const aiSubject = document.getElementById('ai-subject');
     const aiGrade = document.getElementById('ai-grade');

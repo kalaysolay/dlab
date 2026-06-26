@@ -13,6 +13,8 @@
         fallbackSeconds: null,
         fallbackRoundId: null,
         timeoutFetchRoundId: null,
+        autoSubmitRoundId: null,
+        submittingRoundId: null,
         socket: null,
         reconnectTimer: null,
         stopped: false
@@ -27,6 +29,7 @@
         savedCanEdit: "Ответ сохранен. До конца раунда его можно изменить.",
         submitIdle: "Выберите ответ текущего раунда.",
         submitSending: "Сохраняю ответ...",
+        autoSubmitSending: "Время вышло — отправляю выбранный ответ...",
         submitError: "Не удалось сохранить ответ. Обновляю состояние комнаты.",
         timedOut: "Время раунда вышло.",
         noRound: "Текущий раунд пока не открыт.",
@@ -288,9 +291,16 @@
         const rest = String(seconds % 60).padStart(2, "0");
         refs.timer.textContent = `${minutes}:${rest}`;
         updateSubmitState();
+        if (round && seconds === 1 && !round.answered && state.autoSubmitRoundId !== String(round.id)) {
+            const panel = currentPanel();
+            if (hasDraftAnswer(panel)) {
+                state.autoSubmitRoundId = String(round.id);
+                handleRoundTimeout(round).catch(() => undefined);
+            }
+        }
         if (round && seconds === 0 && !round.timedOut && state.timeoutFetchRoundId !== String(round.id)) {
             state.timeoutFetchRoundId = String(round.id);
-            fetchRoom("timer.timeout").catch(() => undefined);
+            handleRoundTimeout(round).catch(() => fetchRoom("timer.timeout").catch(() => undefined));
         }
     }
 
@@ -312,15 +322,30 @@
         refs.submitStatus.hidden = Boolean(hidden || !text);
     }
 
-    async function submitCurrentRound(event) {
-        event.preventDefault();
-        const panel = currentPanel();
-        const round = currentRound();
-        if (!panel || !round) {
-            return;
+    function hasDraftAnswer(panel) {
+        if (!panel) {
+            return false;
         }
+        const type = panel.dataset.roundType;
+        if (type === "MATCHING") {
+            return Array.from(panel.querySelectorAll(".matching-answer select"))
+                    .some((select) => Boolean(select.value));
+        }
+        if (type === "FILL_IN") {
+            return Array.from(panel.querySelectorAll("input[data-fill-placeholder]"))
+                    .some((input) => Boolean(input.value.trim()));
+        }
+        return panel.querySelector('input[type="radio"]:checked, input[type="checkbox"]:checked') !== null;
+    }
+
+    async function submitRound(round, panel, reason) {
+        if (!panel || !round || round.answered || state.submittingRoundId === String(round.id)) {
+            return false;
+        }
+        const autoSubmit = reason === "timer.auto-submit";
+        state.submittingRoundId = String(round.id);
         refs.submitButton.disabled = true;
-        setStatus(labels.submitSending, false);
+        setStatus(autoSubmit ? labels.autoSubmitSending : labels.submitSending, false);
         try {
             const response = await fetch(absoluteUrl(root.dataset.apiUrl + "/answers"), {
                 method: "POST",
@@ -338,13 +363,42 @@
             if (!response.ok) {
                 throw new Error(`answer failed: ${response.status}`);
             }
-            applyRoom(await response.json(), "answer.submit");
+            applyRoom(await response.json(), reason || "answer.submit");
+            return true;
         } catch (error) {
             setStatus(labels.submitError, false);
             await fetchRoom("answer.error");
+            return false;
         } finally {
+            if (state.submittingRoundId === String(round.id)) {
+                state.submittingRoundId = null;
+            }
             updateSubmitState();
         }
+    }
+
+    async function handleRoundTimeout(round) {
+        if (!round || round.answered) {
+            await fetchRoom("timer.timeout");
+            return;
+        }
+        if (state.submittingRoundId === String(round.id)) {
+            return;
+        }
+        const panel = currentPanel();
+        if (hasDraftAnswer(panel)) {
+            const submitted = await submitRound(round, panel, "timer.auto-submit");
+            if (!submitted) {
+                await fetchRoom("timer.timeout");
+            }
+            return;
+        }
+        await fetchRoom("timer.timeout");
+    }
+
+    async function submitCurrentRound(event) {
+        event.preventDefault();
+        await submitRound(currentRound(), currentPanel(), "answer.submit");
     }
 
     function answerPayload(panel) {
@@ -362,9 +416,9 @@
         }
         if (type === "FILL_IN") {
             const answers = {};
-            panel.querySelectorAll(".fill-answer .field").forEach((field) => {
-                const placeholder = field.dataset.placeholder || field.querySelector("span")?.textContent || "";
-                const value = field.querySelector("input")?.value || "";
+            panel.querySelectorAll("input[data-fill-placeholder]").forEach((input) => {
+                const placeholder = input.dataset.fillPlaceholder;
+                const value = input.value || "";
                 if (placeholder && value.trim()) {
                     answers[placeholder] = value;
                 }
@@ -486,6 +540,38 @@
         state.stopped = true;
         state.socket?.close();
     });
+
+    /*
+     * Заменяет метки [[N]] в тексте FILL_IN вопросов на поля ввода.
+     * Вызывается один раз при загрузке — все раунды уже в DOM (скрытые в том числе).
+     * Логика идентична renderInlineFillQuestions() из test-session.html.
+     */
+    function renderInlineFillQuestions() {
+        const placeholderPattern = /(\[\[\d+]])/g;
+        document.querySelectorAll(".fill-inline-question").forEach((block) => {
+            const body = block.querySelector(".fill-inline-body");
+            const bank = block.querySelector(".fill-inline-bank");
+            if (!body || !bank) return;
+            const source = block.dataset.fillBody || body.textContent || "";
+            const inputByPlaceholder = new Map();
+            bank.querySelectorAll("input[data-fill-placeholder]").forEach((input) => {
+                input.classList.add("fill-inline-input");
+                inputByPlaceholder.set(input.dataset.fillPlaceholder, input);
+            });
+            const parts = source.split(placeholderPattern);
+            body.textContent = "";
+            parts.forEach((part) => {
+                const input = inputByPlaceholder.get(part);
+                if (input) {
+                    body.appendChild(input);
+                } else if (part) {
+                    body.appendChild(document.createTextNode(part));
+                }
+            });
+        });
+    }
+
+    renderInlineFillQuestions();
 
     fetchRoom("initial").catch(() => {
         if (refs.form) {

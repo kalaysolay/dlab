@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import kz.damulab.ai.AiCallLogger;
 import kz.damulab.ai.AiMiniLectureResult;
 import kz.damulab.ai.AiProvider;
 import kz.damulab.ai.AiProviderProperties;
@@ -439,12 +440,18 @@ public class QuestionBankService {
         String correctAnswerKk = correctAnswerForLanguage(form, false);
         MiniLectureGenerationRequest aiRequest = toMiniLectureGenerationRequest(topic, form, correctAnswerRu, correctAnswerKk);
         log.info(
-                "composeMiniLectureDraft: type={}, subjectId={}, topicId={}, gradeIds={}",
+                "composeMiniLectureDraft: API /mini-lecture/generate — prompt=miniLecturePrompt, type={}, topicId={}, questionRu excerpt: {}",
                 form.getType(),
-                form.getSubjectId(),
                 topic.getId(),
-                form.getGradeIds()
+                AiCallLogger.excerpt(form.getBodyRu())
         );
+        if (!isBlank(form.getExplanationRu()) && isBlank(form.getMiniLectureRu())) {
+            log.info(
+                    "composeMiniLectureDraft: в форме уже есть explanationRu (legacy/AI-черновик), miniLectureRu пустой. "
+                            + "explanationRu excerpt: {}",
+                    AiCallLogger.excerpt(form.getExplanationRu())
+            );
+        }
         AiMiniLectureResult lecture = aiProvider.generateMiniLecture(aiRequest);
         log.info(
                 "composeMiniLectureDraft: ответ AI получен, длина HTML miniLectureRu={}, miniLectureKk={}",
@@ -879,8 +886,10 @@ public class QuestionBankService {
     private QuestionVersion buildVersion(Question question, int versionNo, QuestionForm form) {
         Subject subject = subjects.getReferenceById(form.getSubjectId());
         AtomicSkill skill = form.getAtomicSkillId() == null ? null : findSkill(form.getAtomicSkillId());
-        String studentFacingRu = coalesceStudentText(form.getMiniLectureRu(), form.getExplanationRu());
-        String studentFacingKk = coalesceStudentText(form.getMiniLectureKk(), form.getExplanationKk());
+        String miniLectureRu = trimToNull(form.getMiniLectureRu());
+        String miniLectureKk = trimToNull(form.getMiniLectureKk());
+        String explanationRu = trimToNull(form.getExplanationRu());
+        String explanationKk = trimToNull(form.getExplanationKk());
         return new QuestionVersion(
                 question,
                 versionNo,
@@ -890,10 +899,10 @@ public class QuestionBankService {
                 form.getDifficulty(),
                 form.getBodyRu().trim(),
                 form.getBodyKk().trim(),
-                studentFacingRu,
-                studentFacingKk,
-                studentFacingRu,
-                studentFacingKk,
+                explanationRu,
+                explanationKk,
+                miniLectureRu,
+                miniLectureKk,
                 form.getSource().trim(),
                 optionsJson(form),
                 answerKeyJson(form)

@@ -43,16 +43,25 @@ public class AiProviderRouter implements AiProvider {
         boolean openAiKey = properties.getOpenai().getApiKey() != null
                 && !properties.getOpenai().getApiKey().isBlank();
         log.info(
-                "damulab.ai binding: provider={} realProvidersEnabled={} openaiApiKeyConfigured={}",
+                "damulab.ai binding: provider={} realProvidersEnabled={} openaiApiKeyConfigured={} "
+                        + "openaiModel={} miniLectureOpenAiModel={} deepseekModel={} miniLectureDeepSeekModel={}",
                 provider.isEmpty() ? "(empty)" : provider,
                 properties.isRealProvidersEnabled(),
-                openAiKey
+                openAiKey,
+                properties.getOpenai().getModel(),
+                properties.resolvedMiniLectureOpenAiModel(),
+                properties.getDeepseek().getModel(),
+                properties.resolvedMiniLectureDeepSeekModel()
         );
     }
 
     @Override
     public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request) {
         String provider = normalize(properties.getProvider());
+        log.info(
+                "AiProviderRouter: generateQuestions provider='{}' (prompt=questionGenerationPrompt, поле explanationRu — НЕ мини-лекция)",
+                provider.isEmpty() ? "(empty)" : provider
+        );
         if ("stub".equals(provider)) {
             return stub.generateQuestions(request);
         }
@@ -80,10 +89,9 @@ public class AiProviderRouter implements AiProvider {
         String provider = normalize(properties.getProvider());
         boolean realOn = properties.isRealProvidersEnabled();
         log.info(
-                "Мини-лекция [AiProviderRouter]: provider='{}', realProvidersEnabled={}, fallback='{}'",
+                "AiProviderRouter: generateMiniLecture provider='{}' resolvedOpenAiModel='{}' (prompt=miniLecturePrompt + quality validator)",
                 provider.isEmpty() ? "(пусто)" : provider,
-                realOn,
-                normalize(properties.getFallbackProvider())
+                properties.resolvedMiniLectureOpenAiModel()
         );
         if ("stub".equals(provider)) {
             log.warn(

@@ -52,16 +52,22 @@ class AiContentFactoryIntegrationTest {
     void adminCanCreateAiQuestionGenerationJob() throws Exception {
         Long topicId = createTopic("ai-job-topic-");
 
-        mockMvc.perform(post("/api/admin/ai/questions/generate")
+        // POST возвращает job в статусе pending (async) — проверяем Location и ждём терминального статуса
+        String created = mockMvc.perform(post("/api/admin/ai/questions/generate")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(generationBody(topicId, "Make a life case")))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/api/admin/ai/jobs/")))
-                .andExpect(jsonPath("$.status").value("succeeded"))
-                .andExpect(jsonPath("$.providerName").value("stub"))
-                .andExpect(jsonPath("$.items[0].reviewStatus").value("pending"));
+                .andReturn().getResponse().getContentAsString();
+
+        Long jobId = objectMapper.readTree(created).get("id").asLong();
+        JsonNode finished = awaitTerminalStatus(jobId);
+
+        org.assertj.core.api.Assertions.assertThat(finished.get("status").asText()).isEqualTo("succeeded");
+        org.assertj.core.api.Assertions.assertThat(finished.get("providerName").asText()).isEqualTo("stub");
+        org.assertj.core.api.Assertions.assertThat(finished.get("items").get(0).get("reviewStatus").asText()).isEqualTo("pending");
     }
 
     @Test
@@ -73,12 +79,16 @@ class AiContentFactoryIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(failed.get("status").asText()).isEqualTo("failed");
         org.assertj.core.api.Assertions.assertThat(failed.get("errorCode").asText()).isEqualTo("stub_provider_failure");
 
+        // retry возвращает running немедленно — ждём терминального статуса
         mockMvc.perform(post("/api/admin/ai/jobs/{jobId}/retry", jobId)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("failed"))
                 .andExpect(jsonPath("$.retryCount").value(1));
+
+        JsonNode afterRetry = awaitTerminalStatus(jobId);
+        org.assertj.core.api.Assertions.assertThat(afterRetry.get("status").asText()).isEqualTo("failed");
+        org.assertj.core.api.Assertions.assertThat(afterRetry.get("retryCount").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -162,7 +172,7 @@ class AiContentFactoryIntegrationTest {
     }
 
     private JsonNode performGeneration(Long topicId, String questionType, String instruction) throws Exception {
-        return objectMapper.readTree(mockMvc.perform(post("/api/admin/ai/questions/generate")
+        String created = mockMvc.perform(post("/api/admin/ai/questions/generate")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -170,7 +180,29 @@ class AiContentFactoryIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
-                .getContentAsString());
+                .getContentAsString();
+        Long jobId = objectMapper.readTree(created).get("id").asLong();
+        return awaitTerminalStatus(jobId);
+    }
+
+    /**
+     * Опрашивает GET /api/admin/ai/jobs/{id} до достижения терминального статуса (succeeded | failed).
+     * Используется в тестах вместо прямого ожидания завершения @Async-задачи.
+     */
+    private JsonNode awaitTerminalStatus(Long jobId) throws Exception {
+        for (int i = 0; i < 50; i++) {
+            String body = mockMvc.perform(get("/api/admin/ai/jobs/{jobId}", jobId)
+                            .with(user("admin@damulab.kz").roles("ADMIN")))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            JsonNode job = objectMapper.readTree(body);
+            String status = job.get("status").asText();
+            if (!status.equals("pending") && !status.equals("running")) {
+                return job;
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError("AI job " + jobId + " не перешёл в терминальный статус за 5 секунд");
     }
 
     private String generationBody(Long topicId, String instruction) {

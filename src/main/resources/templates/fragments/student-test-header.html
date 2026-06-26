@@ -5,6 +5,8 @@
     <div class="student-test-header-inner">
         <a class="student-test-back" th:href="@{/student/tests}">← К выбору теста</a>
     </div>
+    <!-- pwa.js регистрирует service worker; нужен на всех страницах ученика для PWA installability -->
+    <script th:src="@{/js/pwa.js}" defer></script>
 </header>
 </body>
 </html>

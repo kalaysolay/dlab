@@ -43,6 +43,11 @@ public class PageController {
         return "auth/register";
     }
 
+    @GetMapping("/access-denied")
+    String accessDenied() {
+        return "error/access-denied";
+    }
+
     @GetMapping("/dashboard")
     String dashboard(Authentication authentication) {
         if (authentication == null) {

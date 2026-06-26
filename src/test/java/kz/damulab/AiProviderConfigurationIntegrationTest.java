@@ -2,12 +2,14 @@ package kz.damulab;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.SubjectRepository;
 
@@ -37,11 +39,15 @@ class AiProviderConfigurationIntegrationTest {
     @Autowired
     private GradeRepository grades;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
     void realProviderCallsAreBlockedWhenFeatureFlagIsOff() throws Exception {
         Long topicId = createTopic("ai-provider-disabled-topic-");
 
-        mockMvc.perform(post("/api/admin/ai/questions/generate")
+        // POST возвращает pending; provider заблокирован feature flag — ждём failed
+        String created = mockMvc.perform(post("/api/admin/ai/questions/generate")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,8 +62,29 @@ class AiProviderConfigurationIntegrationTest {
                                 }
                                 """.formatted(topicId)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("failed"))
-                .andExpect(jsonPath("$.errorCode").value("ai_provider_disabled"));
+                .andReturn().getResponse().getContentAsString();
+
+        Long jobId = objectMapper.readTree(created).get("id").asLong();
+        JsonNode finished = awaitTerminalStatus(jobId);
+
+        org.assertj.core.api.Assertions.assertThat(finished.get("status").asText()).isEqualTo("failed");
+        org.assertj.core.api.Assertions.assertThat(finished.get("errorCode").asText()).isEqualTo("ai_provider_disabled");
+    }
+
+    private JsonNode awaitTerminalStatus(Long jobId) throws Exception {
+        for (int i = 0; i < 50; i++) {
+            String body = mockMvc.perform(get("/api/admin/ai/jobs/{jobId}", jobId)
+                            .with(user("admin@damulab.kz").roles("ADMIN")))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            JsonNode job = objectMapper.readTree(body);
+            String status = job.get("status").asText();
+            if (!status.equals("pending") && !status.equals("running")) {
+                return job;
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError("AI job " + jobId + " не перешёл в терминальный статус за 5 секунд");
     }
 
     private Long createTopic(String prefix) throws Exception {

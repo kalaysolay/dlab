@@ -2592,17 +2592,12 @@ a:hover {
     padding: 30px 0 18px;
 }
 
-.hero::after {
-    content: "";
-    display: block;
+/* ::after удалён — иллюстрация hero теперь inline SVG в index.html */
+.hero-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 320px;
-    border: 1px solid rgba(199, 210, 254, 0.85);
-    border-radius: 28px;
-    background:
-        radial-gradient(circle at 24% 26%, #e0e7ff 0 52px, transparent 54px),
-        radial-gradient(circle at 78% 22%, #d1fae5 0 46px, transparent 48px),
-        linear-gradient(145deg, #ffffff 0%, #eef2ff 50%, #ecfeff 100%);
-    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.10);
 }
 
 .hero h1,
@@ -4474,10 +4469,6 @@ h2 {
         grid-template-columns: 1fr;
     }
 
-    .hero::after {
-        min-height: 220px;
-    }
-
     .admin-layout {
         grid-template-columns: 1fr;
     }
@@ -4638,10 +4629,6 @@ h2 {
 
     .page-title {
         font-size: clamp(1.35rem, 7vw, 1.8rem);
-    }
-
-    .hero::after {
-        min-height: 180px;
     }
 
     .filter-bar {
@@ -5631,6 +5618,14 @@ h2 {
     font-size: 0.8rem;
 }
 
+.access-denied-page .actions {
+    margin-top: 20px;
+}
+
+.access-denied-page .auth-panel .muted-line + .muted-line {
+    margin-top: 12px;
+}
+
 .parent-page,
 .parent-detail-page,
 .parent-profile-page {
@@ -6076,4 +6071,152 @@ h2 {
     .modal-card.achievements-dialog .achievement-java-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* ===== PWA: Install banner (только мобильные) ===== */
+
+/*
+ * Баннер установки PWA. На десктопе скрыт всегда (даже если JS ошибся).
+ * На мобильных — fixed внизу экрана, не внутри topbar (клики и вёрстка).
+ */
+.pwa-install-banner[hidden] {
+    display: none !important;
+}
+
+/* На десктопе баннер не показываем никогда */
+@media (min-width: 901px) {
+    .pwa-install-banner {
+        display: none !important;
+    }
+}
+
+.pwa-install-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: #e8f0fe;
+    border-top: 1px solid #c2d4f8;
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.12);
+    pointer-events: auto;
+    display: none;
+}
+
+.pwa-install-banner.is-visible:not([hidden]) {
+    display: block;
+    animation: pwa-banner-slide-up 0.25s ease;
+}
+
+.pwa-install-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 720px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+}
+
+@keyframes pwa-banner-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.pwa-install-banner-text {
+    flex: 1 1 180px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1e40af;
+    line-height: 1.35;
+}
+
+.pwa-install-btn {
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.pwa-install-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px 12px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.25rem;
+    color: #6b7280;
+    line-height: 1;
+    border-radius: 8px;
+    flex-shrink: 0;
+    pointer-events: auto;
+    touch-action: manipulation;
+}
+
+.pwa-install-dismiss:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #374151;
+}
+
+/* Обёртка шапки: topbar + баннер (баннер fixed, не влияет на высоту) */
+.site-header {
+    display: block;
+}
+
+/* ===== PWA: Push subscribe section (profile page) ===== */
+
+.push-subscribe-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.push-subscribe-hint {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+#pwa-push-subscribe-btn {
+    align-self: flex-start;
+}
+
+#pwa-push-subscribe-btn.is-subscribed {
+    background: #d1fae5;
+    color: #065f46;
+    border-color: #6ee7b7;
+}
+
+/* ===== AI generation: inline progress indicator ===== */
+
+.ai-gen-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-top: 20px;
+}
+
+.ai-gen-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--line);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: aiGenSpin 0.75s linear infinite;
+}
+
+@keyframes aiGenSpin {
+    to { transform: rotate(360deg); }
+}
+
+.ai-gen-progress-text {
+    font-size: 0.92rem;
+    color: var(--muted);
 }

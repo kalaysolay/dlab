@@ -44,7 +44,7 @@ $env:SERVER_PORT="18080"
 
 ## Stage Documentation
 
-- `docs/AUTH_AND_PROFILE_API.md` - stage 1 auth/profile endpoints.
+- `docs/DEPLOY_HTTPS.md` - production HTTPS (Let's Encrypt), nginx и проверка PWA.
 - `docs/PARENT_LINK_API.md` - stage 2 parent-child linking endpoints and rules.
 - `docs/PWA_BASELINE.md` - minimal PWA assets and verification scope.
 - `docs/CONTENT_GRAPH_API.md` - stage 3 content graph endpoints and admin UI.

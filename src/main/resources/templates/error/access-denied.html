@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="#{error.accessDenied.title}">Нет доступа</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/header :: header}"></header>
+    <main class="page auth-grid access-denied-page">
+        <section class="auth-copy">
+            <span class="badge warning" th:text="#{error.accessDenied.badge}">403</span>
+            <h1 class="page-title" th:text="#{error.accessDenied.heading}">Этот раздел недоступен</h1>
+            <p class="lede" th:text="#{error.accessDenied.lede}">
+                Вы вошли под другой ролью. Кабинет родителя открывается только для аккаунта родителя.
+            </p>
+        </section>
+        <section class="panel auth-panel">
+            <h2 class="section-title" th:text="#{error.accessDenied.panelTitle}">Куда перейти</h2>
+            <p class="muted-line" th:text="#{error.accessDenied.panelBody}">
+                Вернитесь в свой кабинет или на главную страницу.
+            </p>
+            <div class="actions">
+                <a class="button primary" th:href="@{/dashboard}" th:text="#{error.accessDenied.toDashboard}">В мой кабинет</a>
+                <a class="button" th:href="@{/}" th:text="#{error.accessDenied.toHome}">На главную</a>
+            </div>
+            <p class="muted-line" sec:authorize="hasRole('ADMIN')" th:text="#{error.accessDenied.hintAdmin}">
+                Вы вошли как администратор. Раздел «Родителю» предназначен для семейных аккаунтов.
+            </p>
+            <p class="muted-line" sec:authorize="hasRole('STUDENT')" th:text="#{error.accessDenied.hintStudent}">
+                Вы вошли как ученик. Попросите родителя зарегистрироваться и связать профили.
+            </p>
+            <p class="muted-line" sec:authorize="hasRole('PARENT')" th:text="#{error.accessDenied.hintParent}">
+                Если вы родитель, попробуйте обновить страницу или войти заново.
+            </p>
+        </section>
+    </main>
+</div>
+</body>
+</html>

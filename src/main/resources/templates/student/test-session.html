@@ -153,6 +153,15 @@
         return checked || selected || hiddenMatched || filled;
     };
 
+    const isAllAnswered = () => questionPanels.every(isPanelAnswered);
+
+    const updateNavButtons = () => {
+        prevButton.disabled = currentIndex === 0;
+        const onLastQuestion = currentIndex === questionPanels.length - 1;
+        // На последнем вопросе «Следующий» активен только когда отвечено на всё — тогда открывает диалог завершения.
+        nextButton.disabled = onLastQuestion && !isAllAnswered();
+    };
+
     const updateAnswered = () => {
         const answered = questionPanels.filter(isPanelAnswered).length;
         document.getElementById("answeredCount").textContent = String(answered);
@@ -161,6 +170,7 @@
             link.classList.toggle("answered", isPanelAnswered(questionPanels[index]));
             link.classList.toggle("active", index === currentIndex);
         });
+        updateNavButtons();
     };
 
     const createSvgLine = (x1, y1, x2, y2, stroke, width) => {
@@ -316,8 +326,6 @@
         questionPanels.forEach((panel, panelIndex) => {
             panel.hidden = panelIndex !== currentIndex;
         });
-        prevButton.disabled = currentIndex === 0;
-        nextButton.disabled = currentIndex === questionPanels.length - 1;
         updateAnswered();
         matchingControllers.forEach((controller) => controller.draw());
         questionPanels[currentIndex].scrollIntoView({ behavior: "smooth", block: "start" });
@@ -348,7 +356,13 @@
         link.addEventListener("click", () => showQuestion(index));
     });
     prevButton.addEventListener("click", () => showQuestion(currentIndex - 1));
-    nextButton.addEventListener("click", () => showQuestion(currentIndex + 1));
+    nextButton.addEventListener("click", () => {
+        if (currentIndex === questionPanels.length - 1 && isAllAnswered()) {
+            openSessionModal(finishModal);
+            return;
+        }
+        showQuestion(currentIndex + 1);
+    });
     openFinishModal.addEventListener("click", () => openSessionModal(finishModal));
     openExitModal.addEventListener("click", () => openSessionModal(exitModal));
 
