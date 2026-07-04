@@ -29,7 +29,7 @@
             <form class="form wide-form" th:action="@{/login}" method="post">
                 <div class="field">
                     <label for="username" th:text="#{login.email}">Email</label>
-                    <input id="username" name="username" type="email" autocomplete="username" required>
+                    <input id="username" name="username" type="email" autocomplete="username webauthn" required>
                 </div>
                 <div class="field">
                     <label for="password" th:text="#{login.password}">Пароль</label>
@@ -37,6 +37,11 @@
                 </div>
                 <button class="button primary" type="submit" th:text="#{login.submit}">Войти</button>
             </form>
+            <div class="auth-divider" aria-hidden="true"><span>или</span></div>
+            <button id="passkey-login-button" class="button passkey-button" type="button">
+                Войти по отпечатку / Passkey
+            </button>
+            <p id="passkey-login-status" class="muted-line passkey-status" aria-live="polite"></p>
             <!-- Подсказка с demo-паролями отключена перед прод-деплоем
             <p class="muted-line" th:text="#{login.demoHint}">
                 Demo: admin@damulab.kz / student@damulab.kz / parent@damulab.kz, пароль password.
@@ -45,5 +50,6 @@
         </section>
     </main>
 </div>
+<script th:src="@{/js/passkeys.js}" defer></script>
 </body>
 </html>

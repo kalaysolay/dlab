@@ -8,5 +8,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     Optional<AppUser> findByEmailIgnoreCase(String email);
 
+    Optional<AppUser> findByWebAuthnUserHandle(byte[] webAuthnUserHandle);
+
     boolean existsByEmailIgnoreCase(String email);
 }

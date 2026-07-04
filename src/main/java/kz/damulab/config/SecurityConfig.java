@@ -38,6 +38,7 @@ public class SecurityConfig {
                                 "/offline"
                         ).permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/passkeys/login/options", "/api/passkeys/login").permitAll()
                         // Web Push: сохранение подписки браузера; только аутентифицированный STUDENT
                         .requestMatchers("/api/push/subscribe").hasRole("STUDENT")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -51,7 +52,7 @@ public class SecurityConfig {
                         .requestMatchers("/parent/**").hasRole("PARENT")
                         .anyRequest().authenticated()
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**", "/api/push/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**", "/api/passkeys/**", "/api/push/**"))
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler((request, response, authentication) ->

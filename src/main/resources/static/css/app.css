@@ -2305,6 +2305,36 @@ a:hover {
     text-decoration: none;
 }
 
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+}
+
+.passkey-button {
+    width: 100%;
+}
+
+.passkey-status {
+    min-height: 1.25rem;
+}
+
+.passkey-status.error {
+    color: #b91c1c;
+}
+
 .app-shell {
     width: min(1180px, calc(100% - 32px));
     min-height: calc(100vh - 32px);

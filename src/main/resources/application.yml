@@ -51,6 +51,10 @@ damulab:
     subject: ${VAPID_SUBJECT:mailto:admin@damulab.kz}
     # Интервал опроса очереди push-уведомлений (мс)
     worker-delay-ms: 60000
+  passkeys:
+    rp-id: ${WEBAUTHN_RP_ID:localhost}
+    rp-name: ${WEBAUTHN_RP_NAME:Damulab.kz}
+    allowed-origins: ${WEBAUTHN_ALLOWED_ORIGINS:http://localhost:8080}
   # Базовые значения; профиль local переопределяет в application-local.yml (openai + real по умолчанию).
   # Если real=false: провайдер openai не вызывается (кроме тестов со своими overrides).
   ai:

@@ -68,6 +68,16 @@
                         </button>
                     </div>
                 </fieldset>
+                <fieldset class="subpanel passkey-settings">
+                    <legend>Вход по отпечатку / Passkey</legend>
+                    <p class="muted-line">
+                        Привяжите это устройство, чтобы входить без пароля через отпечаток, Face ID или PIN.
+                    </p>
+                    <button id="passkey-register-button" class="button passkey-button" type="button">
+                        Привязать устройство
+                    </button>
+                    <p id="passkey-register-status" class="muted-line passkey-status" aria-live="polite"></p>
+                </fieldset>
                 <button class="button primary" type="submit">Сохранить</button>
             </form>
         </section>
@@ -90,5 +100,6 @@
         </aside>
     </main>
 </div>
+<script th:src="@{/js/passkeys.js}" defer></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 package kz.damulab.users;
 
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -40,6 +41,9 @@ public class AppUser {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
+
+    @Column(name = "webauthn_user_handle", unique = true)
+    private byte[] webAuthnUserHandle;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -90,6 +94,16 @@ public class AppUser {
 
     public Set<Role> getRoles() {
         return roles;
+    }
+
+    public byte[] getWebAuthnUserHandle() {
+        return webAuthnUserHandle == null ? null : Arrays.copyOf(webAuthnUserHandle, webAuthnUserHandle.length);
+    }
+
+    public void setWebAuthnUserHandle(byte[] webAuthnUserHandle) {
+        this.webAuthnUserHandle = webAuthnUserHandle == null
+                ? null
+                : Arrays.copyOf(webAuthnUserHandle, webAuthnUserHandle.length);
     }
 
     public void addRole(Role role) {
