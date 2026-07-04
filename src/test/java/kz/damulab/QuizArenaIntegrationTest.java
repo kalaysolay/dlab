@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -185,7 +186,16 @@ class QuizArenaIntegrationTest {
                         .with(user(HOST).roles("STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("student/quiz-hub"))
+                .andExpect(model().attributeExists("quizSetupCatalog"))
                 .andExpect(content().string(containsString("Quiz Arena")));
+
+        mockMvc.perform(get("/student/quiz")
+                        .param("lang", "kk")
+                        .with(user(HOST).roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-quiz-setup-form")))
+                .andExpect(content().string(containsString("data-default-language=\"kk\"")))
+                .andExpect(content().string(containsString("school_subject")));
 
         String location = mockMvc.perform(post("/student/quiz/rooms")
                         .with(user(HOST).roles("STUDENT"))

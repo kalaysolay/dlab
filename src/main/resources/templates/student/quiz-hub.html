@@ -38,30 +38,58 @@
         </section>
 
         <section class="quiz-workbench">
-            <article class="panel">
+            <article class="panel quiz-setup-panel">
                 <h2 class="section-title">Создать комнату</h2>
-                <form class="form wide-form" th:action="@{/student/quiz/rooms}" th:object="${createQuizRoomRequest}" method="post">
+                <p class="muted-line">Сейчас доступны школьные предметы. Позже здесь появятся готовые шаблоны: слова, познавательные темы и другие наборы.</p>
+                <div class="notice" th:if="${quizSetupCatalog.subjects().isEmpty()}">
+                    <strong>Пока нет доступных викторин</strong>
+                    <span>Опубликуйте вопросы в банке вопросов, и они появятся в мастере создания комнаты.</span>
+                </div>
+                <form class="form wide-form quiz-setup-form"
+                      th:if="${!quizSetupCatalog.subjects().isEmpty()}"
+                      th:action="@{/student/quiz/rooms}"
+                      th:object="${createQuizRoomRequest}"
+                      method="post"
+                      data-quiz-setup-form
+                      th:attr="data-default-language=${defaultQuizLanguage}">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                    <div class="form-grid two-col">
-                        <label class="field">
-                            <span>Предмет</span>
-                            <select th:field="*{subjectId}">
-                                <option th:each="subject : ${subjects}" th:value="${subject.id}" th:text="${subject.titleRu}">Математика</option>
+                    <input type="hidden" name="sourceType" th:value="${quizSetupCatalog.sourceType()}">
+                    <div class="quiz-setup-steps">
+                        <label class="field quiz-setup-step">
+                            <span class="quiz-step-index">1</span>
+                            <span>
+                                <strong>Выберите предмет</strong>
+                                <small>Показываем только предметы с опубликованными вопросами.</small>
+                            </span>
+                            <select id="quizSubjectSelect" name="subjectId" th:field="*{subjectId}">
+                                <option th:each="subject : ${quizSetupCatalog.subjects()}"
+                                        th:value="${subject.id()}"
+                                        th:attr="data-title-ru=${subject.titleRu()},data-title-kk=${subject.titleKk()},data-question-count=${subject.questionCount()}"
+                                        th:text="${#locale.language == 'kk' ? subject.titleKk() : subject.titleRu()}">Математика</option>
                             </select>
                         </label>
-                        <label class="field">
-                            <span>Класс</span>
-                            <select th:field="*{gradeId}">
-                                <option th:each="grade : ${grades}" th:value="${grade.id}" th:text="${grade.titleRu}">4 класс</option>
-                            </select>
+                        <label class="field quiz-setup-step">
+                            <span class="quiz-step-index">2</span>
+                            <span>
+                                <strong>Выберите класс</strong>
+                                <small>Классы зависят от выбранного предмета.</small>
+                            </span>
+                            <select id="quizGradeSelect" name="gradeId" th:attr="data-selected=${createQuizRoomRequest.gradeId}"></select>
                         </label>
-                        <label class="field">
-                            <span>Язык</span>
-                            <select th:field="*{language}">
+                        <label class="field quiz-setup-step">
+                            <span class="quiz-step-index">3</span>
+                            <span>
+                                <strong>Язык обучения</strong>
+                                <small>По умолчанию выбран текущий язык сайта.</small>
+                            </span>
+                            <select id="quizLanguageSelect" th:field="*{language}">
                                 <option value="ru">Русский</option>
                                 <option value="kk">Қазақша</option>
                             </select>
                         </label>
+                    </div>
+                    <p class="notice quiz-setup-summary" data-quiz-setup-summary></p>
+                    <div class="form-grid two-col quiz-setup-options">
                         <label class="field">
                             <span>Сложность</span>
                             <select th:field="*{difficulty}">
@@ -109,5 +137,63 @@
         </section>
     </main>
 </div>
+<script th:inline="javascript">
+    (() => {
+        const form = document.querySelector("[data-quiz-setup-form]");
+        if (!form) {
+            return;
+        }
+        const catalog = /*[[${quizSetupCatalog}]]*/ {"subjects":[]};
+        const locale = form.dataset.defaultLanguage === "kk" ? "kk" : "ru";
+        const subjectSelect = form.querySelector("[name='subjectId']");
+        const gradeSelect = form.querySelector("[name='gradeId']");
+        const languageSelect = form.querySelector("[name='language']");
+        const summary = document.querySelector("[data-quiz-setup-summary]");
+
+        if (languageSelect && !languageSelect.value) {
+            languageSelect.value = form.dataset.defaultLanguage || "ru";
+        }
+
+        function title(item) {
+            return locale === "kk" && item.titleKk ? item.titleKk : item.titleRu;
+        }
+
+        function selectedSubject() {
+            return (catalog.subjects || []).find((subject) => String(subject.id) === subjectSelect.value);
+        }
+
+        function renderGrades() {
+            const subject = selectedSubject();
+            const previous = gradeSelect.value || gradeSelect.dataset.selected || "";
+            gradeSelect.replaceChildren();
+            (subject?.grades || []).forEach((grade) => {
+                const option = document.createElement("option");
+                option.value = grade.id;
+                option.textContent = title(grade);
+                option.dataset.questionCount = grade.questionCount;
+                gradeSelect.appendChild(option);
+            });
+            if ([...gradeSelect.options].some((option) => option.value === previous)) {
+                gradeSelect.value = previous;
+            }
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const subject = selectedSubject();
+            const grade = (subject?.grades || []).find((item) => String(item.id) === gradeSelect.value);
+            if (!summary || !subject || !grade) {
+                return;
+            }
+            const language = languageSelect?.value === "kk" ? "казахском" : "русском";
+            summary.textContent = `${title(subject)}, ${title(grade)}: доступно ${grade.questionCount} вопросов. Комната будет на ${language} языке.`;
+        }
+
+        subjectSelect.addEventListener("change", renderGrades);
+        gradeSelect.addEventListener("change", updateSummary);
+        languageSelect?.addEventListener("change", updateSummary);
+        renderGrades();
+    })();
+</script>
 </body>
 </html>

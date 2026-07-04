@@ -9,13 +9,13 @@
     <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body>
+<body th:classappend="${room.status == 'active'} ? ' quiz-active-body' : ''">
 <div class="app-shell">
     <header th:replace="~{fragments/student-header :: studentHeader}"></header>
     <main class="page quiz-room-page"
           data-quiz-room
           th:attr="data-room-code=${room.code},data-room-status=${room.status},data-api-url=@{/api/quiz/rooms/{code}(code=${room.code})},data-results-url=@{/student/quiz/rooms/{code}/results(code=${room.code})},data-ws-url=@{/ws/quiz}">
-        <section class="panel quiz-room-head">
+        <section class="panel quiz-room-head" th:if="${room.status != 'active'}">
             <div>
                 <span class="section-kicker">Комната <strong th:text="${room.code}">QZ7K2M</strong></span>
                 <h1 class="page-title">
@@ -35,7 +35,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" th:if="${room.status != 'active'}">
             <div class="page-head compact-head">
                 <h2 class="section-title">Участники</h2>
                 <span class="muted-line">До старта все игроки должны подтвердить готовность</span>
@@ -84,7 +84,7 @@
             </div>
         </section>
 
-        <form th:if="${room.status == 'active'}" th:action="@{/student/quiz/rooms/{code}/answers(code=${room.code})}" method="post" id="quizForm">
+        <form class="quiz-active-game" th:if="${room.status == 'active'}" th:action="@{/student/quiz/rooms/{code}/answers(code=${room.code})}" method="post" id="quizForm">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <section class="panel quiz-progress-panel">
                 <div class="test-nav quiz-round-nav" id="quizRoundNav">
@@ -156,7 +156,7 @@
 
             </section>
 
-            <section class="panel">
+            <section class="panel quiz-submit-panel">
                 <p class="notice quiz-submit-status" id="quizSubmitStatus" hidden></p>
                 <div class="actions">
                     <button class="button primary" type="submit" id="quizSubmitButton">Отправить ответ</button>

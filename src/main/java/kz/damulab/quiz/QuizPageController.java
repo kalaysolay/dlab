@@ -4,6 +4,7 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,38 +19,27 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import kz.damulab.content.GradeRepository;
-import kz.damulab.content.SubjectRepository;
 import kz.damulab.testing.TestType;
 
 @Controller
 public class QuizPageController {
 
     private final QuizService quizService;
-    private final SubjectRepository subjects;
-    private final GradeRepository grades;
 
-    public QuizPageController(
-            QuizService quizService,
-            SubjectRepository subjects,
-            GradeRepository grades
-    ) {
+    public QuizPageController(QuizService quizService) {
         this.quizService = quizService;
-        this.subjects = subjects;
-        this.grades = grades;
     }
 
     @GetMapping("/student/quiz")
-    String hub(Model model) {
-        populateHub(model);
+    String hub(Model model, Locale locale) {
+        populateHub(model, locale);
         if (!model.containsAttribute("createQuizRoomRequest")) {
             CreateQuizRoomRequest form = new CreateQuizRoomRequest();
-            subjects.findAllByOrderByTitleRuAsc().stream().findFirst().ifPresent(subject -> form.setSubjectId(subject.getId()));
-            grades.findAllByOrderByGradeNoAsc().stream()
-                    .filter(grade -> Integer.valueOf(4).equals(grade.getGradeNo()))
-                    .findFirst()
-                    .or(() -> grades.findAllByOrderByGradeNoAsc().stream().findFirst())
-                    .ifPresent(grade -> form.setGradeId(grade.getId()));
+            form.setLanguage(defaultLanguage(locale));
+            defaultSchoolSubject(model).ifPresent(subject -> {
+                form.setSubjectId(subject.id());
+                subject.grades().stream().findFirst().ifPresent(grade -> form.setGradeId(grade.id()));
+            });
             model.addAttribute("createQuizRoomRequest", form);
         }
         return "student/quiz-hub";
@@ -60,30 +50,31 @@ public class QuizPageController {
             Principal principal,
             @Valid @ModelAttribute("createQuizRoomRequest") CreateQuizRoomRequest form,
             BindingResult bindingResult,
-            Model model
+            Model model,
+            Locale locale
     ) {
         if (bindingResult.hasErrors()) {
-            populateHub(model);
+            populateHub(model, locale);
             return "student/quiz-hub";
         }
         try {
             QuizRoomResponse room = quizService.createRoom(principal.getName(), form);
             return "redirect:/student/quiz/rooms/" + room.code();
         } catch (QuizException ex) {
-            populateHub(model);
+            populateHub(model, locale);
             model.addAttribute("error", ex.getMessage());
             return "student/quiz-hub";
         }
     }
 
     @PostMapping("/student/quiz/rooms/join")
-    String joinFromHub(Principal principal, HttpServletRequest request, Model model) {
+    String joinFromHub(Principal principal, HttpServletRequest request, Model model, Locale locale) {
         String code = request.getParameter("code");
         try {
             QuizRoomResponse room = quizService.join(code, principal.getName());
             return "redirect:/student/quiz/rooms/" + room.code();
         } catch (QuizException ex) {
-            populateHub(model);
+            populateHub(model, locale);
             model.addAttribute("error", ex.getMessage());
             model.addAttribute("joinCode", code);
             return "student/quiz-hub";
@@ -130,10 +121,19 @@ public class QuizPageController {
         return "student/quiz-results";
     }
 
-    private void populateHub(Model model) {
-        model.addAttribute("subjects", subjects.findAllByOrderByTitleRuAsc());
-        model.addAttribute("grades", grades.findAllByOrderByGradeNoAsc());
+    private void populateHub(Model model, Locale locale) {
+        model.addAttribute("quizSetupCatalog", quizService.setupCatalog());
+        model.addAttribute("defaultQuizLanguage", defaultLanguage(locale));
         model.addAttribute("testTypes", Arrays.stream(TestType.values()).toList());
+    }
+
+    private java.util.Optional<QuizSetupSubjectOption> defaultSchoolSubject(Model model) {
+        QuizSetupCatalog catalog = (QuizSetupCatalog) model.asMap().get("quizSetupCatalog");
+        return catalog == null ? java.util.Optional.empty() : catalog.subjects().stream().findFirst();
+    }
+
+    private String defaultLanguage(Locale locale) {
+        return locale != null && "kk".equals(locale.getLanguage()) ? "kk" : "ru";
     }
 
     private JsonNode answerFromRequest(QuizRoundResponse round, HttpServletRequest request) {

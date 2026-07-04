@@ -279,6 +279,50 @@ public class QuizService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public QuizSetupCatalog setupCatalog() {
+        Map<Long, Subject> subjectById = new LinkedHashMap<>();
+        subjects.findAllByOrderByTitleRuAsc().forEach(subject -> subjectById.put(subject.getId(), subject));
+
+        Map<Long, Grade> gradeById = new LinkedHashMap<>();
+        grades.findAllByOrderByGradeNoAsc().forEach(grade -> gradeById.put(grade.getId(), grade));
+
+        Map<Long, Map<Long, Long>> countsBySubject = new LinkedHashMap<>();
+        for (Object[] row : questionVersions.countPublishedGroupedBySubjectAndGrade(1)) {
+            Long subjectId = ((Number) row[0]).longValue();
+            Long gradeId = ((Number) row[1]).longValue();
+            Long questionCount = ((Number) row[2]).longValue();
+            countsBySubject.computeIfAbsent(subjectId, ignored -> new LinkedHashMap<>()).put(gradeId, questionCount);
+        }
+
+        List<QuizSetupSubjectOption> subjectOptions = new ArrayList<>();
+        for (Subject subject : subjectById.values()) {
+            Map<Long, Long> gradeCounts = countsBySubject.getOrDefault(subject.getId(), Map.of());
+            List<QuizSetupGradeOption> gradeOptions = gradeById.values().stream()
+                    .filter(grade -> gradeCounts.containsKey(grade.getId()))
+                    .map(grade -> new QuizSetupGradeOption(
+                            grade.getId(),
+                            grade.getGradeNo(),
+                            grade.getTitleRu(),
+                            grade.getTitleKk(),
+                            gradeCounts.get(grade.getId())
+                    ))
+                    .toList();
+            if (!gradeOptions.isEmpty()) {
+                long questionCount = gradeOptions.stream().mapToLong(QuizSetupGradeOption::questionCount).sum();
+                subjectOptions.add(new QuizSetupSubjectOption(
+                        subject.getId(),
+                        subject.getCode(),
+                        subject.getTitleRu(),
+                        subject.getTitleKk(),
+                        questionCount,
+                        gradeOptions
+                ));
+            }
+        }
+        return new QuizSetupCatalog("school_subject", subjectOptions);
+    }
+
     public JsonNode choiceAnswer(List<String> selected) {
         return objectNode(Map.of("selected", selected));
     }
