@@ -14,12 +14,25 @@
         </a>
         <div class="student-header-actions">
             <span th:replace="~{fragments/language-switch :: languageSwitch}"></span>
-            <form class="student-logout" th:action="@{/logout}" method="post">
-                <button class="student-logout-button" type="submit">
-                    <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#log-out}"></use></svg>
-                    <span th:text="#{nav.logout}">Выход</span>
-                </button>
-            </form>
+            <!-- Аватар-кнопка объединяет Профиль и Выход в один компактный дропдаун.
+                 Класс is-profile-active подсвечивает кнопку, когда открыта страница профиля. -->
+            <details class="student-user-menu" th:classappend="${activeStudentNav == 'profile'} ? 'is-profile-active'">
+                <summary class="student-user-button" th:aria-label="#{student.nav.profile}">
+                    <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#user}"></use></svg>
+                </summary>
+                <div class="student-user-dropdown">
+                    <a class="student-user-dropdown-item" th:href="@{/student/profile}">
+                        <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#user}"></use></svg>
+                        <span th:text="#{student.nav.profile}">Профиль</span>
+                    </a>
+                    <form th:action="@{/logout}" method="post">
+                        <button class="student-user-dropdown-item" type="submit">
+                            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#log-out}"></use></svg>
+                            <span th:text="#{nav.logout}">Выход</span>
+                        </button>
+                    </form>
+                </div>
+            </details>
         </div>
     </div>
     <div id="toast-stack" class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
@@ -44,10 +57,6 @@
             <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#trophy}"></use></svg>
             <span th:text="#{student.nav.achievements}">Достижения</span>
         </button>
-        <a th:href="@{/student/profile}" th:classappend="${activeStudentNav == 'profile'} ? 'active'">
-            <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#user}"></use></svg>
-            <span th:text="#{student.nav.profile}">Профиль</span>
-        </a>
     </nav>
     <div id="achievements-modal" class="modal-layer" hidden>
         <div class="modal-backdrop" data-modal-close="achievements-modal"></div>
@@ -119,9 +128,21 @@
                     document.querySelectorAll(".modal-layer:not([hidden])").forEach((modal) => {
                         closeStudentModal(modal);
                     });
+                    document.querySelectorAll(".student-user-menu[open]").forEach((menu) => {
+                        menu.removeAttribute("open");
+                    });
                 }
             });
         })();
+
+        // Закрываем дропдаун профиля при клике вне него
+        document.addEventListener("click", (e) => {
+            document.querySelectorAll(".student-user-menu[open]").forEach((menu) => {
+                if (!menu.contains(e.target)) {
+                    menu.removeAttribute("open");
+                }
+            });
+        });
     </script>
     <div th:replace="~{fragments/pwa-install-banner :: pwaInstallBanner}"></div>
     <script th:src="@{/js/toast.js}"></script>

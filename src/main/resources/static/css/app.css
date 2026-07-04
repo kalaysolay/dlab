@@ -2483,36 +2483,96 @@ a:hover {
     min-width: 0;
 }
 
-.student-logout {
-    margin: 0;
+/* Аватар-кнопка с дропдауном «Профиль / Выйти» */
+.student-user-menu {
+    position: relative;
 }
 
-.student-logout-button {
+/* Убираем стандартный маркер details */
+.student-user-menu > summary {
+    list-style: none;
+}
+.student-user-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.student-user-button {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
+    min-width: 40px;
     min-height: 40px;
     border: 1px solid var(--line);
     border-radius: 14px;
     background: #fff;
     color: #475569;
-    padding: 0 12px;
-    font: inherit;
-    font-size: 0.78rem;
-    font-weight: 700;
+    padding: 0 10px;
     box-shadow: var(--soft-shadow);
     cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
-.student-logout-button:hover {
+.student-user-button:hover,
+.student-user-menu[open] .student-user-button {
     border-color: #c7d2fe;
     background: #eef2ff;
-    color: #3730a3;
+    color: #4338ca;
+}
+
+/* Активное состояние — пользователь находится на странице профиля */
+.student-user-menu.is-profile-active .student-user-button {
+    border-color: #c7d2fe;
+    background: #eef2ff;
+    color: #4338ca;
+}
+
+.student-user-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 100;
+    min-width: 160px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.student-user-dropdown form {
+    margin: 0;
+}
+
+.student-user-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #475569;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s, color 0.12s;
+}
+
+.student-user-dropdown-item:hover {
+    background: #eef2ff;
+    color: #4338ca;
 }
 
 .student-nav-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
     margin-top: 12px;
     border: 1px solid var(--line);
@@ -4531,13 +4591,16 @@ h2 {
         font-size: 0.72rem;
     }
 
-    .student-logout-button {
+    /* Аватар-кнопка на мобиле: чуть меньше, квадратная */
+    .student-user-button {
         min-height: 38px;
-        padding: 0 9px;
+        min-width: 38px;
+        padding: 0 8px;
     }
 
-    .student-logout-button span {
-        display: none;
+    /* Дропдаун на мобиле — прижимаем к правому краю экрана */
+    .student-user-dropdown {
+        right: -4px;
     }
 
     .student-nav-grid {
@@ -4546,12 +4609,13 @@ h2 {
         padding: 6px;
     }
 
+    /* С 5 пунктами вместо 6 можно позволить чуть крупнее font-size */
     .student-nav-grid a,
     .student-nav-grid button {
         min-height: 52px;
         border-radius: 13px;
         padding: 6px 2px;
-        font-size: 0.62rem;
+        font-size: 0.68rem;
     }
 
     .student-nav-grid .lucide-icon {
