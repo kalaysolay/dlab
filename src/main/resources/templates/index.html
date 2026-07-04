@@ -19,8 +19,7 @@
                     Базовый учебный цикл: контент, тест, результат, аналитика, родитель.
                 </p>
                 <div class="actions">
-                    <a class="button primary" th:href="@{/login}" th:text="#{home.hero.cta.start}">Начать бесплатно</a>
-                    <a class="button" th:href="@{/parent}" th:text="#{home.hero.cta.parent}">Как подключить ребенка</a>
+                    <a class="button primary" th:href="@{/login}" th:text="#{home.hero.cta.start}">Начать учиться</a>
                 </div>
             </div>
             <!-- Иллюстрация: абстрактный дашборд ученика. Inline SVG — без внешних зависимостей -->
@@ -85,48 +84,6 @@
             </a>
         </section>
 
-        <section id="why" class="feature-grid" th:aria-label="#{home.why.aria}" aria-label="Преимущества">
-            <article class="feature-card">
-                <span class="badge" th:text="#{home.why.plan.badge}">План</span>
-                <h3 th:text="#{home.why.plan.title}">Адаптивный план</h3>
-                <p th:text="#{home.why.plan.body}">Короткие учебные действия вокруг текущих пробелов, а не механическая гонка за тестами.</p>
-            </article>
-            <article class="feature-card">
-                <span class="badge" th:text="#{home.why.lang.badge}">RU / KK</span>
-                <h3 th:text="#{home.why.lang.title}">RU / KK</h3>
-                <p th:text="#{home.why.lang.body}">Интерфейс и учебный контент ведутся в двух языках с сохранением серверной валидации.</p>
-            </article>
-            <article class="feature-card">
-                <span class="badge" th:text="#{home.why.control.badge}">Контроль</span>
-                <h3 th:text="#{home.why.control.title}">Прозрачный контроль</h3>
-                <p th:text="#{home.why.control.body}">Методист управляет качеством вопросов, импортом, health-сигналами и публикацией.</p>
-            </article>
-        </section>
-
-        <section id="programs" class="program-band">
-            <div class="section-head">
-                <span class="badge" th:text="#{home.programs.badge}">Программы</span>
-                <h2 th:text="#{home.programs.title}">Треки подготовки</h2>
-            </div>
-            <div class="feature-grid">
-                <article class="feature-card">
-                    <span class="badge" th:text="#{home.programs.track1.badge}">СОР / СОЧ</span>
-                    <h3 th:text="#{home.programs.track1.title}">Школьная база</h3>
-                    <p th:text="#{home.programs.track1.body}">Теория, короткая практика, контроль и исправление слабых тем по текущей программе.</p>
-                </article>
-                <article class="feature-card">
-                    <span class="badge success" th:text="#{home.programs.track2.badge}">МОДО</span>
-                    <h3 th:text="#{home.programs.track2.title}">Готовность к проверке</h3>
-                    <p th:text="#{home.programs.track2.body}">Регулярные задания и понятная метрика готовности без перегруза ребенка.</p>
-                </article>
-                <article class="feature-card">
-                    <span class="badge warning" th:text="#{home.programs.track3.badge}">Спринт</span>
-                    <h3 th:text="#{home.programs.track3.title}">Перед контрольной</h3>
-                    <p th:text="#{home.programs.track3.body}">Короткий фокус на проблемных темах перед проверочными работами и итогами четверти.</p>
-                </article>
-            </div>
-        </section>
-
         <section id="flow" class="program-band public-flow">
             <div class="section-head">
                 <span class="badge" th:text="#{home.flow.badge}">Процесс</span>
@@ -152,24 +109,6 @@
             </div>
         </section>
 
-        <section id="reviews" class="feature-grid public-reviews" th:aria-label="#{home.reviews.aria}" aria-label="Отзывы родителей">
-            <article class="feature-card">
-                <span class="badge" th:text="#{home.reviews.badge}">Отзыв</span>
-                <p th:text="#{home.reviews.r1.body}">“Через месяц сын сам начал заходить в задания. Раньше приходилось уговаривать.”</p>
-                <h3 th:text="#{home.reviews.r1.author}">Алия, мама 4-классника</h3>
-            </article>
-            <article class="feature-card">
-                <span class="badge" th:text="#{home.reviews.badge}">Отзыв</span>
-                <p th:text="#{home.reviews.r2.body}">“Отчеты читаемые: видно, какая тема проседает и что делать дальше.”</p>
-                <h3 th:text="#{home.reviews.r2.author}">Руслан, отец 5-классницы</h3>
-            </article>
-            <article class="feature-card">
-                <span class="badge" th:text="#{home.reviews.badge}">Отзыв</span>
-                <p th:text="#{home.reviews.r3.body}">“Ритм занятий спокойный, но стабильный. Перед СОЧ стало меньше тревоги.”</p>
-                <h3 th:text="#{home.reviews.r3.author}">Екатерина, мама 6-классника</h3>
-            </article>
-        </section>
-
         <section class="program-band public-faq">
             <div class="section-head">
                 <span class="badge" th:text="#{home.faq.badge}">FAQ</span>
@@ -186,7 +125,7 @@
                 </article>
                 <article class="faq-card">
                     <h3 th:text="#{home.faq.q3.title}">Есть два языка?</h3>
-                    <p th:text="#{home.faq.q3.body}">Интерфейс и ключевые учебные сценарии поддерживают русский и қазақша.</p>
+                    <p th:text="#{home.faq.q3.body}">Интерфейс и ключевые учебные сценарии поддерживают казахский и русский языки.</p>
                 </article>
             </div>
         </section>

@@ -32,10 +32,7 @@
     </a>
     <nav class="nav" th:aria-label="#{nav.aria.main}" aria-label="Основная навигация">
         <a sec:authorize="isAnonymous()" th:href="@{/#hero}" th:text="#{nav.landing.hero}">Главная</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#why}" th:text="#{nav.landing.why}">Почему мы</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#programs}" th:text="#{nav.landing.programs}">Программы</a>
         <a sec:authorize="isAnonymous()" th:href="@{/#flow}" th:text="#{nav.landing.how}">Как работает</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/#reviews}" th:text="#{nav.landing.reviews}">Отзывы</a>
         <a sec:authorize="hasRole('PARENT')" th:href="@{/parent}" th:text="#{nav.home}">Главная</a>
         <a sec:authorize="hasRole('PARENT')" th:href="@{/parent/profile}" th:text="#{nav.profile}">Профиль</a>
         <span th:replace="~{fragments/language-switch :: languageSwitch}"></span>
