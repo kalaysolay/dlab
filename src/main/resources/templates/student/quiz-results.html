@@ -22,7 +22,23 @@
 
         <section class="panel">
             <h2 class="section-title">Таблица результатов</h2>
-            <div class="table-wrap">
+            <div class="quiz-results-cards">
+                <article class="quiz-result-card-mobile" th:each="row,rowStat : ${results.results}">
+                    <div class="quiz-result-place">
+                        <span th:text="${rowStat.count}">1</span>
+                    </div>
+                    <div class="quiz-result-player">
+                        <strong th:text="${row.displayName}">Demo Student</strong>
+                        <span class="badge success" th:if="${row.currentStudent}">Это вы</span>
+                    </div>
+                    <div class="quiz-result-stats">
+                        <span><strong th:text="${row.score + '/' + row.maxScore}">8/10</strong><small>очки</small></span>
+                        <span><strong th:text="${row.correctAnswers + '/' + row.totalQuestions}">8/10</strong><small>верно</small></span>
+                        <span><strong th:text="${row.percent + '%'}">80%</strong><small>точность</small></span>
+                    </div>
+                </article>
+            </div>
+            <div class="table-wrap quiz-results-table-wrap">
                 <table class="data-table">
                     <thead>
                     <tr>

@@ -259,6 +259,114 @@ class ContentGraphIntegrationTest {
     }
 
     @Test
+    void adminCanImportTopicTreeAndOverwriteDuplicatesByCode() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+
+        mockMvc.perform(post("/api/admin/topics/import")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "subjectCode": "math",
+                                  "gradeNo": 4,
+                                  "importNote": "book-%s",
+                                  "topics": [
+                                    {
+                                      "code": "import-root-%s",
+                                      "titleRu": "Import Root %s",
+                                      "titleKk": "Import Root KK %s",
+                                      "children": [
+                                        {
+                                          "code": "import-child-%s",
+                                          "titleRu": "Import Child %s",
+                                          "titleKk": "Import Child KK %s"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                                """.formatted(suffix, suffix, suffix, suffix, suffix, suffix, suffix)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalTopics").value(2))
+                .andExpect(jsonPath("$.createdTopics").value(2))
+                .andExpect(jsonPath("$.updatedTopics").value(0));
+
+        mockMvc.perform(post("/api/admin/topics/import")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "subjectCode": "math",
+                                  "gradeNo": 4,
+                                  "importNote": "book-%s-updated",
+                                  "topics": [
+                                    {
+                                      "code": "import-root-%s",
+                                      "titleRu": "Import Root Updated %s",
+                                      "titleKk": "Import Root Updated KK %s"
+                                    }
+                                  ]
+                                }
+                                """.formatted(suffix, suffix, suffix, suffix)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalTopics").value(1))
+                .andExpect(jsonPath("$.createdTopics").value(0))
+                .andExpect(jsonPath("$.updatedTopics").value(1));
+
+        mockMvc.perform(get("/api/admin/topics")
+                        .param("subjectId", mathSubjectId().toString())
+                        .param("gradeId", grade4Id().toString())
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.code == 'import-root-%s')].titleRu".formatted(suffix))
+                        .value(hasItem("Import Root Updated " + suffix)))
+                .andExpect(jsonPath("$[?(@.code == 'import-root-%s')].imported".formatted(suffix))
+                        .value(hasItem(true)))
+                .andExpect(jsonPath("$[?(@.code == 'import-root-%s')].importNote".formatted(suffix))
+                        .value(hasItem("book-" + suffix + "-updated")));
+    }
+
+    @Test
+    void topicImportRollsBackWholePayloadOnConflict() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+
+        mockMvc.perform(post("/api/admin/topics/import")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "subjectCode": "math",
+                                  "gradeNo": 4,
+                                  "importNote": "broken-%s",
+                                  "topics": [
+                                    {
+                                      "code": "rollback-a-%s",
+                                      "titleRu": "Rollback Same %s",
+                                      "titleKk": "Rollback Same KK %s"
+                                    },
+                                    {
+                                      "code": "rollback-b-%s",
+                                      "titleRu": "Rollback Same %s",
+                                      "titleKk": "Rollback Same KK %s"
+                                    }
+                                  ]
+                                }
+                                """.formatted(suffix, suffix, suffix, suffix, suffix, suffix, suffix)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("topic_duplicate"));
+
+        mockMvc.perform(get("/api/admin/topics")
+                        .param("subjectId", mathSubjectId().toString())
+                        .param("gradeId", grade4Id().toString())
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.code == 'rollback-a-%s')]".formatted(suffix)).isEmpty());
+    }
+
+    @Test
     void adminTopicsPageIsServerRendered() throws Exception {
         mockMvc.perform(get("/admin/topics")
                         .with(user("admin@damulab.kz").roles("ADMIN")))

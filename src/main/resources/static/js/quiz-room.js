@@ -33,7 +33,12 @@
         submitError: "Не удалось сохранить ответ. Обновляю состояние комнаты.",
         timedOut: "Время раунда вышло.",
         noRound: "Текущий раунд пока не открыт.",
-        progress: "Ответов"
+        progress: "Ответов",
+        statuses: {
+            waiting: "Ожидание",
+            active: "Игра идет",
+            finished: "Завершена"
+        }
     };
 
     const refs = {
@@ -115,7 +120,7 @@
 
     function updateStatus(status) {
         if (refs.status && status) {
-            refs.status.textContent = status;
+            refs.status.textContent = labels.statuses[status] || status;
         }
     }
 
@@ -581,5 +586,5 @@
     });
     connectStomp();
     window.setInterval(tickFallbackTimer, 1000);
-    window.setInterval(() => fetchRoom("poll").catch(() => undefined), 15000);
+    window.setInterval(() => fetchRoom("poll").catch(() => undefined), 3000);
 })();

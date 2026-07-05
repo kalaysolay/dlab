@@ -1,6 +1,7 @@
 package kz.damulab.content;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +18,24 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
     long countByParentTopicId(Long parentTopicId);
 
     boolean existsByParentTopicId(Long parentTopicId);
+
+    @Query("""
+            select t
+            from Topic t
+            where t.subject.id = :subjectId
+              and t.grade.id = :gradeId
+              and (
+                    (:parentId is null and t.parentTopic is null)
+                    or (:parentId is not null and t.parentTopic.id = :parentId)
+              )
+              and lower(t.code) = lower(:code)
+            """)
+    Optional<Topic> findByScopeAndCode(
+            @Param("subjectId") Long subjectId,
+            @Param("gradeId") Long gradeId,
+            @Param("parentId") Long parentId,
+            @Param("code") String code
+    );
 
     @Query("""
             select count(t) > 0

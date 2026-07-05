@@ -49,6 +49,15 @@ public class Topic {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
+    @Column(nullable = false)
+    private boolean imported;
+
+    @Column(name = "import_note", length = 512)
+    private String importNote;
+
+    @Column(name = "imported_at")
+    private OffsetDateTime importedAt;
+
     protected Topic() {
     }
 
@@ -74,6 +83,12 @@ public class Topic {
         this.code = code;
         this.titleRu = titleRu;
         this.titleKk = titleKk;
+    }
+
+    public void markImported(String importNote, OffsetDateTime importedAt) {
+        this.imported = true;
+        this.importNote = importNote;
+        this.importedAt = importedAt;
     }
 
     public Long getId() {
@@ -110,5 +125,17 @@ public class Topic {
 
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public boolean isImported() {
+        return imported;
+    }
+
+    public String getImportNote() {
+        return importNote;
+    }
+
+    public OffsetDateTime getImportedAt() {
+        return importedAt;
     }
 }

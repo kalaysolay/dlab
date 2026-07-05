@@ -31,7 +31,9 @@
             <div class="quiz-code-box">
                 <span>Код</span>
                 <strong th:text="${room.code}">QZ7K2M</strong>
-                <span class="badge" id="quizStatus" th:text="${room.status}">waiting</span>
+                <span class="badge quiz-status-badge"
+                      id="quizStatus"
+                      th:text="${room.status == 'waiting' ? 'Ожидание' : (room.status == 'active' ? 'Игра идет' : 'Завершена')}">Ожидание</span>
             </div>
         </section>
 
@@ -146,7 +148,8 @@
 
                 <div class="matching-answer" th:if="${round.type == 'MATCHING'}">
                     <label class="field" th:each="left,leftStat : ${round.matchingLeft}" th:attr="data-left-value=${left.value}">
-                        <span th:text="${left.text}">50%</span>
+                        <span class="match-left-value" th:text="${left.text}">50%</span>
+                        <span class="match-connector" aria-hidden="true"></span>
                         <select th:name="${'match_' + round.id + '_' + leftStat.index}">
                             <option value="">Выберите пару</option>
                             <option th:each="right : ${round.matchingRight}" th:value="${right.value}" th:text="${right.text}">0.5</option>

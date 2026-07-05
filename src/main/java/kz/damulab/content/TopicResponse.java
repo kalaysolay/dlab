@@ -15,6 +15,9 @@ public record TopicResponse(
         String titleKk,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
+        boolean imported,
+        String importNote,
+        OffsetDateTime importedAt,
         long childCount,
         long skillCount
 ) {

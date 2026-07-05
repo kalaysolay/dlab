@@ -63,6 +63,11 @@ public class AdminContentApiController {
         return ResponseEntity.created(URI.create("/api/admin/topics/" + created.id())).body(created);
     }
 
+    @PostMapping("/topics/import")
+    TopicImportResponse importTopics(@Valid @RequestBody TopicImportRequest request) {
+        return contentGraph.importTopics(request);
+    }
+
     @PatchMapping("/topics/{id}")
     TopicResponse updateTopic(@PathVariable Long id, @Valid @RequestBody TopicForm form) {
         return contentGraph.updateTopic(id, form);

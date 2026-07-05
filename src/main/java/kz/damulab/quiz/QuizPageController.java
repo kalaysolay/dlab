@@ -36,10 +36,6 @@ public class QuizPageController {
         if (!model.containsAttribute("createQuizRoomRequest")) {
             CreateQuizRoomRequest form = new CreateQuizRoomRequest();
             form.setLanguage(defaultLanguage(locale));
-            defaultSchoolSubject(model).ifPresent(subject -> {
-                form.setSubjectId(subject.id());
-                subject.grades().stream().findFirst().ifPresent(grade -> form.setGradeId(grade.id()));
-            });
             model.addAttribute("createQuizRoomRequest", form);
         }
         return "student/quiz-hub";
@@ -125,11 +121,6 @@ public class QuizPageController {
         model.addAttribute("quizSetupCatalog", quizService.setupCatalog());
         model.addAttribute("defaultQuizLanguage", defaultLanguage(locale));
         model.addAttribute("testTypes", Arrays.stream(TestType.values()).toList());
-    }
-
-    private java.util.Optional<QuizSetupSubjectOption> defaultSchoolSubject(Model model) {
-        QuizSetupCatalog catalog = (QuizSetupCatalog) model.asMap().get("quizSetupCatalog");
-        return catalog == null ? java.util.Optional.empty() : catalog.subjects().stream().findFirst();
     }
 
     private String defaultLanguage(Locale locale) {

@@ -1,6 +1,7 @@
 package kz.damulab.content;
 
 import java.text.Normalizer;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -164,6 +165,29 @@ public class ContentGraphService {
         audit.record("topic_deleted", "Topic", id, topic.getCode());
     }
 
+    @Transactional
+    public TopicImportResponse importTopics(TopicImportRequest request) {
+        Subject subject = resolveImportSubject(request);
+        Grade grade = resolveImportGrade(request);
+        String importNote = normalizeImportNote(request.getImportNote());
+        OffsetDateTime importedAt = OffsetDateTime.now();
+        ImportCounter counter = new ImportCounter();
+
+        for (TopicImportItem item : request.getTopics()) {
+            importTopicItem(subject, grade, null, item, importNote, importedAt, counter);
+        }
+        audit.record("topics_imported", "Topic", 0L,
+                subject.getCode() + ":" + grade.getGradeNo() + ":" + counter.total);
+        return new TopicImportResponse(
+                counter.total,
+                counter.created,
+                counter.updated,
+                subject.getId(),
+                grade.getId(),
+                importNote
+        );
+    }
+
     @Transactional(readOnly = true)
     public List<AtomicSkillResponse> listSkills(Long topicId) {
         findTopic(topicId);
@@ -236,6 +260,46 @@ public class ContentGraphService {
         );
     }
 
+    private Topic importTopicItem(
+            Subject subject,
+            Grade grade,
+            Topic parent,
+            TopicImportItem item,
+            String importNote,
+            OffsetDateTime importedAt,
+            ImportCounter counter
+    ) {
+        String code = normalizeCode(item.getCode(), item.getTitleRu());
+        Long parentId = parentId(parent);
+        Topic topic = topics.findByScopeAndCode(subject.getId(), grade.getId(), parentId, code).orElse(null);
+        Long existingId = topic == null ? null : topic.getId();
+        requireNoDuplicate(
+                subject.getId(),
+                grade.getId(),
+                parentId,
+                code,
+                item.getTitleRu(),
+                item.getTitleKk(),
+                existingId
+        );
+
+        if (topic == null) {
+            topic = new Topic(subject, grade, parent, code, item.getTitleRu().trim(), item.getTitleKk().trim());
+            counter.created++;
+        } else {
+            topic.update(subject, grade, parent, code, item.getTitleRu().trim(), item.getTitleKk().trim());
+            counter.updated++;
+        }
+        topic.markImported(importNote, importedAt);
+        Topic saved = topics.save(topic);
+        counter.total++;
+
+        for (TopicImportItem child : item.getChildren()) {
+            importTopicItem(subject, grade, saved, child, importNote, importedAt, counter);
+        }
+        return saved;
+    }
+
     private TopicResponse toTopicResponse(Topic topic) {
         Topic parent = topic.getParentTopic();
         return new TopicResponse(
@@ -251,6 +315,9 @@ public class ContentGraphService {
                 topic.getTitleKk(),
                 topic.getCreatedAt(),
                 topic.getUpdatedAt(),
+                topic.isImported(),
+                topic.getImportNote(),
+                topic.getImportedAt(),
                 topics.countByParentTopicId(topic.getId()),
                 skills.countByTopicId(topic.getId())
         );
@@ -292,9 +359,31 @@ public class ContentGraphService {
                 .orElseThrow(() -> new ContentGraphException("subject_not_found"));
     }
 
+    private Subject resolveImportSubject(TopicImportRequest request) {
+        if (request.getSubjectId() != null) {
+            return findSubject(request.getSubjectId());
+        }
+        if (request.getSubjectCode() != null && !request.getSubjectCode().isBlank()) {
+            return subjects.findByCodeIgnoreCase(request.getSubjectCode().trim())
+                    .orElseThrow(() -> new ContentGraphException("subject_not_found"));
+        }
+        throw new ContentGraphException("subject_required");
+    }
+
     private Grade findGrade(Long id) {
         return grades.findById(id)
                 .orElseThrow(() -> new ContentGraphException("grade_not_found"));
+    }
+
+    private Grade resolveImportGrade(TopicImportRequest request) {
+        if (request.getGradeId() != null) {
+            return findGrade(request.getGradeId());
+        }
+        if (request.getGradeNo() != null) {
+            return grades.findByGradeNo(request.getGradeNo())
+                    .orElseThrow(() -> new ContentGraphException("grade_not_found"));
+        }
+        throw new ContentGraphException("grade_required");
     }
 
     private Topic findTopic(Long id) {
@@ -384,5 +473,18 @@ public class ContentGraphService {
 
     private Long parentId(Topic parent) {
         return parent == null ? null : parent.getId();
+    }
+
+    private String normalizeImportNote(String value) {
+        if (value == null || value.isBlank()) {
+            return "topic-json-import";
+        }
+        return value.trim();
+    }
+
+    private static final class ImportCounter {
+        private int total;
+        private int created;
+        private int updated;
     }
 }

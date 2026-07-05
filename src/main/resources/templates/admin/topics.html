@@ -64,6 +64,51 @@
 
             <hr class="divider">
 
+            <section class="topic-import-panel">
+                <div class="page-head compact-head">
+                    <div>
+                        <h2 class="section-title">Импорт тем из JSON</h2>
+                        <p class="muted-line">Формат загружает дерево тем для одного предмета и класса. Импорт атомарный: если один узел невалиден, ничего не сохранится. Дубли в одной ветке по <code>code</code> перезаписываются.</p>
+                    </div>
+                    <span class="badge">POST /api/admin/topics/import</span>
+                </div>
+                <div class="topic-import-help">
+                    <div class="notice">
+                        <strong>Поля JSON</strong>
+                        <span><code>subjectCode</code> или <code>subjectId</code>, <code>gradeNo</code> или <code>gradeId</code>, <code>importNote</code>, массив <code>topics</code>. У каждой темы: <code>code</code>, <code>titleRu</code>, <code>titleKk</code>, опционально <code>children</code>.</span>
+                    </div>
+                    <pre class="code-sample">{
+  "subjectCode": "math",
+  "gradeNo": 4,
+  "importNote": "Математика 4 класс, книга 2026",
+  "topics": [
+    {
+      "code": "numbers-and-values",
+      "titleRu": "Числа и величины",
+      "titleKk": "Сандар және шамалар",
+      "children": [
+        {
+          "code": "multi-digit-numbers",
+          "titleRu": "Многозначные числа",
+          "titleKk": "Көптаңбалы сандар"
+        }
+      ]
+    }
+  ]
+}</pre>
+                </div>
+                <label class="field">
+                    <span>JSON для импорта</span>
+                    <textarea id="topicImportJson" class="code-textarea topic-import-textarea" spellcheck="false"></textarea>
+                </label>
+                <p class="notice" id="topicImportStatus" hidden></p>
+                <div class="actions">
+                    <button class="button primary" type="button" id="topicImportPreviewButton">Предпросмотр</button>
+                </div>
+            </section>
+
+            <hr class="divider">
+
             <h2 class="section-title">Добавить тему</h2>
             <form class="form wide-form" method="post" th:action="@{/admin/topics}" th:object="${topicForm}">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -136,6 +181,8 @@
                         <td>
                             <strong th:text="${topic.titleRu}">Проценты</strong>
                             <span class="muted-line" th:text="${topic.titleKk}">Пайыздар</span>
+                            <span class="badge success" th:if="${topic.imported}">Импорт</span>
+                            <span class="muted-line" th:if="${topic.importNote}" th:text="${topic.importNote}">Источник импорта</span>
                         </td>
                         <td th:text="${topic.parentTitleRu ?: 'Корень'}">Корень</td>
                         <td><code th:text="${topic.code}">percent-basics</code></td>
@@ -162,7 +209,155 @@
             </div>
         </section>
     </main>
+    <div class="modal-layer" id="topicImportModal" aria-hidden="true">
+        <div class="modal-backdrop" data-topic-import-cancel></div>
+        <section class="modal-card topic-import-dialog" role="dialog" aria-modal="true" aria-labelledby="topicImportTitle">
+            <div class="modal-head">
+                <h2 id="topicImportTitle">Подтвердить импорт тем</h2>
+                <button class="link-button" type="button" data-topic-import-cancel>Отмена</button>
+            </div>
+            <div class="topic-import-preview-summary" id="topicImportPreviewSummary"></div>
+            <div class="topic-import-preview-tree" id="topicImportPreviewTree"></div>
+            <div class="actions">
+                <button class="button primary" type="button" id="topicImportConfirmButton">Импортировать</button>
+                <button class="button" type="button" data-topic-import-cancel>Отмена</button>
+            </div>
+        </section>
+    </div>
     <div th:replace="~{fragments/modal :: modalShell}"></div>
 </div>
+<script>
+    (() => {
+        const textarea = document.getElementById("topicImportJson");
+        const previewButton = document.getElementById("topicImportPreviewButton");
+        const confirmButton = document.getElementById("topicImportConfirmButton");
+        const modal = document.getElementById("topicImportModal");
+        const summary = document.getElementById("topicImportPreviewSummary");
+        const tree = document.getElementById("topicImportPreviewTree");
+        const status = document.getElementById("topicImportStatus");
+        let pendingPayload = null;
+
+        if (!textarea || !previewButton || !confirmButton || !modal) {
+            return;
+        }
+
+        function setStatus(text, error) {
+            status.hidden = !text;
+            status.textContent = text || "";
+            status.classList.toggle("error", Boolean(error));
+        }
+
+        function topicCount(items) {
+            return (items || []).reduce((sum, item) => sum + 1 + topicCount(item.children), 0);
+        }
+
+        function renderTopicList(items) {
+            const list = document.createElement("ul");
+            list.className = "topic-import-tree-list";
+            (items || []).forEach((item) => {
+                const row = document.createElement("li");
+                const title = document.createElement("strong");
+                title.textContent = `${item.titleRu || "(без RU)"} / ${item.titleKk || "(без KK)"}`;
+                const code = document.createElement("span");
+                code.className = "muted-line";
+                code.textContent = item.code ? `code: ${item.code}` : "code будет создан из titleRu";
+                row.append(title, code);
+                if (item.children?.length) {
+                    row.append(renderTopicList(item.children));
+                }
+                list.append(row);
+            });
+            return list;
+        }
+
+        function openModal(payload) {
+            const count = topicCount(payload.topics);
+            summary.replaceChildren();
+            tree.replaceChildren();
+            const meta = document.createElement("div");
+            meta.className = "notice";
+            meta.textContent = `Будет импортировано ${count} тем. Предмет: ${payload.subjectCode || payload.subjectId || "не указан"}, класс: ${payload.gradeNo || payload.gradeId || "не указан"}. Примечание: ${payload.importNote || "topic-json-import"}.`;
+            summary.append(meta);
+            tree.append(renderTopicList(payload.topics));
+            modal.classList.add("is-open");
+            modal.hidden = false;
+            modal.setAttribute("aria-hidden", "false");
+        }
+
+        function closeModal() {
+            modal.classList.remove("is-open");
+            modal.hidden = true;
+            modal.setAttribute("aria-hidden", "true");
+        }
+
+        function validate(payload) {
+            if (!payload || typeof payload !== "object") {
+                return "JSON должен быть объектом.";
+            }
+            if (!payload.subjectId && !payload.subjectCode) {
+                return "Укажите subjectCode или subjectId.";
+            }
+            if (!payload.gradeId && !payload.gradeNo) {
+                return "Укажите gradeNo или gradeId.";
+            }
+            if (!Array.isArray(payload.topics) || payload.topics.length === 0) {
+                return "topics должен быть непустым массивом.";
+            }
+            return null;
+        }
+
+        previewButton.addEventListener("click", () => {
+            try {
+                pendingPayload = JSON.parse(textarea.value);
+            } catch (error) {
+                setStatus("JSON не распарсился: " + error.message, true);
+                return;
+            }
+            const validationError = validate(pendingPayload);
+            if (validationError) {
+                setStatus(validationError, true);
+                return;
+            }
+            setStatus("", false);
+            openModal(pendingPayload);
+        });
+
+        confirmButton.addEventListener("click", async () => {
+            if (!pendingPayload) {
+                return;
+            }
+            confirmButton.disabled = true;
+            setStatus("Импортирую темы...", false);
+            try {
+                const token = document.querySelector('input[name="_csrf"]')?.value;
+                const response = await fetch("/api/admin/topics/import", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        ...(token ? { "X-CSRF-TOKEN": token } : {})
+                    },
+                    body: JSON.stringify(pendingPayload)
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(body.error || `HTTP ${response.status}`);
+                }
+                setStatus(`Импорт завершен: ${body.totalTopics} тем, создано ${body.createdTopics}, обновлено ${body.updatedTopics}.`, false);
+                closeModal();
+                window.setTimeout(() => window.location.reload(), 900);
+            } catch (error) {
+                setStatus("Импорт не сохранен: " + error.message, true);
+            } finally {
+                confirmButton.disabled = false;
+            }
+        });
+
+        modal.querySelectorAll("[data-topic-import-cancel]").forEach((button) => {
+            button.addEventListener("click", closeModal);
+        });
+    })();
+</script>
 </body>
 </html>
