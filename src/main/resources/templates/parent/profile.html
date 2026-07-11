@@ -20,6 +20,10 @@
                 </div>
             </div>
             <div class="alert" th:if="${param.saved}">Профиль сохранен.</div>
+            <div class="notice" th:if="${param.passkeySetup}">
+                <strong>Настройка входа по отпечатку</strong>
+                <span>Сейчас откроется системное окно устройства. Подтвердите отпечаток, Face ID или PIN, чтобы привязать вход без пароля.</span>
+            </div>
             <form class="form" th:action="@{/parent/profile}" th:object="${parentProfileForm}" method="post">
                 <div class="field">
                     <label for="fullName">Имя</label>

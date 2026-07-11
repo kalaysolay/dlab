@@ -5274,6 +5274,10 @@ h2 {
     font-weight: 800;
 }
 
+.admin-layout .topic-tree-list summary a[aria-current="page"] {
+    color: #2563eb;
+}
+
 .admin-layout .skill-row,
 .admin-layout .option-row,
 .admin-layout .pair-row,
@@ -5705,6 +5709,16 @@ h2 {
 .auth-page .button.primary {
     width: 100%;
     justify-content: center;
+}
+
+.auth-register-passkey {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+    min-height: auto;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fbfdff;
 }
 
 .auth-page .muted-line {

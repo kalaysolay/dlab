@@ -2,6 +2,7 @@ package kz.damulab;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -140,6 +141,30 @@ class AuthFlowIntegrationTest {
                         .with(user("student@damulab.kz").roles("STUDENT")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/dashboard"));
+    }
+
+    @Test
+    void loginPageDoesNotOfferPasskeyLoginButton() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(not(containsString("passkey-login-button"))));
+    }
+
+    @Test
+    void formRegistrationCanRequestPasskeySetupAfterAccountCreation() throws Exception {
+        String email = "passkey.setup." + System.nanoTime() + "@example.com";
+
+        mockMvc.perform(post("/register")
+                        .param("email", email)
+                        .param("password", "password123")
+                        .param("fullName", "Passkey Setup")
+                        .param("role", "STUDENT")
+                        .param("gradeNo", "4")
+                        .param("passkeySetupRequested", "true")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/student/profile?passkeySetup=true"));
     }
 
     @Test

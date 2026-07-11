@@ -59,6 +59,10 @@
                         <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="5">
                         <span class="alert error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></span>
                     </div>
+                    <label class="checkbox-field auth-register-passkey">
+                        <input type="checkbox" th:field="*{passkeySetupRequested}">
+                        <span>После регистрации настроить вход по отпечатку, Face ID или PIN</span>
+                    </label>
                 </div>
                 <button class="button primary" type="submit" th:text="#{register.submit}">Создать аккаунт</button>
             </form>

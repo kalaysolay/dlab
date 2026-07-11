@@ -63,27 +63,34 @@
             <section class="split-layout">
                 <article class="subpanel">
                     <h2 class="section-title">Темы</h2>
-                    <div class="empty-state" th:if="${#lists.isEmpty(tree)}">
-                        <strong>Дерево пустое</strong>
-                        <span>Создайте корневую тему в списке или через форму справа.</span>
+                    <div id="topicTreeState"
+                         th:data-subject-id="${selectedSubjectId}"
+                         th:data-grade-id="${selectedGradeId}">
+                        <div class="empty-state" th:if="${#lists.isEmpty(tree)}">
+                            <strong>Дерево пустое</strong>
+                            <span>Создайте корневую тему в списке или через форму справа.</span>
+                        </div>
+                        <div th:if="${!#lists.isEmpty(tree)}" th:replace="~{admin/topic-tree :: topicNodes(${tree})}"></div>
                     </div>
-                    <div th:if="${!#lists.isEmpty(tree)}" th:replace="~{admin/topic-tree :: topicNodes(${tree})}"></div>
                 </article>
 
                 <article class="subpanel">
                     <h2 class="section-title" th:text="${selectedTopic == null ? 'Новая тема' : 'Редактирование темы'}">
                         Редактирование темы
                     </h2>
-                    <form class="form wide-form"
+                    <form id="topicEditForm"
+                          class="form wide-form"
                           method="post"
                           th:action="${selectedTopic == null} ? @{/admin/topics} : @{/admin/topics/{id}(id=${selectedTopic.id})}"
+                          th:data-topic-form-mode="${selectedTopic == null ? 'create' : 'edit'}"
                           th:object="${topicForm}">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <input type="hidden" th:field="*{subjectId}">
                         <input type="hidden" th:field="*{gradeId}">
+                        <p class="notice" id="topicCreateStatus" hidden aria-live="polite"></p>
                         <label class="field">
                             <span>Родительская тема</span>
-                            <select th:field="*{parentId}">
+                            <select id="topicParentSelect" th:field="*{parentId}">
                                 <option value="">Без родителя</option>
                                 <option th:each="topic : ${topics}"
                                         th:value="${topic.id}"
@@ -191,5 +198,182 @@
     </main>
     <div th:replace="~{fragments/modal :: modalShell}"></div>
 </div>
+<script>
+    (() => {
+        const form = document.getElementById("topicEditForm");
+        const treeState = document.getElementById("topicTreeState");
+        const parentSelect = document.getElementById("topicParentSelect");
+        const status = document.getElementById("topicCreateStatus");
+
+        if (!form || form.dataset.topicFormMode !== "create" || !treeState || !parentSelect || !status) {
+            return;
+        }
+
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        function setStatus(text, error) {
+            status.hidden = !text;
+            status.textContent = text || "";
+            status.classList.toggle("error", Boolean(error));
+        }
+
+        function numberOrNull(value) {
+            return value === null || value === undefined || value === "" ? null : Number(value);
+        }
+
+        function humanError(code) {
+            switch (code) {
+                case "validation_failed":
+                    return "Проверьте обязательные поля темы.";
+                case "topic_duplicate":
+                    return "Тема с таким кодом или названием уже есть в этой ветке.";
+                case "topic_parent_scope_mismatch":
+                    return "Родительская тема должна быть в том же предмете и классе.";
+                case "topic_parent_cycle":
+                    return "Тему нельзя сделать дочерней для самой себя или своего потомка.";
+                case "subject_not_found":
+                    return "Предмет не найден.";
+                case "grade_not_found":
+                    return "Класс не найден.";
+                case "topic_not_found":
+                    return "Родительская тема не найдена.";
+                default:
+                    return "Тема не сохранена: " + (code || "неизвестная ошибка");
+            }
+        }
+
+        function treeUrl(path) {
+            const params = new URLSearchParams({
+                subjectId: treeState.dataset.subjectId,
+                gradeId: treeState.dataset.gradeId
+            });
+            return path + "?" + params.toString();
+        }
+
+        function renderEmptyTree() {
+            const empty = document.createElement("div");
+            empty.className = "empty-state";
+            const title = document.createElement("strong");
+            title.textContent = "Дерево пустое";
+            const hint = document.createElement("span");
+            hint.textContent = "Создайте корневую тему через форму справа.";
+            empty.append(title, hint);
+            treeState.replaceChildren(empty);
+        }
+
+        function renderTreeNodes(nodes, selectedId) {
+            const list = document.createElement("ul");
+            list.className = "topic-tree-list";
+            (nodes || []).forEach((node) => {
+                const item = document.createElement("li");
+                const details = document.createElement("details");
+                details.open = true;
+                const summary = document.createElement("summary");
+                const link = document.createElement("a");
+                link.href = `/admin/topics/tree?subjectId=${encodeURIComponent(treeState.dataset.subjectId)}&gradeId=${encodeURIComponent(treeState.dataset.gradeId)}&topicId=${encodeURIComponent(node.id)}`;
+                link.textContent = node.titleRu || node.code || `Тема ${node.id}`;
+                link.dataset.topicId = String(node.id);
+                if (Number(node.id) === Number(selectedId)) {
+                    link.setAttribute("aria-current", "page");
+                }
+                const titleKk = document.createElement("span");
+                titleKk.textContent = node.titleKk || "";
+                summary.append(link, titleKk);
+                details.append(summary);
+                if (node.children?.length) {
+                    details.append(renderTreeNodes(node.children, selectedId));
+                }
+                item.append(details);
+                list.append(item);
+            });
+            return list;
+        }
+
+        function renderTree(nodes, selectedId) {
+            if (!Array.isArray(nodes) || nodes.length === 0) {
+                renderEmptyTree();
+                return;
+            }
+            treeState.replaceChildren(renderTreeNodes(nodes, selectedId));
+            const selectedLink = treeState.querySelector(`[data-topic-id="${CSS.escape(String(selectedId))}"]`);
+            if (selectedLink) {
+                selectedLink.focus({ preventScroll: true });
+                selectedLink.scrollIntoView({ block: "nearest" });
+            }
+        }
+
+        function refreshParentOptions(topics, selectedParentId) {
+            const rootLabel = parentSelect.querySelector('option[value=""]')?.textContent || "Без родителя";
+            const rootOption = new Option(rootLabel, "");
+            parentSelect.replaceChildren(rootOption);
+            (topics || []).forEach((topic) => {
+                const option = new Option(topic.titleRu || topic.code || `Тема ${topic.id}`, topic.id);
+                parentSelect.append(option);
+            });
+            parentSelect.value = selectedParentId ? String(selectedParentId) : "";
+        }
+
+        async function refreshTopicUi(createdTopic, selectedParentId) {
+            const [treeResponse, topicsResponse] = await Promise.all([
+                fetch(treeUrl("/api/admin/topics/tree"), { credentials: "same-origin" }),
+                fetch(treeUrl("/api/admin/topics"), { credentials: "same-origin" })
+            ]);
+            if (!treeResponse.ok || !topicsResponse.ok) {
+                throw new Error("topic_refresh_failed");
+            }
+            const [tree, topics] = await Promise.all([treeResponse.json(), topicsResponse.json()]);
+            renderTree(tree, createdTopic.id);
+            refreshParentOptions(topics, selectedParentId);
+        }
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            setStatus("Сохраняю тему...", false);
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+
+            const data = new FormData(form);
+            const selectedParentId = numberOrNull(data.get("parentId"));
+            const payload = {
+                subjectId: numberOrNull(data.get("subjectId")),
+                gradeId: numberOrNull(data.get("gradeId")),
+                parentId: selectedParentId,
+                code: (data.get("code") || "").trim(),
+                titleRu: (data.get("titleRu") || "").trim(),
+                titleKk: (data.get("titleKk") || "").trim()
+            };
+
+            try {
+                const token = data.get("_csrf");
+                const response = await fetch("/api/admin/topics", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        ...(token ? { "X-CSRF-TOKEN": token } : {})
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(body.error || `HTTP ${response.status}`);
+                }
+                await refreshTopicUi(body, selectedParentId);
+                form.querySelector('[name="code"]').value = "";
+                form.querySelector('[name="titleRu"]').value = "";
+                form.querySelector('[name="titleKk"]').value = "";
+                setStatus("Тема создана и добавлена в дерево.", false);
+            } catch (error) {
+                setStatus(humanError(error.message), true);
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                }
+            }
+        });
+    })();
+</script>
 </body>
 </html>
