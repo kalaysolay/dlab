@@ -6267,6 +6267,102 @@ h2 {
     color: #374151;
 }
 
+.pwa-push-prompt[hidden] {
+    display: none !important;
+}
+
+.pwa-push-prompt {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9998;
+    width: min(420px, calc(100vw - 36px));
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.pwa-push-prompt.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.pwa-push-prompt-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 44px;
+    gap: 10px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    background: #eff6ff;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+}
+
+.pwa-push-prompt-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.pwa-push-prompt-copy strong {
+    font-size: 0.96rem;
+    line-height: 1.25;
+    color: #0f172a;
+}
+
+.pwa-push-prompt-copy span {
+    color: #475569;
+    font-size: 0.86rem;
+    line-height: 1.35;
+}
+
+.pwa-push-prompt-enable {
+    min-height: 40px;
+    padding: 8px 16px;
+    white-space: nowrap;
+}
+
+.pwa-push-prompt-dismiss {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.pwa-push-prompt-dismiss:hover {
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+@media (max-width: 560px) {
+    .pwa-push-prompt {
+        left: 12px;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        width: auto;
+    }
+
+    .pwa-push-prompt-inner {
+        grid-template-columns: minmax(0, 1fr) 44px;
+        gap: 10px;
+    }
+
+    .pwa-push-prompt-enable {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}
+
 /* Обёртка шапки: topbar + баннер (баннер fixed, не влияет на высоту) */
 .site-header {
     display: block;

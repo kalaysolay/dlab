@@ -12,6 +12,9 @@ if ('serviceWorker' in navigator) {
 
 let _installPrompt = null;
 let _bannerControlsBound = false;
+let _pushPromptControlsBound = false;
+
+const PUSH_PROMPT_DISMISSED_KEY = 'pwa-push-prompt-dismissed';
 
 function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches
@@ -36,8 +39,28 @@ function wasBannerDismissed() {
     }
 }
 
+function wasPushPromptDismissed() {
+    try {
+        return localStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function rememberPushPromptDismissed() {
+    try {
+        localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, '1');
+    } catch {
+        /* private mode */
+    }
+}
+
 function getBanner() {
     return document.getElementById('pwa-install-banner');
+}
+
+function getPushPrompt() {
+    return document.getElementById('pwa-push-prompt');
 }
 
 /**
@@ -146,7 +169,7 @@ window.addEventListener('beforeinstallprompt', e => {
 window.addEventListener('appinstalled', () => {
     _installPrompt = null;
     hideInstallBanner();
-    subscribeToPush().catch(() => {});
+    maybeShowPushPrompt();
 });
 
 function maybeShowIosInstallHint() {
@@ -164,10 +187,126 @@ function notifyInstallIssue(message) {
     if (textEl) textEl.textContent = message;
 }
 
+function ensurePushPromptMounted() {
+    let prompt = getPushPrompt();
+    if (prompt) return prompt;
+
+    prompt = document.createElement('div');
+    prompt.id = 'pwa-push-prompt';
+    prompt.className = 'pwa-push-prompt';
+    prompt.hidden = true;
+    prompt.setAttribute('aria-live', 'polite');
+    prompt.innerHTML = [
+        '<div class="pwa-push-prompt-inner">',
+        '  <div class="pwa-push-prompt-copy">',
+        '    <strong>Включить push-уведомления?</strong>',
+        '    <span>Подскажем о новых тестах, викторинах и важных заданиях.</span>',
+        '  </div>',
+        '  <button id="pwa-push-prompt-enable" class="button primary pwa-push-prompt-enable" type="button">Включить</button>',
+        '  <button id="pwa-push-prompt-dismiss" class="pwa-push-prompt-dismiss" type="button" aria-label="Закрыть">×</button>',
+        '</div>'
+    ].join('');
+    document.body.appendChild(prompt);
+    return prompt;
+}
+
+function hidePushPrompt() {
+    const prompt = getPushPrompt();
+    if (!prompt) return;
+    prompt.setAttribute('hidden', '');
+    prompt.classList.remove('is-visible');
+}
+
+function bindPushPromptControls() {
+    if (_pushPromptControlsBound) return;
+    ensurePushPromptMounted();
+    const enableBtn = document.getElementById('pwa-push-prompt-enable');
+    const dismissBtn = document.getElementById('pwa-push-prompt-dismiss');
+
+    if (enableBtn) {
+        enableBtn.addEventListener('click', async e => {
+            e.preventDefault();
+            e.stopPropagation();
+            enableBtn.disabled = true;
+            try {
+                const subscribed = await subscribeToPush();
+                if (subscribed) {
+                    hidePushPrompt();
+                    rememberPushPromptDismissed();
+                    const profileBtn = document.getElementById('pwa-push-subscribe-btn');
+                    if (profileBtn) setPushBtnSubscribed(profileBtn);
+                    if (window.DamulabUi && typeof window.DamulabUi.showToast === 'function') {
+                        window.DamulabUi.showToast({
+                            kind: 'success',
+                            title: 'Уведомления включены',
+                            body: 'Теперь Damulab сможет отправлять push на это устройство.'
+                        });
+                    }
+                    return;
+                }
+                enableBtn.disabled = false;
+            } catch {
+                enableBtn.disabled = false;
+                if (window.DamulabUi && typeof window.DamulabUi.showToast === 'function') {
+                    window.DamulabUi.showToast({
+                        kind: 'warning',
+                        title: 'Push не включился',
+                        body: 'Проверьте разрешения браузера и попробуйте еще раз.'
+                    });
+                }
+            }
+        });
+    }
+
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            rememberPushPromptDismissed();
+            hidePushPrompt();
+        });
+    }
+
+    _pushPromptControlsBound = true;
+}
+
+async function shouldShowPushPrompt() {
+    if (!document.body || !document.querySelector('.student-header')) return false;
+    if (wasPushPromptDismissed()) return false;
+
+    const vapidMeta = document.querySelector('meta[name="vapid-public-key"]');
+    if (!vapidMeta || !vapidMeta.content) return false;
+    if (!('serviceWorker' in navigator) || !('Notification' in window) || !('PushManager' in window)) return false;
+    if (Notification.permission === 'denied') return false;
+
+    const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
+    if (!reg) return false;
+    const existing = await reg.pushManager.getSubscription();
+    return !existing;
+}
+
+async function maybeShowPushPrompt() {
+    try {
+        if (!(await shouldShowPushPrompt())) return;
+        bindPushPromptControls();
+        const prompt = ensurePushPromptMounted();
+        window.setTimeout(() => {
+            if (wasPushPromptDismissed()) return;
+            const installBanner = getBanner();
+            if (installBanner && installBanner.classList.contains('is-visible')) return;
+            prompt.removeAttribute('hidden');
+            requestAnimationFrame(() => prompt.classList.add('is-visible'));
+        }, 1200);
+    } catch {
+        /* Push prompt is best-effort UI. */
+    }
+}
+
 function initPwaUi() {
     ensureBannerMounted();
     bindInstallBannerControls();
     maybeShowIosInstallHint();
+    maybeShowPushPrompt();
 }
 
 if (document.readyState === 'loading') {
@@ -183,8 +322,14 @@ document.addEventListener('DOMContentLoaded', () => {
     pushBtn.addEventListener('click', async () => {
         pushBtn.disabled = true;
         try {
-            await subscribeToPush();
-            setPushBtnSubscribed(pushBtn);
+            const subscribed = await subscribeToPush();
+            if (subscribed) {
+                rememberPushPromptDismissed();
+                hidePushPrompt();
+                setPushBtnSubscribed(pushBtn);
+            } else {
+                pushBtn.disabled = false;
+            }
         } catch {
             pushBtn.disabled = false;
         }
@@ -193,31 +338,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function subscribeToPush() {
     const vapidMeta = document.querySelector('meta[name="vapid-public-key"]');
-    if (!vapidMeta || !vapidMeta.content) return;
-    if (!('Notification' in window) || !('PushManager' in window)) return;
+    if (!vapidMeta || !vapidMeta.content) return false;
+    if (!('Notification' in window) || !('PushManager' in window)) return false;
 
     const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
-    if (!reg) return;
+    if (!reg) return false;
+
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+        await savePushSubscription(existing);
+        return true;
+    }
 
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    if (permission !== 'granted') return false;
 
     const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidMeta.content)
     });
 
+    await savePushSubscription(subscription);
+    return true;
+}
+
+async function savePushSubscription(subscription) {
     // Добавляем тайм-зону устройства — используется сервером для персонализированного расписания
     const subscriptionData = {
         ...subscription.toJSON(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null
     };
 
-    await fetch('/api/push/subscribe', {
+    const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subscriptionData)
     });
+    if (!response.ok) {
+        throw new Error('Push subscription was not saved');
+    }
 }
 
 async function checkPushStatus(btn) {
