@@ -33,17 +33,17 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
 
     // Web Push (RFC 8030 / VAPID): отправка push-уведомлений из браузерных подписок.
-    // 5.1.2 — последняя версия на Maven Central (5.1.3 не существует).
-    // В 5.1.2 транзитивные зависимости помечены runtime; добавляем jose4j явно для компиляции.
+    // 5.1.2 ломает Crypto-Key для FCM: Base64.getUrlEncoder() без withoutPadding() → padding "="
+    // в заголовке p256ecdsa=... → HTTP 403 "crypto-key header had invalid format".
+    // См. https://github.com/web-push-libs/webpush-java/issues/216 — на Maven Central фикса нет, остаёмся на 5.1.1.
+    // jose4j/httpclient добавляем явно: в артефакте они runtime-scope, нам нужны на compile.
     // Исключаем старый bcprov-jdk15on — заменяем jdk18on, совместимым с Java 21.
-    implementation('nl.martijndwars:web-push:5.1.2') {
+    implementation('nl.martijndwars:web-push:5.1.1') {
         exclude group: 'org.bouncycastle', module: 'bcprov-jdk15on'
     }
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
-    // jose4j нужен для VAPID JWT; в web-push 5.1.2 scope runtime, добавляем явно
     implementation 'org.bitbucket.b_c:jose4j:0.9.6'
-    // Apache HttpClient 4.x: PushService.send() возвращает HttpResponse (org.apache.http),
-    // в web-push 5.1.2 scope runtime — добавляем явно для компиляции.
+    // Apache HttpClient 4.x: PushService.send() возвращает HttpResponse (org.apache.http).
     // Совместимо с HttpClient 5 в Spring Boot 3 (разные пакеты: org.apache.http vs org.apache.hc.client5).
     implementation 'org.apache.httpcomponents:httpclient:4.5.14'
 

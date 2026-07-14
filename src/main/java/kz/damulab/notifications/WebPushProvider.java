@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import nl.martijndwars.webpush.Encoding;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Subscription;
@@ -101,7 +102,12 @@ public class WebPushProvider implements PushProvider {
                 // Важно проверять HTTP status. Раньше сам факт отсутствия exception считался success,
                 // из-за чего в админке было broadcast:N/N даже при возможных 4xx от push-сервиса.
                 // У Web Push успешная отправка означает 2xx-ответ от endpoint-а браузера/платформы.
-                HttpResponse response = pushService.send(new Notification(sub, payload));
+                // Важно явно использовать AES128GCM. У web-push 5.1.2 метод send(Notification)
+                // отправляет через старый AESGCM и кладёт VAPID public key в Crypto-Key header.
+                // FCM в 2026 отклоняет такой запрос с 403:
+                // "crypto-key header had invalid format ... p256ecdsa=base64(publicApplicationServerKey)".
+                // AES128GCM формирует современный RFC 8291/RFC 8292 запрос и не ломается на этом header.
+                HttpResponse response = pushService.send(new Notification(sub, payload), Encoding.AES128GCM);
                 int statusCode = statusCode(response);
                 statuses.add(token.getId() + ":" + statusCode);
                 if (isSuccessfulPushStatus(statusCode)) {
@@ -163,7 +169,9 @@ public class WebPushProvider implements PushProvider {
         }
         String payload = buildRawPayload(body, targetUrl);
         try {
-            HttpResponse response = pushService.send(new Notification(sub, payload));
+            // См. комментарий в send(): без явного AES128GCM библиотека использует старый AESGCM
+            // и FCM отклоняет запрос из-за формата Crypto-Key header.
+            HttpResponse response = pushService.send(new Notification(sub, payload), Encoding.AES128GCM);
             int statusCode = statusCode(response);
             if (isSuccessfulPushStatus(statusCode)) {
                 log.info("webpush sendRaw accepted: deviceTokenId={} userId={} endpointHost={} httpStatus={}",
