@@ -70,7 +70,8 @@
 <script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
 <script th:src="@{/webjars/katex/dist/contrib/auto-render.min.js}"></script>
 <script th:src="@{/webjars/dompurify/dist/purify.min.js}"></script>
-<script>
+<script th:inline="none">
+    // th:inline="none" — иначе Thymeleaf парсит JS-литералы/regex с [[...]] как выражения шаблона.
     const resultRows = Array.from(document.querySelectorAll("#resultList .result-row"));
     const navButtons = Array.from(document.querySelectorAll(".result-nav button"));
     const wrongButtons = navButtons.filter((button) => button.dataset.correct === "false");
@@ -211,7 +212,7 @@
         if (type === "FILL_IN") {
             const entries = Object.entries(toFillMap(rawText));
             if (entries.length > 0) {
-                return entries.map(([key, value]) => `${key}: ${value || "—"}`).join("\n");
+                return entries.map(([key, value]) => `${fillPlaceholderLabel(key)}: ${value || "—"}`).join("\n");
             }
         }
         if (typeof parsed === "string") return parsed || "—";
@@ -244,12 +245,46 @@
         });
     };
 
+    const fillPlaceholderLabel = (placeholder) => {
+        const match = normalizeValue(placeholder).match(/^\[\[(\d+)]]$/);
+        return match ? `Пропуск ${match[1]}` : normalizeValue(placeholder);
+    };
+
     const fillItemMarkup = (placeholder, value, cssClass) => {
-        return `<div class="result-fill-item ${cssClass}"><span class="result-fill-key">${escapeHtml(placeholder)}</span><span class="result-fill-value">${escapeHtml(value || "—")}</span></div>`;
+        // Не показываем сырые [[1]] — только «Пропуск N» и значение.
+        return `<div class="result-fill-item ${cssClass}"><span class="result-fill-key">${escapeHtml(fillPlaceholderLabel(placeholder))}</span><span class="result-fill-value">${escapeHtml(value || "—")}</span></div>`;
+    };
+
+    const fillChipMarkup = (placeholder, studentValue, correctValue) => {
+        const student = normalizeValue(studentValue);
+        const correct = normalizeValue(correctValue);
+        const empty = !student;
+        const matches = !empty && student.toLowerCase() === correct.toLowerCase();
+        const cssClass = empty ? "is-empty" : (matches ? "is-selected-correct" : "is-selected-wrong");
+        const display = empty ? "…" : student;
+        return `<span class="result-fill-chip ${cssClass}" title="${escapeHtml(fillPlaceholderLabel(placeholder))}">${escapeHtml(display)}</span>`;
+    };
+
+    /**
+     * Подставляет ответы ученика вместо меток [[N]] в тексте FILL_IN на странице результатов.
+     * Сырые [[1]] в заголовке вопроса больше не показываем.
+     */
+    const renderFillResultBodies = () => {
+        document.querySelectorAll(".result-fill-body[data-fill-body]").forEach((heading) => {
+            const orderNo = normalizeValue(heading.dataset.orderNo) || "";
+            const body = normalizeValue(heading.dataset.fillBody);
+            const student = toFillMap(heading.dataset.studentAnswer);
+            const correct = toFillMap(heading.dataset.correctAnswer);
+            const htmlBody = escapeHtml(body).replace(/\[\[(\d+)]]/g, (_, digits) => {
+                const placeholder = `[[${digits}]]`;
+                return fillChipMarkup(placeholder, student[placeholder] ?? "", correct[placeholder] ?? "");
+            });
+            heading.innerHTML = `${escapeHtml(orderNo)}. ${htmlBody}`;
+        });
     };
 
     const renderFillResultState = () => {
-        document.querySelectorAll(".result-detail[data-student-answer][data-correct-answer]").forEach((block) => {
+        document.querySelectorAll(".result-fill-detail[data-student-answer][data-correct-answer]").forEach((block) => {
             const studentContainer = block.querySelector(".result-fill-student");
             const correctContainer = block.querySelector(".result-fill-correct");
             if (!studentContainer || !correctContainer) return;
@@ -371,6 +406,7 @@
         pre.textContent = formatAnswerText(pre.textContent, pre.dataset.questionType);
     });
     renderChoiceResultState();
+    renderFillResultBodies();
     renderFillResultState();
     renderMiniLectureBodies();
     bindMiniLectureToggles();

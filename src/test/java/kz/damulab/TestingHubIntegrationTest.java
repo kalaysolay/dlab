@@ -233,7 +233,8 @@ class TestingHubIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("student/test-result"))
                 .andExpect(content().string(containsString("result-fill-student")))
-                .andExpect(content().string(containsString("[[1]]")))
+                .andExpect(content().string(containsString("result-fill-body")))
+                .andExpect(content().string(containsString("data-fill-body")))
                 .andExpect(content().string(not(containsString("[object Object]"))));
     }
 

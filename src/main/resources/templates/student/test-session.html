@@ -195,8 +195,30 @@
         const linesCanvas = block.querySelector(".matching-lines");
         const selectedLabel = block.querySelector(".matching-selected-label");
         const hint = block.querySelector(".matching-hint");
+        const pairsSummary = block.querySelector(".matching-pairs-summary");
+        // Палитра для связанных пар: на мобиле линии слабые, цвет карточек важнее.
+        const pairPalette = ["#4f46e5", "#0d9488", "#ca8a04", "#db2777", "#2563eb", "#7c3aed"];
         const links = new Map();
         let activeLeft = null;
+
+        const pairColorForLeft = (leftIndex) => {
+            if (!links.has(leftIndex)) return null;
+            return pairPalette[leftIndex % pairPalette.length];
+        };
+
+        const clearPairStyles = (button) => {
+            button.style.removeProperty("--pair-color");
+            button.classList.remove("has-pair-color");
+        };
+
+        const applyPairColor = (button, color) => {
+            if (!color) {
+                clearPairStyles(button);
+                return;
+            }
+            button.style.setProperty("--pair-color", color);
+            button.classList.add("has-pair-color");
+        };
 
         const paintSelections = () => {
             leftButtons.forEach((button) => {
@@ -205,11 +227,14 @@
                 const isLinked = links.has(leftIndex);
                 button.classList.toggle("active", isActive);
                 button.classList.toggle("linked", isLinked);
+                applyPairColor(button, isLinked ? pairColorForLeft(leftIndex) : null);
             });
             rightButtons.forEach((button) => {
                 const rightIndex = Number(button.dataset.rightIndex);
-                const isLinked = Array.from(links.values()).includes(rightIndex);
+                const linkedLeft = [...links.entries()].find(([, value]) => value === rightIndex)?.[0];
+                const isLinked = linkedLeft != null;
                 button.classList.toggle("linked", isLinked);
+                applyPairColor(button, isLinked ? pairColorForLeft(linkedLeft) : null);
             });
         };
 
@@ -225,10 +250,29 @@
             });
         };
 
+        const renderPairsSummary = () => {
+            if (!pairsSummary) return;
+            if (links.size === 0) {
+                pairsSummary.innerHTML = "";
+                pairsSummary.hidden = true;
+                return;
+            }
+            pairsSummary.hidden = false;
+            const items = [...links.entries()]
+                .sort((a, b) => a[0] - b[0])
+                .map(([leftIndex, rightIndex]) => {
+                    const leftText = leftButtons[leftIndex]?.textContent.trim() || "—";
+                    const rightText = rightButtons[rightIndex]?.textContent.trim() || "—";
+                    const color = pairColorForLeft(leftIndex) || pairPalette[0];
+                    return `<li class="matching-pair-item" style="--pair-color:${color}"><span>${leftText}</span><span class="matching-pair-arrow" aria-hidden="true">→</span><span>${rightText}</span></li>`;
+                });
+            pairsSummary.innerHTML = items.join("");
+        };
+
         const drawLines = () => {
             if (!linesCanvas || leftButtons.length === 0 || rightButtons.length === 0) return;
             linesCanvas.innerHTML = "";
-            const width = Math.max(linesCanvas.clientWidth, 120);
+            const width = Math.max(linesCanvas.clientWidth, 40);
             const height = Math.max(linesCanvas.clientHeight, 120);
             linesCanvas.setAttribute("viewBox", `0 0 ${width} ${height}`);
             const svgRect = linesCanvas.getBoundingClientRect();
@@ -244,13 +288,14 @@
             });
 
             leftCenters.forEach((leftY) => {
-                linesCanvas.appendChild(createSvgLine(8, leftY, width - 8, leftY, "#d6deeb", 3));
+                linesCanvas.appendChild(createSvgLine(4, leftY, width - 4, leftY, "#d6deeb", 2));
             });
             links.forEach((rightIndex, leftIndex) => {
                 const leftY = leftCenters[leftIndex];
                 const rightY = rightCenters[rightIndex];
                 if (typeof leftY !== "number" || typeof rightY !== "number") return;
-                linesCanvas.appendChild(createSvgLine(8, leftY, width - 8, rightY, "#5b62e9", 4));
+                const color = pairColorForLeft(leftIndex) || "#5b62e9";
+                linesCanvas.appendChild(createSvgLine(4, leftY, width - 4, rightY, color, 4));
             });
         };
 
@@ -258,6 +303,7 @@
             paintSelections();
             syncHiddenFields();
             drawLines();
+            renderPairsSummary();
             updateAnswered();
             const totalLeft = leftButtons.length;
             if (totalLeft > 0 && links.size === totalLeft) {
@@ -276,13 +322,13 @@
                 activeLeft = activeLeft === leftIndex ? null : leftIndex;
                 if (selectedLabel) {
                     selectedLabel.textContent = activeLeft === null
-                        ? "Левая карточка не выбрана"
-                        : `Выбрано слева: ${button.textContent.trim()}`;
+                        ? "Условие не выбрано"
+                        : `Выбрано условие: ${button.textContent.trim()}`;
                 }
                 if (hint) {
                     hint.textContent = activeLeft === null
-                        ? "Выберите левую карточку."
-                        : "Теперь выберите карточку справа для создания связи.";
+                        ? "Выберите карточку в колонке «Условие»."
+                        : "Теперь нажмите ответ справа.";
                 }
                 paintSelections();
             });
@@ -291,14 +337,14 @@
         rightButtons.forEach((button) => {
             button.addEventListener("click", () => {
                 if (activeLeft === null) {
-                    if (hint) hint.textContent = "Сначала выберите карточку слева.";
+                    if (hint) hint.textContent = "Сначала выберите карточку слева (условие).";
                     return;
                 }
                 const rightIndex = Number(button.dataset.rightIndex);
                 if (links.get(activeLeft) === rightIndex) {
                     links.delete(activeLeft);
                     activeLeft = null;
-                    if (selectedLabel) selectedLabel.textContent = "Левая карточка не выбрана";
+                    if (selectedLabel) selectedLabel.textContent = "Условие не выбрано";
                     if (hint) hint.textContent = "Связь снята.";
                     refresh();
                     return;
@@ -310,7 +356,7 @@
                 });
                 links.set(activeLeft, rightIndex);
                 activeLeft = null;
-                if (selectedLabel) selectedLabel.textContent = "Левая карточка не выбрана";
+                if (selectedLabel) selectedLabel.textContent = "Условие не выбрано";
                 if (hint) hint.textContent = "Связь создана. Выберите следующую пару.";
                 refresh();
             });

@@ -3,7 +3,7 @@
 <body>
 <section class="panel question-panel" th:fragment="sessionQuestion(question,totalQuestions)" th:id="${'q-' + question.id}">
     <div class="question-kicker">
-        <span class="badge" th:text="${question.type}">SCQ</span>
+        <!-- Технические имена типов (MATCHING, FILL_IN) ученику не показываем. -->
         <span>Вопрос <span th:text="${question.orderNo}">1</span> из <span th:text="${totalQuestions}">4</span></span>
         <span class="muted-line" th:text="${question.topicTitle}">Тема</span>
     </div>
@@ -39,10 +39,11 @@
     </div>
 
     <div class="matching-answer" th:if="${question.type == 'MATCHING'}" th:attr="data-question-id=${question.id}">
-        <p class="matching-instruction">Сопоставь элементы: клик по карточке слева, затем по карточке справа.</p>
-        <p class="matching-selected-label">Левая карточка не выбрана</p>
+        <p class="matching-instruction">Сопоставь элементы: сначала нажми карточку слева (условие), затем справа (ответ).</p>
+        <p class="matching-selected-label">Условие не выбрано</p>
         <div class="matching-board">
             <div class="matching-column matching-left-column">
+                <p class="matching-column-title">Условие</p>
                 <button type="button"
                         class="matching-card matching-left-card"
                         th:each="left,leftStat : ${question.matchingLeft}"
@@ -51,6 +52,7 @@
             </div>
             <svg class="matching-lines" viewBox="0 0 120 170" preserveAspectRatio="none" aria-hidden="true"></svg>
             <div class="matching-column matching-right-column">
+                <p class="matching-column-title">Ответ</p>
                 <button type="button"
                         class="matching-card matching-right-card"
                         th:each="right,rightStat : ${question.matchingRight}"
@@ -58,13 +60,15 @@
                         th:text="${right.text}">Правый элемент</button>
             </div>
         </div>
+        <!-- Список уже созданных пар — особенно важен на мобиле, где линии тонкие/неочевидны. -->
+        <ul class="matching-pairs-summary" aria-live="polite"></ul>
         <div class="matching-hidden-fields">
             <input type="hidden"
                    th:each="left,leftStat : ${question.matchingLeft}"
                    th:id="${'match-field-' + question.id + '-' + leftStat.index}"
                    th:name="${'match_' + question.id + '_' + leftStat.index}">
         </div>
-        <p class="matching-hint">Выберите левую карточку.</p>
+        <p class="matching-hint">Выберите карточку в колонке «Условие».</p>
     </div>
 
     <div class="answer-block fill-answer" th:if="${question.type == 'FILL_IN'}">
@@ -75,13 +79,19 @@
     </div>
 </section>
 
-<article class="result-row" th:fragment="resultQuestion(question)" th:id="${'result-q-' + question.sessionQuestionId}">
+<article class="result-row" th:fragment="resultQuestion(question)" th:id="${'result-q-' + question.sessionQuestionId}"
+         th:attr="data-question-type=${question.type}">
     <div class="result-row-head">
-        <span class="badge" th:text="${question.type}">SCQ</span>
+        <!-- Тип вопроса (FILL_IN / MCQ / …) ученику не показываем — только вердикт. -->
         <span class="badge success" th:if="${question.correct}">Верно</span>
         <span class="badge danger" th:if="${!question.correct}">Ошибка</span>
     </div>
-    <h3 th:text="${question.orderNo + '. ' + question.body}">Вопрос</h3>
+    <!-- FILL_IN: сырой body с [[N]] кладём в data-*, видимый текст собирает JS (подстановка значений). -->
+    <h3 th:if="${question.type != 'FILL_IN'}" th:text="${question.orderNo + '. ' + question.body}">Вопрос</h3>
+    <h3 class="result-fill-body"
+        th:if="${question.type == 'FILL_IN'}"
+        th:attr="data-order-no=${question.orderNo},data-fill-body=${question.body},data-student-answer=${question.studentAnswer},data-correct-answer=${question.correctAnswer}"
+        th:text="${question.orderNo + '. ' + question.body}">Вопрос</h3>
     <p class="muted-line" th:text="${question.topicTitle}">Тема</p>
 
     <div class="result-choice-list"
@@ -96,7 +106,7 @@
         </article>
     </div>
 
-    <div class="result-detail" th:if="${question.type == 'FILL_IN'}"
+    <div class="result-detail result-fill-detail" th:if="${question.type == 'FILL_IN'}"
          th:attr="data-student-answer=${question.studentAnswer},data-correct-answer=${question.correctAnswer}">
         <div>
             <strong>Ответ ученика</strong>
