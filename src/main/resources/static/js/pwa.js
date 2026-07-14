@@ -272,7 +272,6 @@ function bindPushPromptControls() {
 
 async function shouldShowPushPrompt() {
     if (!document.body || !document.querySelector('.student-header')) return false;
-    if (wasPushPromptDismissed()) return false;
 
     const vapidMeta = document.querySelector('meta[name="vapid-public-key"]');
     if (!vapidMeta || !vapidMeta.content) return false;
@@ -282,7 +281,15 @@ async function shouldShowPushPrompt() {
     const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
     if (!reg) return false;
     const existing = await reg.pushManager.getSubscription();
-    return !existing;
+    const currentKey = currentVapidApplicationServerKey();
+    const keyMismatch = existing && currentKey && !subscriptionUsesApplicationServerKey(existing, currentKey);
+
+    // Если пользователь уже закрывал prompt, не показываем его снова без причины.
+    // Исключение — смена VAPID public key: старая browser subscription будет получать 403
+    // от FCM/Apple, поэтому её нужно предложить пересоздать даже после прежнего dismiss.
+    if (!keyMismatch && wasPushPromptDismissed()) return false;
+
+    return !existing || keyMismatch;
 }
 
 async function maybeShowPushPrompt() {
@@ -343,11 +350,20 @@ async function subscribeToPush() {
 
     const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
     if (!reg) return false;
+    const applicationServerKey = currentVapidApplicationServerKey();
+    if (!applicationServerKey) return false;
 
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
-        await savePushSubscription(existing);
-        return true;
+        if (subscriptionUsesApplicationServerKey(existing, applicationServerKey)) {
+            await savePushSubscription(existing);
+            return true;
+        }
+
+        // VAPID public key сменился. Браузер может продолжать хранить старую подписку,
+        // а сервер уже подписывает Web Push запросы новым private key. Такая пара даёт
+        // HTTP 403 от FCM. Поэтому старую подписку нужно явно удалить и создать заново.
+        await existing.unsubscribe();
     }
 
     const permission = await Notification.requestPermission();
@@ -355,7 +371,7 @@ async function subscribeToPush() {
 
     const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidMeta.content)
+        applicationServerKey
     });
 
     await savePushSubscription(subscription);
@@ -388,7 +404,8 @@ async function checkPushStatus(btn) {
     if (Notification.permission === 'granted') {
         const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
         const existing = reg ? await reg.pushManager.getSubscription() : null;
-        if (existing) setPushBtnSubscribed(btn);
+        const currentKey = currentVapidApplicationServerKey();
+        if (existing && subscriptionUsesApplicationServerKey(existing, currentKey)) setPushBtnSubscribed(btn);
     } else if (Notification.permission === 'denied') {
         btn.disabled = true;
         btn.textContent = 'Уведомления заблокированы в браузере';
@@ -399,6 +416,24 @@ function setPushBtnSubscribed(btn) {
     btn.disabled = true;
     btn.textContent = 'Уведомления включены ✓';
     btn.classList.add('is-subscribed');
+}
+
+function currentVapidApplicationServerKey() {
+    const vapidMeta = document.querySelector('meta[name="vapid-public-key"]');
+    if (!vapidMeta || !vapidMeta.content) return null;
+    return urlBase64ToUint8Array(vapidMeta.content);
+}
+
+function subscriptionUsesApplicationServerKey(subscription, applicationServerKey) {
+    const existingKey = subscription?.options?.applicationServerKey;
+    if (!existingKey || !applicationServerKey) return false;
+
+    // PushSubscriptionOptions.applicationServerKey хранится в браузере как ArrayBuffer.
+    // Если он отличается от текущего VAPID public key в HTML, эта подписка создана
+    // под старую VAPID-пару; сервер с новым private key будет получать HTTP 403.
+    const existingBytes = new Uint8Array(existingKey);
+    if (existingBytes.length !== applicationServerKey.length) return false;
+    return existingBytes.every((value, index) => value === applicationServerKey[index]);
 }
 
 function urlBase64ToUint8Array(base64String) {
