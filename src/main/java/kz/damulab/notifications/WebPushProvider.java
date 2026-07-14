@@ -11,6 +11,7 @@ import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Subscription;
 import org.apache.http.HttpResponse;
+import org.apache.http.util.EntityUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,9 +109,10 @@ public class WebPushProvider implements PushProvider {
                     log.info("webpush delivery accepted: notificationId={} deviceTokenId={} userId={} endpointHost={} httpStatus={}",
                             notification.getId(), token.getId(), userId(token), endpointHost(token), statusCode);
                 } else {
-                    lastFailure = "Push service returned HTTP " + statusCode;
-                    log.warn("webpush delivery rejected: notificationId={} deviceTokenId={} userId={} endpointHost={} httpStatus={}",
-                            notification.getId(), token.getId(), userId(token), endpointHost(token), statusCode);
+                    String responseDetails = responseDetails(response);
+                    lastFailure = "Push service returned HTTP " + statusCode + " " + responseDetails;
+                    log.warn("webpush delivery rejected: notificationId={} deviceTokenId={} userId={} endpointHost={} httpStatus={} response={}",
+                            notification.getId(), token.getId(), userId(token), endpointHost(token), statusCode, responseDetails);
                 }
             } catch (Exception e) {
                 // Логируем отдельную неудачу, продолжаем с остальными подписчиками
@@ -168,10 +170,11 @@ public class WebPushProvider implements PushProvider {
                         token.getId(), userId(token), endpointHost(token), statusCode);
                 return PushDeliveryResult.sent("webpush", "token-" + token.getId() + " status=" + statusCode);
             }
-            log.warn("webpush sendRaw rejected: deviceTokenId={} userId={} endpointHost={} httpStatus={}",
-                    token.getId(), userId(token), endpointHost(token), statusCode);
+            String responseDetails = responseDetails(response);
+            log.warn("webpush sendRaw rejected: deviceTokenId={} userId={} endpointHost={} httpStatus={} response={}",
+                    token.getId(), userId(token), endpointHost(token), statusCode, responseDetails);
             return PushDeliveryResult.failed("webpush", "http_" + statusCode,
-                    "Push service returned HTTP " + statusCode);
+                    truncate("Push service returned HTTP " + statusCode + " " + responseDetails, 512));
         } catch (Exception e) {
             log.warn("webpush sendRaw exception: deviceTokenId={} userId={} endpointHost={} exception={} message={}",
                     token.getId(), userId(token), endpointHost(token), e.getClass().getSimpleName(), e.getMessage());
@@ -297,6 +300,31 @@ public class WebPushProvider implements PushProvider {
             return -1;
         }
         return response.getStatusLine().getStatusCode();
+    }
+
+    /**
+     * Для неуспешных ответов читаем короткую причину от push-сервиса.
+     * У FCM при 403 в body часто лежит самое полезное: например, что VAPID JWT не принят,
+     * endpoint не соответствует ключу или подписка больше невалидна.
+     *
+     * Заголовки намеренно не логируем: там могут оказаться служебные токены авторизации.
+     */
+    private String responseDetails(HttpResponse response) {
+        if (response == null) {
+            return "response=null";
+        }
+
+        String reason = response.getStatusLine() == null ? "" : response.getStatusLine().getReasonPhrase();
+        String body = "";
+        try {
+            if (response.getEntity() != null) {
+                body = EntityUtils.toString(response.getEntity());
+            }
+        } catch (Exception e) {
+            body = "cannot_read_body:" + e.getClass().getSimpleName();
+        }
+
+        return truncate("reason=" + reason + " body=" + body, 300);
     }
 
     /**
