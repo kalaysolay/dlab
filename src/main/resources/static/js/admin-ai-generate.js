@@ -106,7 +106,10 @@
         form.addEventListener('submit', function (evt) {
             evt.preventDefault();
 
-            var topicId = Number(document.getElementById('topicId') && document.getElementById('topicId').value);
+            // id="ai-topic" в шаблоне (не topicId): th:field даёт name="topicId", а явный id нужен
+            // для syncAiTopics в question-ai-generate.html — иначе getElementById('topicId') всегда null.
+            var topicEl = document.getElementById('ai-topic') || form.querySelector('[name="topicId"]');
+            var topicId = Number(topicEl && topicEl.value);
             var questionType = document.getElementById('questionType') && document.getElementById('questionType').value;
             var difficulty = Number(document.getElementById('difficulty') && document.getElementById('difficulty').value);
             var count = Number(document.getElementById('count') && document.getElementById('count').value);
