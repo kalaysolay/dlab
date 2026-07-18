@@ -1237,7 +1237,7 @@ public class QuestionBankService {
         QuestionForm form = new QuestionForm();
         form.setType(QuestionType.valueOf(cell(row, 0, formatter).trim().toUpperCase(Locale.ROOT)));
         Long topicId = Long.valueOf(cell(row, 1, formatter).trim());
-        Topic topic = topics.findById(topicId).orElseThrow(() -> new QuestionBankException("topic_not_found"));
+        Topic topic = findTopic(topicId);
         form.setSubjectId(topic.getSubject().getId());
         form.setTopicIds(new ArrayList<>(List.of(topicId)));
         form.setGradeIds(new ArrayList<>(List.of(topic.getGrade().getId())));
@@ -1333,7 +1333,11 @@ public class QuestionBankService {
     }
 
     private Topic findTopic(Long id) {
-        return topics.findById(id).orElseThrow(() -> new QuestionBankException("topic_not_found"));
+        Topic topic = topics.findById(id).orElseThrow(() -> new QuestionBankException("topic_not_found"));
+        if (topic.isDeleted()) {
+            throw new QuestionBankException("topic_not_found");
+        }
+        return topic;
     }
 
     private AtomicSkill findSkill(Long id) {

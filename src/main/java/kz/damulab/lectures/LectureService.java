@@ -551,7 +551,11 @@ public class LectureService {
     }
 
     private Topic findTopic(Long id) {
-        return topics.findById(id).orElseThrow(() -> new LectureException("topic_not_found"));
+        Topic topic = topics.findById(id).orElseThrow(() -> new LectureException("topic_not_found"));
+        if (topic.isDeleted()) {
+            throw new LectureException("topic_not_found");
+        }
+        return topic;
     }
 
     private AppUser currentUser() {

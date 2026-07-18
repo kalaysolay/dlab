@@ -303,7 +303,7 @@ class QuestionBankIntegrationTest {
     }
 
     @Test
-    void topicWithQuestionCannotBeDeleted() throws Exception {
+    void topicWithQuestionCanBeSoftDeleted() throws Exception {
         TopicFixture tf = createTopic("question-blocks-topic-");
         mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -315,8 +315,15 @@ class QuestionBankIntegrationTest {
         mockMvc.perform(delete("/api/admin/topics/{id}", tf.topicId())
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("topic_has_questions"));
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(tf, "Новый вопрос на удалённую тему", true)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("topic_not_found"));
     }
 
     @Test

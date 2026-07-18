@@ -121,7 +121,23 @@ public class AdminTopicPageController {
     ) {
         try {
             contentGraph.deleteTopic(id);
-            redirectAttributes.addFlashAttribute("successMessage", "Тема удалена");
+            redirectAttributes.addFlashAttribute("successMessage", "Тема удалена (скрыта из списков)");
+        } catch (ContentGraphException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
+        }
+        return redirectToTopics(subjectId, gradeId);
+    }
+
+    @PostMapping("/admin/topics/{id}/restore")
+    String restoreTopic(
+            @PathVariable Long id,
+            @RequestParam Long subjectId,
+            @RequestParam Long gradeId,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            contentGraph.restoreTopic(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Тема восстановлена");
         } catch (ContentGraphException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }
@@ -258,9 +274,7 @@ public class AdminTopicPageController {
     private String humanError(String code) {
         return switch (code) {
             case "topic_duplicate" -> "Тема с таким кодом или названием уже есть в этой ветке";
-            case "topic_has_children" -> "Нельзя удалить тему, пока у нее есть дочерние темы";
-            case "topic_has_skills" -> "Нельзя удалить тему, пока к ней привязаны атомарные навыки";
-            case "topic_has_questions" -> "Нельзя удалить тему, пока к ней привязаны вопросы";
+            case "topic_parent_deleted" -> "Сначала восстановите родительскую тему";
             case "topic_parent_scope_mismatch" -> "Родительская тема должна быть в том же предмете и классе";
             case "topic_parent_cycle" -> "Тему нельзя сделать дочерней для самой себя или своего потомка";
             case "skill_duplicate" -> "Навык с таким кодом или названием уже есть в этой теме";

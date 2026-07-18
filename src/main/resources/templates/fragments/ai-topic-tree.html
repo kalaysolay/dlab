@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Рекурсивный фрагмент дерева тем для выбора (AI-генерация и др.).
+  depth — уровень вложенности (0 = корень): отступ строки и метка L1/L2/…
+  selectedId — текущий topicId из формы (radio checked).
+-->
+<ul class="ai-topic-tree-list" th:fragment="aiTopicTreeNodes(nodes, selectedId, depth)">
+    <li th:each="node : ${nodes}" class="ai-topic-tree-node" role="treeitem"
+        th:attr="data-search-text=${(node.titleRu + ' ' + node.titleKk + ' ' + node.code).toLowerCase()},
+                 aria-level=${depth + 1}">
+        <label class="ai-topic-tree-row" th:style="|--ai-topic-depth:${depth}|">
+            <input type="radio" name="topicId" th:value="${node.id}"
+                   th:checked="${selectedId != null and selectedId == node.id}">
+            <span class="ai-topic-tree-level" th:text="${'L' + (depth + 1)}"
+                  th:title="${'Уровень ' + (depth + 1)}">L1</span>
+            <span class="ai-topic-tree-title">
+                <strong th:text="${node.titleRu}">Проценты</strong>
+                <small class="muted-line" th:if="${node.code != null and !#strings.isEmpty(node.code)}"
+                       th:text="${node.code}">code</small>
+            </span>
+        </label>
+        <th:block th:if="${!#lists.isEmpty(node.children)}">
+            <ul th:replace="~{fragments/ai-topic-tree :: aiTopicTreeNodes(${node.children}, ${selectedId}, ${depth + 1})}"></ul>
+        </th:block>
+    </li>
+</ul>
+</body>
+</html>

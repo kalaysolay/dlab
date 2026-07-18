@@ -290,7 +290,11 @@ public class AiContentFactoryService {
     }
 
     private Topic findTopic(Long id) {
-        return topics.findById(id).orElseThrow(() -> new AiContentFactoryException("topic_not_found"));
+        Topic topic = topics.findById(id).orElseThrow(() -> new AiContentFactoryException("topic_not_found"));
+        if (topic.isDeleted()) {
+            throw new AiContentFactoryException("topic_not_found");
+        }
+        return topic;
     }
 
     private AtomicSkill resolveSkill(Long id, Topic topic) {

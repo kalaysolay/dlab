@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 public class AiProviderProperties {
 
     private String provider = "stub";
-    private String fallbackProvider = "deepseek";
+    /** Пусто = без fallback (DeepSeek не вызывается, пока явно не задать AI_FALLBACK_PROVIDER). */
+    private String fallbackProvider = "";
     private boolean realProvidersEnabled;
     private final Provider openai = new Provider("https://api.openai.com", "gpt-5.2", null);
     private final Provider deepseek = new Provider("https://api.deepseek.com", "deepseek-chat", null);

@@ -59,7 +59,8 @@ damulab:
   # Если real=false: провайдер openai не вызывается (кроме тестов со своими overrides).
   ai:
     provider: ${AI_PROVIDER:stub}
-    fallback-provider: ${AI_FALLBACK_PROVIDER:deepseek}
+    # Пустой fallback = не переключаться на DeepSeek при сбое primary (иначе без ключа — deepseek_api_key_missing).
+    fallback-provider: ${AI_FALLBACK_PROVIDER:}
     real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:true}
     openai:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}

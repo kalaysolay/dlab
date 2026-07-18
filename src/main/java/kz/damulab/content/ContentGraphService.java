@@ -74,7 +74,8 @@ public class ContentGraphService {
     public List<TopicResponse> listTopics(Long subjectId, Long gradeId) {
         Long resolvedSubjectId = resolveSubjectId(subjectId);
         Long resolvedGradeId = resolveGradeId(gradeId);
-        return topics.findBySubjectIdAndGradeIdOrderByTitleRuAsc(resolvedSubjectId, resolvedGradeId).stream()
+        return topics.findBySubjectIdAndGradeIdAndDeletedAtIsNullOrderByTitleRuAsc(resolvedSubjectId, resolvedGradeId)
+                .stream()
                 .map(this::toTopicResponse)
                 .toList();
     }
@@ -83,7 +84,7 @@ public class ContentGraphService {
     @Transactional(readOnly = true)
     public List<TopicResponse> listTopicsForSubject(Long subjectId) {
         Long resolvedSubjectId = resolveSubjectId(subjectId);
-        return topics.findBySubject_IdOrderByTitleRuAsc(resolvedSubjectId).stream()
+        return topics.findBySubject_IdAndDeletedAtIsNullOrderByTitleRuAsc(resolvedSubjectId).stream()
                 .map(this::toTopicResponse)
                 .toList();
     }
@@ -92,7 +93,10 @@ public class ContentGraphService {
     public List<TopicTreeNode> topicTree(Long subjectId, Long gradeId) {
         Long resolvedSubjectId = resolveSubjectId(subjectId);
         Long resolvedGradeId = resolveGradeId(gradeId);
-        List<Topic> allTopics = topics.findBySubjectIdAndGradeIdOrderByTitleRuAsc(resolvedSubjectId, resolvedGradeId);
+        List<Topic> allTopics = topics.findBySubjectIdAndGradeIdAndDeletedAtIsNullOrderByTitleRuAsc(
+                resolvedSubjectId,
+                resolvedGradeId
+        );
         Map<Long, List<Topic>> byParent = allTopics.stream()
                 .collect(LinkedHashMap::new, (map, topic) -> {
                     Long parentId = topic.getParentTopic() == null ? null : topic.getParentTopic().getId();
@@ -146,23 +150,43 @@ public class ContentGraphService {
         return toTopicResponse(topic);
     }
 
+    /**
+     * Soft-delete темы и всего поддерева. Вопросы/навыки/лекции не трогаем —
+     * они остаются в БД, тема просто исчезает из списков и пикеров.
+     */
     @Transactional
     public void deleteTopic(Long id) {
-        Topic topic = findTopic(id);
-        if (topics.existsByParentTopicId(id)) {
-            throw new ContentGraphException("topic_has_children");
+        Topic topic = findActiveTopic(id);
+        softDeleteSubtree(topic, OffsetDateTime.now());
+    }
+
+    /**
+     * Восстановить soft-deleted тему. Родитель (если есть) должен быть активен;
+     * дети, удалённые вместе с родителем, остаются удалёнными до отдельного restore.
+     */
+    @Transactional
+    public TopicResponse restoreTopic(Long id) {
+        Topic topic = topics.findById(id)
+                .orElseThrow(() -> new ContentGraphException("topic_not_found"));
+        if (!topic.isDeleted()) {
+            return toTopicResponse(topic);
         }
-        if (skills.existsByTopicId(id)) {
-            throw new ContentGraphException("topic_has_skills");
+        Topic parent = topic.getParentTopic();
+        if (parent != null && parent.isDeleted()) {
+            throw new ContentGraphException("topic_parent_deleted");
         }
-        dependencyCheckers.stream()
-                .filter(checker -> checker.hasTopicDependency(id))
-                .findFirst()
-                .ifPresent(checker -> {
-                    throw new ContentGraphException("topic_has_" + checker.dependencyCode());
-                });
-        topics.delete(topic);
-        audit.record("topic_deleted", "Topic", id, topic.getCode());
+        requireNoDuplicate(
+                topic.getSubject().getId(),
+                topic.getGrade().getId(),
+                parentId(parent),
+                topic.getCode(),
+                topic.getTitleRu(),
+                topic.getTitleKk(),
+                topic.getId()
+        );
+        topic.restore();
+        audit.record("topic_restored", "Topic", topic.getId(), topic.getCode());
+        return toTopicResponse(topic);
     }
 
     @Transactional
@@ -272,6 +296,15 @@ public class ContentGraphService {
         String code = normalizeCode(item.getCode(), item.getTitleRu());
         Long parentId = parentId(parent);
         Topic topic = topics.findByScopeAndCode(subject.getId(), grade.getId(), parentId, code).orElse(null);
+        boolean revived = false;
+        if (topic == null) {
+            // Импорт с тем же code после soft-delete — поднимаем существующую строку, а не создаём дубликат.
+            topic = topics.findDeletedByScopeAndCode(subject.getId(), grade.getId(), parentId, code).orElse(null);
+            if (topic != null) {
+                topic.restore();
+                revived = true;
+            }
+        }
         Long existingId = topic == null ? null : topic.getId();
         requireNoDuplicate(
                 subject.getId(),
@@ -288,7 +321,11 @@ public class ContentGraphService {
             counter.created++;
         } else {
             topic.update(subject, grade, parent, code, item.getTitleRu().trim(), item.getTitleKk().trim());
-            counter.updated++;
+            if (revived) {
+                counter.created++;
+            } else {
+                counter.updated++;
+            }
         }
         topic.markImported(importNote, importedAt);
         Topic saved = topics.save(topic);
@@ -318,9 +355,18 @@ public class ContentGraphService {
                 topic.isImported(),
                 topic.getImportNote(),
                 topic.getImportedAt(),
-                topics.countByParentTopicId(topic.getId()),
+                topics.countByParentTopicIdAndDeletedAtIsNull(topic.getId()),
                 skills.countByTopicId(topic.getId())
         );
+    }
+
+    /** Soft-delete узла и всех активных потомков (глубина-сначала). */
+    private void softDeleteSubtree(Topic topic, OffsetDateTime deletedAt) {
+        for (Topic child : topics.findByParentTopicIdAndDeletedAtIsNullOrderByTitleRuAsc(topic.getId())) {
+            softDeleteSubtree(child, deletedAt);
+        }
+        topic.markDeleted(deletedAt);
+        audit.record("topic_deleted", "Topic", topic.getId(), topic.getCode());
     }
 
     private AtomicSkillResponse toSkillResponse(AtomicSkill skill) {
@@ -387,8 +433,17 @@ public class ContentGraphService {
     }
 
     private Topic findTopic(Long id) {
-        return topics.findById(id)
+        return findActiveTopic(id);
+    }
+
+    /** Активная тема для write/list-path; soft-deleted считается отсутствующей. */
+    private Topic findActiveTopic(Long id) {
+        Topic topic = topics.findById(id)
                 .orElseThrow(() -> new ContentGraphException("topic_not_found"));
+        if (topic.isDeleted()) {
+            throw new ContentGraphException("topic_not_found");
+        }
+        return topic;
     }
 
     private AtomicSkill findSkill(Long id) {

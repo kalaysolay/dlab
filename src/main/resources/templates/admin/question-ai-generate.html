@@ -6,7 +6,8 @@
     <title>AI генерация вопросов</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
-</head><body>
+</head>
+<body>
 <div class="app-shell admin-shell">
     <!-- Toast-стек для in-app уведомлений о ходе генерации -->
     <div id="toast-stack" class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
@@ -44,7 +45,7 @@
                                     th:selected="${subject.id == selectedSubjectId}"
                                     th:text="${subject.titleRu}">Математика</option>
                         </select>
-                        <small class="muted-line">Сначала выберите предмет и класс: список тем обновится автоматически.</small>
+                        <small class="muted-line">Сначала выберите предмет и класс: дерево тем обновится автоматически.</small>
                     </label>
                     <label class="field">
                         <span>Класс</span>
@@ -55,17 +56,27 @@
                                     th:text="${grade.titleRu}">4 класс</option>
                         </select>
                     </label>
-                    <label class="field">
+                    <div class="field field-ai-topic-tree" style="grid-column: span 2;">
                         <span>Тема</span>
-                        <select id="ai-topic" th:field="*{topicId}" required>
-                            <option value="">Выберите тему</option>
-                            <option th:each="topic : ${topics}"
-                                    th:value="${topic.id}"
-                                    th:text="${topic.titleRu}">Проценты</option>
-                        </select>
-                        <small id="ai-topic-hint" class="muted-line">Темы показаны для текущего предмета и класса.</small>
+                        <!--
+                          topicId выбирается radio в дереве (name=topicId) — один источник правды
+                          для submit JS и серверного биндинга; скрытое поле не нужно.
+                        -->
+                        <input type="search" id="ai-topic-filter" class="checklist-filter"
+                               placeholder="Поиск по названию или коду…" autocomplete="off">
+                        <div id="ai-topic-tree" class="ai-topic-tree" role="tree"
+                             th:attr="data-selected-id=*{topicId}">
+                            <div class="empty-state" th:if="${#lists.isEmpty(topicTree)}">
+                                <strong>Нет тем</strong>
+                                <span>Для этой пары предмет/класс тем пока нет.</span>
+                            </div>
+                            <th:block th:if="${!#lists.isEmpty(topicTree)}">
+                                <ul th:replace="~{fragments/ai-topic-tree :: aiTopicTreeNodes(${topicTree}, *{topicId}, 0)}"></ul>
+                            </th:block>
+                        </div>
+                        <small id="ai-topic-hint" class="muted-line">Выберите тему в дереве: вложенность показывает уровень.</small>
                         <small th:if="${#fields.hasErrors('topicId')}" th:errors="*{topicId}" class="field-error">Ошибка</small>
-                    </label>
+                    </div>
                     <label class="field">
                         <span>Тип</span>
                         <select th:field="*{questionType}">
@@ -221,9 +232,15 @@
 <script th:src="@{/js/toast.js}" defer></script>
 <script th:src="@{/js/admin-ai-generate.js}" defer></script>
 <script>
+    /**
+     * Выбор темы деревом на странице AI-генерации.
+     * Radio name=topicId — единственный источник выбранной темы для admin-ai-generate.js.
+     * Дерево: GET /api/admin/topics/tree при смене предмета/класса.
+     */
     const aiSubject = document.getElementById('ai-subject');
     const aiGrade = document.getElementById('ai-grade');
-    const aiTopic = document.getElementById('ai-topic');
+    const aiTopicTree = document.getElementById('ai-topic-tree');
+    const aiTopicFilter = document.getElementById('ai-topic-filter');
 
     function setAiTopicHint(message, isError) {
         const hint = document.getElementById('ai-topic-hint');
@@ -235,66 +252,159 @@
         hint.classList.toggle('muted-line', !isError);
     }
 
-    function setAiTopicPlaceholder(text) {
-        aiTopic.innerHTML = '';
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = text;
-        aiTopic.appendChild(option);
-        aiTopic.value = '';
+    function selectedTopicId() {
+        const checked = document.querySelector('#ai-topic-tree input[name="topicId"]:checked');
+        return checked ? checked.value : '';
+    }
+
+    function bindTopicTreeSelection(root) {
+        if (!root) {
+            return;
+        }
+        root.querySelectorAll('input[name="topicId"]').forEach((radio) => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    setAiTopicHint('Тема выбрана. Можно запускать генерацию.', false);
+                }
+            });
+        });
+    }
+
+    function bindTopicTreeFilter() {
+        if (!aiTopicFilter || !aiTopicTree) {
+            return;
+        }
+        aiTopicFilter.addEventListener('input', () => {
+            const q = (aiTopicFilter.value || '').trim().toLowerCase();
+            aiTopicTree.querySelectorAll('.ai-topic-tree-node').forEach((node) => {
+                if (!q) {
+                    node.hidden = false;
+                    return;
+                }
+                const selfMatch = (node.getAttribute('data-search-text') || '').includes(q);
+                const childMatch = Array.from(node.querySelectorAll('.ai-topic-tree-node'))
+                        .some((child) => (child.getAttribute('data-search-text') || '').includes(q));
+                node.hidden = !(selfMatch || childMatch);
+            });
+        });
+    }
+
+    function renderTopicTreeNodes(nodes, selectedId, depth) {
+        const ul = document.createElement('ul');
+        ul.className = 'ai-topic-tree-list';
+        (nodes || []).forEach((node) => {
+            const li = document.createElement('li');
+            li.className = 'ai-topic-tree-node';
+            li.setAttribute('role', 'treeitem');
+            li.setAttribute('aria-level', String(depth + 1));
+            const title = node.titleRu || node.titleKk || ('Тема ' + node.id);
+            const code = node.code || '';
+            li.setAttribute('data-search-text', (title + ' ' + (node.titleKk || '') + ' ' + code).toLowerCase());
+
+            const label = document.createElement('label');
+            label.className = 'ai-topic-tree-row';
+            label.style.setProperty('--ai-topic-depth', String(depth));
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'topicId';
+            radio.value = String(node.id);
+            if (selectedId != null && String(selectedId) === String(node.id)) {
+                radio.checked = true;
+            }
+
+            const level = document.createElement('span');
+            level.className = 'ai-topic-tree-level';
+            level.textContent = 'L' + (depth + 1);
+            level.title = 'Уровень ' + (depth + 1);
+
+            const titleWrap = document.createElement('span');
+            titleWrap.className = 'ai-topic-tree-title';
+            const strong = document.createElement('strong');
+            strong.textContent = title;
+            titleWrap.appendChild(strong);
+            if (code) {
+                const codeEl = document.createElement('small');
+                codeEl.className = 'muted-line';
+                codeEl.textContent = code;
+                titleWrap.appendChild(codeEl);
+            }
+
+            label.appendChild(radio);
+            label.appendChild(level);
+            label.appendChild(titleWrap);
+            li.appendChild(label);
+
+            const children = Array.isArray(node.children) ? node.children : [];
+            if (children.length) {
+                li.appendChild(renderTopicTreeNodes(children, selectedId, depth + 1));
+            }
+            ul.appendChild(li);
+        });
+        return ul;
+    }
+
+    function renderTopicTree(nodes, selectedId) {
+        if (!aiTopicTree) {
+            return;
+        }
+        aiTopicTree.innerHTML = '';
+        if (aiTopicFilter) {
+            aiTopicFilter.value = '';
+        }
+        if (!nodes || !nodes.length) {
+            aiTopicTree.innerHTML = '<div class="empty-state"><strong>Нет тем</strong><span>Для этой пары предмет/класс тем пока нет.</span></div>';
+            setAiTopicHint('Для этих предмета и класса нет тем. Сначала добавьте тему в разделе «Темы».', true);
+            return;
+        }
+        const stillExists = (function find(list, id) {
+            return (list || []).some((n) => String(n.id) === String(id)
+                    || find(n.children, id));
+        })(nodes, selectedId);
+        const effectiveId = stillExists ? selectedId : '';
+        aiTopicTree.appendChild(renderTopicTreeNodes(nodes, effectiveId, 0));
+        bindTopicTreeSelection(aiTopicTree);
+        setAiTopicHint(
+                effectiveId
+                        ? 'Тема выбрана. Можно запускать генерацию.'
+                        : 'Выберите тему в дереве: метка L1/L2 показывает уровень вложенности.',
+                false
+        );
     }
 
     async function syncAiTopics() {
-        if (!aiSubject || !aiGrade || !aiTopic) {
+        if (!aiSubject || !aiGrade || !aiTopicTree) {
             return;
         }
         if (!aiSubject.value || !aiGrade.value) {
-            setAiTopicPlaceholder('Сначала выберите предмет и класс');
+            renderTopicTree([], '');
             setAiTopicHint('Тема станет доступна после выбора предмета и класса.', false);
             return;
         }
-        const prev = aiTopic.value;
-        aiTopic.disabled = true;
-        setAiTopicPlaceholder('Загружаем темы...');
-        setAiTopicHint('Обновляем темы для выбранного предмета и класса.', false);
+        const prev = selectedTopicId();
+        aiTopicTree.setAttribute('aria-busy', 'true');
+        setAiTopicHint('Обновляем дерево тем для выбранного предмета и класса.', false);
         const params = new URLSearchParams({
             subjectId: aiSubject.value,
             gradeId: aiGrade.value
         });
         try {
-            const response = await fetch('/api/content/references?' + params.toString(), { credentials: 'same-origin' });
+            const response = await fetch('/api/admin/topics/tree?' + params.toString(), { credentials: 'same-origin' });
             if (!response.ok) {
-                throw new Error('topic refresh failed');
+                throw new Error('topic tree refresh failed');
             }
-            const data = await response.json();
-            const topics = Array.isArray(data.topics) ? data.topics : [];
-            aiTopic.innerHTML = '';
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = topics.length ? 'Выберите тему' : 'Нет тем для этой пары';
-            aiTopic.appendChild(placeholder);
-            topics.forEach((topic) => {
-                const option = document.createElement('option');
-                option.value = String(topic.id);
-                option.textContent = topic.titleRu || topic.titleKk || ('Тема ' + topic.id);
-                aiTopic.appendChild(option);
-            });
-            const stillExists = topics.some((topic) => String(topic.id) === prev);
-            aiTopic.value = stillExists ? prev : '';
-            setAiTopicHint(
-                    topics.length
-                            ? 'Выберите тему перед генерацией.'
-                            : 'Для этих предмета и класса нет тем. Сначала добавьте тему в разделе "Темы".',
-                    topics.length === 0
-            );
+            const tree = await response.json();
+            renderTopicTree(Array.isArray(tree) ? tree : [], prev);
         } catch (error) {
-            setAiTopicPlaceholder('Не удалось загрузить темы');
+            aiTopicTree.innerHTML = '<div class="empty-state"><strong>Ошибка</strong><span>Не удалось загрузить темы.</span></div>';
             setAiTopicHint('Проверьте связь и повторите выбор предмета или класса.', true);
         } finally {
-            aiTopic.disabled = false;
+            aiTopicTree.removeAttribute('aria-busy');
         }
     }
 
+    bindTopicTreeSelection(aiTopicTree);
+    bindTopicTreeFilter();
     if (aiSubject && aiGrade) {
         aiSubject.addEventListener('change', syncAiTopics);
         aiGrade.addEventListener('change', syncAiTopics);

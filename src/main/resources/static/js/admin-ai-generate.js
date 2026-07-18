@@ -29,6 +29,31 @@
         return el ? el.value : '';
     }
 
+    /** Значение поля формы по name или id (пустая строка → ''). */
+    function readFormValue(form, name) {
+        var el = (form && form.elements && form.elements[name])
+                || (form && form.querySelector('[name="' + name + '"]'))
+                || document.getElementById(name);
+        // RadioNodeList: берём value выбранного; для select/input — .value
+        if (!el) {
+            return '';
+        }
+        if (typeof el.value === 'string') {
+            return el.value;
+        }
+        return '';
+    }
+
+    /** Целое из поля формы; при пустом/NaN — fallback (как дефолты AiQuestionGenerationForm). */
+    function readFormInt(form, name, fallback) {
+        var raw = readFormValue(form, name);
+        if (raw === '' || raw == null) {
+            return fallback;
+        }
+        var n = Number(raw);
+        return Number.isFinite(n) ? n : fallback;
+    }
+
     function setProgressVisible(visible) {
         var panel = document.getElementById('ai-gen-progress');
         if (panel) {
@@ -106,15 +131,15 @@
         form.addEventListener('submit', function (evt) {
             evt.preventDefault();
 
-            // id="ai-topic" в шаблоне (не topicId): th:field даёт name="topicId", а явный id нужен
-            // для syncAiTopics в question-ai-generate.html — иначе getElementById('topicId') всегда null.
-            var topicEl = document.getElementById('ai-topic') || form.querySelector('[name="topicId"]');
-            var topicId = Number(topicEl && topicEl.value);
-            var questionType = document.getElementById('questionType') && document.getElementById('questionType').value;
-            var difficulty = Number(document.getElementById('difficulty') && document.getElementById('difficulty').value);
-            var count = Number(document.getElementById('count') && document.getElementById('count').value);
-            var languageMode = document.getElementById('languageMode') && document.getElementById('languageMode').value;
-            var instruction = document.getElementById('instruction') && document.getElementById('instruction').value;
+            // topicId — checked radio в дереве (name=topicId). Остальные поля — по name/id формы.
+            // Defaults совпадают с AiQuestionGenerationForm, чтобы null/NaN не ломали @Valid.
+            var checkedTopic = form.querySelector('input[name="topicId"]:checked');
+            var topicId = checkedTopic ? Number(checkedTopic.value) : 0;
+            var questionType = readFormValue(form, 'questionType') || 'SCQ';
+            var difficulty = readFormInt(form, 'difficulty', 2);
+            var count = readFormInt(form, 'count', 5);
+            var languageMode = readFormValue(form, 'languageMode') || 'RU_KK';
+            var instruction = readFormValue(form, 'instruction');
 
             if (!topicId) {
                 showToast('warning', 'Выберите тему', 'Тема обязательна для генерации');
@@ -145,7 +170,7 @@
                 .then(function (res) {
                     if (!res.ok) {
                         return res.json().then(function (data) {
-                            throw new Error(data.error || 'generate_failed');
+                            throw new Error(data.message || data.error || 'generate_failed');
                         });
                     }
                     return res.json();

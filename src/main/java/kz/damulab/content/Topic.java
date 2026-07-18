@@ -14,6 +14,11 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+/**
+ * Тема предметного графа (предмет + класс, опционально parent).
+ * Soft-delete через {@code deleted_at}: hard-delete не используем,
+ * чтобы не ломать вопросы, навыки, лекции и ответы учеников.
+ */
 @Entity
 @Table(name = "topics")
 public class Topic {
@@ -58,6 +63,10 @@ public class Topic {
     @Column(name = "imported_at")
     private OffsetDateTime importedAt;
 
+    /** null = тема активна; иначе момент soft-delete. */
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
     protected Topic() {
     }
 
@@ -89,6 +98,18 @@ public class Topic {
         this.imported = true;
         this.importNote = importNote;
         this.importedAt = importedAt;
+    }
+
+    public void markDeleted(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 
     public Long getId() {
@@ -137,5 +158,9 @@ public class Topic {
 
     public OffsetDateTime getImportedAt() {
         return importedAt;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
     }
 }

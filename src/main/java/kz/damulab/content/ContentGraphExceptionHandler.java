@@ -19,7 +19,8 @@ public class ContentGraphExceptionHandler {
         HttpStatus status = switch (ex.getCode()) {
             case "subject_not_found", "grade_not_found", "topic_not_found", "skill_not_found" -> HttpStatus.NOT_FOUND;
             case "topic_duplicate", "topic_has_children", "topic_has_skills", "topic_parent_cycle",
-                    "topic_parent_scope_mismatch", "topic_has_questions", "topic_has_lectures", "skill_duplicate",
+                    "topic_parent_scope_mismatch", "topic_parent_deleted", "topic_has_questions", "topic_has_lectures",
+                    "skill_duplicate",
                     "skill_topic_mismatch", "skill_has_questions", "skill_has_lectures" -> HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };

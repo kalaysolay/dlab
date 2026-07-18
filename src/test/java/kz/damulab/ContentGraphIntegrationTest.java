@@ -2,6 +2,7 @@ package kz.damulab;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -132,13 +133,13 @@ class ContentGraphIntegrationTest {
     }
 
     @Test
-    void topicWithChildCannotBeDeleted() throws Exception {
+    void softDeleteHidesTopicAndCascadeChildren() throws Exception {
         Long subjectId = mathSubjectId();
         Long gradeId = grade4Id();
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         Long parentId = createTopic(subjectId, gradeId, "parent-" + suffix, "Родитель " + suffix);
 
-        mockMvc.perform(post("/api/admin/topics")
+        Long childId = idFrom(mockMvc.perform(post("/api/admin/topics")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -152,13 +153,72 @@ class ContentGraphIntegrationTest {
                                   "titleKk": "Бала %s"
                                 }
                                 """.formatted(subjectId, gradeId, parentId, suffix, suffix, suffix)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
 
         mockMvc.perform(delete("/api/admin/topics/{id}", parentId)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/admin/topics")
+                        .param("subjectId", subjectId.toString())
+                        .param("gradeId", gradeId.toString())
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", not(hasItem(parentId.intValue()))))
+                .andExpect(jsonPath("$[*].id", not(hasItem(childId.intValue()))));
+
+        mockMvc.perform(post("/api/admin/topics/{id}/restore", childId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("topic_has_children"));
+                .andExpect(jsonPath("$.error").value("topic_parent_deleted"));
+
+        mockMvc.perform(post("/api/admin/topics/{id}/restore", parentId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(parentId));
+
+        mockMvc.perform(post("/api/admin/topics/{id}/restore", childId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(childId));
+    }
+
+    @Test
+    void softDeletedTopicCanBeRecreatedWithSameCode() throws Exception {
+        Long subjectId = mathSubjectId();
+        Long gradeId = grade4Id();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String code = "reuse-code-" + suffix;
+        Long topicId = createTopic(subjectId, gradeId, code, "Тема " + suffix);
+
+        mockMvc.perform(delete("/api/admin/topics/{id}", topicId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/admin/topics")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "subjectId": %d,
+                                  "gradeId": %d,
+                                  "code": "%s",
+                                  "titleRu": "Новая тема %s",
+                                  "titleKk": "Жаңа тема %s"
+                                }
+                                """.formatted(subjectId, gradeId, code, suffix, suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value(code))
+                .andExpect(jsonPath("$.titleRu").value("Новая тема " + suffix));
     }
 
     @Test
@@ -202,7 +262,7 @@ class ContentGraphIntegrationTest {
     }
 
     @Test
-    void topicWithAtomicSkillCannotBeDeleted() throws Exception {
+    void topicWithAtomicSkillCanBeSoftDeleted() throws Exception {
         Long subjectId = mathSubjectId();
         Long gradeId = grade4Id();
         String suffix = UUID.randomUUID().toString().substring(0, 8);
@@ -212,8 +272,14 @@ class ContentGraphIntegrationTest {
         mockMvc.perform(delete("/api/admin/topics/{id}", topicId)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("topic_has_skills"));
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/admin/topics")
+                        .param("subjectId", subjectId.toString())
+                        .param("gradeId", gradeId.toString())
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", not(hasItem(topicId.intValue()))));
     }
 
     @Test
@@ -420,9 +486,7 @@ class ContentGraphIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        int start = response.indexOf("\"id\":") + 5;
-        int end = response.indexOf(',', start);
-        return Long.valueOf(response.substring(start, end));
+        return idFrom(response);
     }
 
     private Long createSkill(Long topicId, String code, String titleRu) throws Exception {
@@ -443,9 +507,13 @@ class ContentGraphIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
+        return idFrom(response);
+    }
+
+    private Long idFrom(String response) {
         int start = response.indexOf("\"id\":") + 5;
         int end = response.indexOf(',', start);
-        return Long.valueOf(response.substring(start, end));
+        return Long.valueOf(response.substring(start, end).trim());
     }
 
     private Long mathSubjectId() {

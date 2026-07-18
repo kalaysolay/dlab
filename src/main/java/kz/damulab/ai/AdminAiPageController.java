@@ -144,7 +144,8 @@ public class AdminAiPageController {
         model.addAttribute("activeAdminNav", "question-ai");
         model.addAttribute("subjects", contentGraph.listSubjects());
         model.addAttribute("grades", contentGraph.listGrades());
-        model.addAttribute("topics", contentGraph.listTopics(subjectId, gradeId));
+        // Дерево тем для выбора на форме: плоский select скрывает уровень вложенности.
+        model.addAttribute("topicTree", contentGraph.topicTree(subjectId, gradeId));
         model.addAttribute("selectedSubjectId", subjectId);
         model.addAttribute("selectedGradeId", gradeId);
         model.addAttribute("questionTypes", QuestionType.values());

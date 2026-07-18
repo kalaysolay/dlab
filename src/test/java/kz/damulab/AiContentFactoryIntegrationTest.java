@@ -164,7 +164,9 @@ class AiContentFactoryIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/question-ai-generate"))
-                .andExpect(content().string(containsString("AI генерация вопросов")));
+                .andExpect(content().string(containsString("AI генерация вопросов")))
+                .andExpect(content().string(containsString("ai-topic-tree")))
+                .andExpect(content().string(containsString("name=\"topicId\"")));
     }
 
     private JsonNode performGeneration(Long topicId, String instruction) throws Exception {

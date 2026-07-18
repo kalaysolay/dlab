@@ -479,7 +479,7 @@ class LectureIntegrationTest {
     }
 
     @Test
-    void topicWithLectureCannotBeDeleted() throws Exception {
+    void topicWithLectureCanBeSoftDeleted() throws Exception {
         TopicFixture tf = createTopic("lecture-blocks-topic-");
 
         mockMvc.perform(post("/api/admin/lectures")
@@ -492,8 +492,15 @@ class LectureIntegrationTest {
         mockMvc.perform(delete("/api/admin/topics/{id}", tf.topicId())
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("topic_has_lectures"));
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/admin/lectures")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(lectureBody(tf.topicId(), "NONE", 0, false)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("topic_not_found"));
     }
 
     @Test

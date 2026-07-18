@@ -79,6 +79,11 @@ public class AdminContentApiController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/topics/{id}/restore")
+    TopicResponse restoreTopic(@PathVariable Long id) {
+        return contentGraph.restoreTopic(id);
+    }
+
     @GetMapping("/topics/{id}/skills")
     List<AtomicSkillResponse> topicSkills(@PathVariable Long id) {
         return contentGraph.listSkills(id);
