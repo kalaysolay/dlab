@@ -155,6 +155,16 @@
                 instruction: instruction || null
             };
 
+            // Few-shot эталоны: если пикер отрисован (у темы есть активные эталоны),
+            // передаём отмеченные id. Пустой массив => не слать ни одного; отсутствие
+            // чекбоксов (пикер не загружен) => поле не отправляем => сервер возьмёт все активные.
+            var exampleBoxes = form.querySelectorAll('#ai-examples-picker input[name="exampleIds"]');
+            if (exampleBoxes.length) {
+                payload.exampleIds = Array.prototype.slice
+                        .call(form.querySelectorAll('#ai-examples-picker input[name="exampleIds"]:checked'))
+                        .map(function (cb) { return Number(cb.value); });
+            }
+
             setSubmitDisabled(true);
             setProgressVisible(true);
 

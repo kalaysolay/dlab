@@ -343,7 +343,17 @@ class QuestionBankIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/questions"))
-                .andExpect(content().string(containsString("Банк вопросов")));
+                .andExpect(content().string(containsString("Банк вопросов")))
+                .andExpect(content().string(containsString("admin-questions.js")));
+
+        mockMvc.perform(get("/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .param("subjectId", String.valueOf(tf.subjectId()))
+                        .param("gradeId", String.valueOf(tf.gradeId()))
+                        .param("topicId", String.valueOf(tf.topicId())))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-action=\"approve\"")))
+                .andExpect(content().string(containsString("Q-" + questionId)));
 
         mockMvc.perform(get("/admin/questions/new")
                         .with(user("admin@damulab.kz").roles("ADMIN")))
@@ -357,6 +367,34 @@ class QuestionBankIntegrationTest {
                 .andExpect(view().name("admin/question-form"))
                 .andExpect(content().string(containsString("Редактировать вопрос")))
                 .andExpect(content().string(containsString("Q-" + questionId)));
+    }
+
+    @Test
+    void adminPageApproveRedirectKeepsFilters() throws Exception {
+        TopicFixture tf = createTopic("page-approve-filters-");
+        Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(tf, "Approve keeps filters", true)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        mockMvc.perform(post("/admin/questions/{id}/approve", questionId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .param("subjectId", String.valueOf(tf.subjectId()))
+                        .param("gradeId", String.valueOf(tf.gradeId()))
+                        .param("topicId", String.valueOf(tf.topicId()))
+                        .param("status", "DRAFT"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("/admin/questions?")))
+                .andExpect(header().string("Location", containsString("subjectId=" + tf.subjectId())))
+                .andExpect(header().string("Location", containsString("gradeId=" + tf.gradeId())))
+                .andExpect(header().string("Location", containsString("topicId=" + tf.topicId())))
+                .andExpect(header().string("Location", containsString("status=DRAFT")));
     }
 
     @Test

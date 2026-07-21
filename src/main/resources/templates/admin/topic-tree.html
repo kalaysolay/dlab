@@ -119,6 +119,16 @@
                         </div>
                     </form>
 
+                    <!-- Точка входа в эталоны для ИИ: ведёт на список эталонов выбранной темы -->
+                    <div class="ai-examples-entry" th:if="${selectedTopic != null}">
+                        <hr class="divider">
+                        <h2 class="section-title">Эталоны для ИИ</h2>
+                        <p class="muted-line">Образцы вопросов с ответами для few-shot генерации. Улучшают качество черновиков по этой теме.</p>
+                        <div class="actions">
+                            <a class="button" th:href="@{/admin/topics/{id}/ai-examples(id=${selectedTopic.id})}">Открыть эталоны</a>
+                        </div>
+                    </div>
+
                     <div class="skill-section" th:if="${selectedTopic != null}">
                         <hr class="divider">
                         <h2 class="section-title">Атомарные навыки</h2>

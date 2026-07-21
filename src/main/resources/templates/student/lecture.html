@@ -78,6 +78,77 @@
 <script>
     const readerTabs = Array.from(document.querySelectorAll('[data-reader-tab]'));
     const readerPanels = Array.from(document.querySelectorAll('[data-reader-panel]'));
+    const lectureHeroTitle = document.querySelector('.lecture-hero h1')?.textContent || '';
+    const lectureSource = document.querySelector('.lecture-hero p')?.textContent || '';
+    const roundingLectureAsset = {
+        source: 'manual:codex:rounding-decimals-grade5',
+        titleRu: 'Округление десятичных дробей',
+        titleKk: 'Ондық бөлшектерді дөңгелектеу',
+        placeValuesUrl: '/img/lectures/rounding-decimals/place-values.svg',
+        numberLineUrl: '/img/lectures/rounding-decimals/number-line.svg'
+    };
+
+    function insertLectureIllustration(panel, headingPrefix, imageUrl, altText) {
+        if (!panel || panel.querySelector(`img[src="${imageUrl}"]`)) {
+            return;
+        }
+        const heading = Array.from(panel.querySelectorAll('h3'))
+            .find((item) => (item.textContent || '').trim().startsWith(headingPrefix));
+        if (!heading) {
+            return;
+        }
+        const wrapper = document.createElement('p');
+        wrapper.className = 'lecture-illustration';
+        const image = document.createElement('img');
+        image.src = imageUrl;
+        image.alt = altText;
+        image.loading = 'lazy';
+        image.style.maxWidth = '100%';
+        image.style.height = 'auto';
+        image.style.border = '1px solid #d8e2ee';
+        image.style.borderRadius = '12px';
+        image.style.background = '#fff';
+        wrapper.appendChild(image);
+        heading.insertAdjacentElement('afterend', wrapper);
+    }
+
+    function hydrateRoundingLectureIllustrations() {
+        const isRoundingLecture = lectureSource.includes(roundingLectureAsset.source)
+            || lectureHeroTitle.includes(roundingLectureAsset.titleRu)
+            || lectureHeroTitle.includes(roundingLectureAsset.titleKk);
+        if (!isRoundingLecture) {
+            return;
+        }
+        const ruPanel = document.querySelector('[data-reader-panel="ru"]');
+        const kkPanel = document.querySelector('[data-reader-panel="kk"]');
+        insertLectureIllustration(
+            ruPanel,
+            'Иллюстрация 1',
+            roundingLectureAsset.placeValuesUrl,
+            'Разряды десятичной дроби 7,362'
+        );
+        insertLectureIllustration(
+            ruPanel,
+            'Иллюстрация 2',
+            roundingLectureAsset.numberLineUrl,
+            'Числовая прямая: 7,362 ближе к 7,4'
+        );
+        insertLectureIllustration(
+            kkPanel,
+            'Иллюстрация 1',
+            roundingLectureAsset.placeValuesUrl,
+            '7,362 ондық бөлшегінің разрядтары'
+        );
+        insertLectureIllustration(
+            kkPanel,
+            'Иллюстрация 2',
+            roundingLectureAsset.numberLineUrl,
+            'Сан түзуі: 7,362 саны 7,4 санына жақынырақ'
+        );
+    }
+
+    hydrateRoundingLectureIllustrations();
+
     readerTabs.forEach((tab) => {
         tab.addEventListener('click', () => {
             readerTabs.forEach((item) => item.classList.toggle('active', item === tab));

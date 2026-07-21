@@ -7211,3 +7211,43 @@ h2 {
         width: 100%;
     }
 }
+
+/* --- Эталоны для ИИ (topic AI examples) --- */
+/* Метка варианта (A/B/C) в превью SCQ/MCQ на странице списка эталонов. */
+.admin-layout .option-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--surface-muted, #eef1f6);
+    font-weight: 600;
+}
+
+/* Подсветка правильного варианта в превью (не в редакторе). */
+.admin-layout .option-row.is-correct {
+    border-color: var(--success, #2e7d32);
+    background: color-mix(in srgb, var(--success, #2e7d32) 8%, transparent);
+}
+
+/* Неактивная кнопка «Добавить», когда достигнут лимит эталонов на тему. */
+.admin-layout .button.is-disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/* Пикер эталонов на странице AI-генерации: список чекбоксов few-shot. */
+.admin-layout .ai-examples-picker {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.admin-layout .ai-example-option {
+    align-items: center;
+    gap: 8px;
+}

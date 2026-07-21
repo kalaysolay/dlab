@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${mode == 'edit'} ? 'Редактировать эталон' : 'Добавить эталон'">Эталон</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title" th:text="${mode == 'edit'} ? 'Редактировать эталон' : 'Добавить эталон'">Добавить эталон</h1>
+                    <p class="lede">
+                        <span th:text="${'Тема: ' + topic.titleRu}">Тема: Проценты</span>
+                        — образец для few-shot. Ключ ответа хранится так же, как у вопроса банка.
+                    </p>
+                </div>
+                <a class="button" th:href="@{/admin/topics/{id}/ai-examples(id=${topic.id})}">К списку</a>
+            </div>
+
+            <form id="example-form"
+                  class="form wide-form"
+                  method="post"
+                  th:action="${mode == 'edit'}
+                        ? @{/admin/topics/{tid}/ai-examples/{eid}(tid=${topic.id},eid=${exampleId})}
+                        : @{/admin/topics/{tid}/ai-examples(tid=${topic.id})}"
+                  th:object="${exampleForm}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}">
+                    Ошибка
+                </div>
+
+                <h2 class="section-title">Базовые параметры</h2>
+                <div class="form-grid two-col">
+                    <label class="field">
+                        <span>Тип вопроса</span>
+                        <select th:field="*{questionType}" id="example-type">
+                            <option th:each="item : ${questionTypes}" th:value="${item}" th:text="${item}">SCQ</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Сложность</span>
+                        <select th:field="*{difficulty}">
+                            <option value="1">1 - легкий</option>
+                            <option value="2">2</option>
+                            <option value="3">3 - средний</option>
+                            <option value="4">4</option>
+                            <option value="5">5 - сложный</option>
+                        </select>
+                    </label>
+                    <label class="checkbox-field">
+                        <input type="checkbox" th:field="*{includeInAi}">
+                        Отправлять этот эталон в генерацию
+                    </label>
+                </div>
+
+                <hr class="divider">
+
+                <h2 class="section-title">Текст вопроса</h2>
+                <div class="form-grid two-col">
+                    <label class="field">
+                        <span>RU</span>
+                        <textarea th:field="*{bodyRu}" required></textarea>
+                        <small class="muted-line">Для FILL_IN добавьте метки вида <code>[[1]]</code> в текст.</small>
+                        <small class="field-error" th:if="${#fields.hasErrors('bodyRu')}" th:errors="*{bodyRu}">Ошибка</small>
+                    </label>
+                    <label class="field">
+                        <span>KK</span>
+                        <textarea th:field="*{bodyKk}" required></textarea>
+                        <small class="field-error" th:if="${#fields.hasErrors('bodyKk')}" th:errors="*{bodyKk}">Ошибка</small>
+                    </label>
+                </div>
+
+                <label class="field">
+                    <span>Внутренняя заметка (не уходит в ИИ)</span>
+                    <input th:field="*{internalNote}" placeholder="Например: удачный distractor на типичную ошибку">
+                    <small class="field-error" th:if="${#fields.hasErrors('internalNote')}" th:errors="*{internalNote}">Ошибка</small>
+                </label>
+
+                <hr class="divider">
+
+                <div class="type-tabs" aria-label="Типы вопросов">
+                    <button class="type-tab active" type="button" data-type="SCQ">SCQ</button>
+                    <button class="type-tab" type="button" data-type="MCQ">MCQ</button>
+                    <button class="type-tab" type="button" data-type="MATCHING">MATCHING</button>
+                    <button class="type-tab" type="button" data-type="FILL_IN">FILL_IN</button>
+                </div>
+
+                <!-- SCQ / MCQ: одна панель на оба типа, как в редакторе вопроса -->
+                <section class="question-type-panel active" data-panel="SCQ">
+                    <h2 class="section-title">SCQ / MCQ варианты</h2>
+                    <div id="choice-options-list" class="stack">
+                        <div class="option-row" th:each="option, iter : *{options}">
+                            <input type="hidden" class="option-label-input" th:field="*{options[__${iter.index}__].label}">
+                            <strong class="option-label" th:text="${option.label}">A</strong>
+                            <label class="field">
+                                <span>RU</span>
+                                <input th:field="*{options[__${iter.index}__].textRu}">
+                            </label>
+                            <label class="field">
+                                <span>KK</span>
+                                <input th:field="*{options[__${iter.index}__].textKk}">
+                            </label>
+                            <label class="checkbox-field">
+                                <input class="option-correct-input" type="checkbox" th:field="*{options[__${iter.index}__].correct}">
+                                Правильный
+                            </label>
+                            <button class="button danger option-delete-button" type="button" aria-label="Удалить вариант">✕</button>
+                        </div>
+                    </div>
+                    <div class="actions compact-actions">
+                        <button class="button" type="button" id="choice-option-add">Добавить вариант</button>
+                    </div>
+                    <p class="muted-line">Для SCQ отметьте ровно один правильный вариант; для MCQ — минимум один.</p>
+                </section>
+
+                <section class="question-type-panel" data-panel="MATCHING">
+                    <h2 class="section-title">MATCHING пары</h2>
+                    <div id="matching-pairs-list" class="stack">
+                        <div class="pair-row" th:each="pair, iter : *{matchingPairs}">
+                            <label class="field">
+                                <span>Левая RU</span>
+                                <input th:field="*{matchingPairs[__${iter.index}__].leftRu}">
+                            </label>
+                            <label class="field">
+                                <span>Левая KK</span>
+                                <input th:field="*{matchingPairs[__${iter.index}__].leftKk}">
+                            </label>
+                            <label class="field">
+                                <span>Правая RU</span>
+                                <input th:field="*{matchingPairs[__${iter.index}__].rightRu}">
+                            </label>
+                            <label class="field">
+                                <span>Правая KK</span>
+                                <input th:field="*{matchingPairs[__${iter.index}__].rightKk}">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="actions compact-actions">
+                        <button class="button" type="button" id="matching-pair-add">Добавить пару</button>
+                    </div>
+                    <p class="muted-line">Левая часть строки соответствует правой части той же строки. Минимум две пары.</p>
+                </section>
+
+                <section class="question-type-panel" data-panel="FILL_IN">
+                    <h2 class="section-title">FILL_IN ключ ответа</h2>
+                    <div id="fill-answers-list" class="stack">
+                        <div class="fill-row" th:each="fillItem, iter : *{fillAnswers}">
+                            <label class="field">
+                                <span>Метка</span>
+                                <input th:field="*{fillAnswers[__${iter.index}__].placeholder}" placeholder="[[1]]">
+                            </label>
+                            <label class="field">
+                                <span>Ответ</span>
+                                <input th:field="*{fillAnswers[__${iter.index}__].answer}">
+                            </label>
+                            <label class="field">
+                                <span>Правило</span>
+                                <select th:field="*{fillAnswers[__${iter.index}__].matchMode}">
+                                    <option th:each="mode : ${fillModes}" th:value="${mode}" th:text="${mode}">EXACT</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span>Tolerance</span>
+                                <input th:field="*{fillAnswers[__${iter.index}__].tolerance}" placeholder="0.01">
+                            </label>
+                            <button class="button danger fill-delete-button" type="button" aria-label="Удалить строку">✕</button>
+                        </div>
+                    </div>
+                    <div class="actions compact-actions">
+                        <button class="button" type="button" id="fill-answer-add">Добавить пропуск</button>
+                    </div>
+                    <p class="muted-line">Для NUMERIC_TOLERANCE укажите неотрицательный допуск (например 0.01).</p>
+                </section>
+
+                <div class="actions">
+                    <button class="button primary" type="submit"
+                            th:text="${mode == 'edit'} ? 'Сохранить изменения' : 'Сохранить эталон'">Сохранить эталон</button>
+                    <a class="button" th:href="@{/admin/topics/{id}/ai-examples(id=${topic.id})}">Отмена</a>
+                </div>
+            </form>
+        </section>
+    </main>
+</div>
+<script>
+    // Переключение панелей по типу (SCQ и MCQ используют одну панель вариантов).
+    const typeSelect = document.getElementById('example-type');
+    const tabs = Array.from(document.querySelectorAll('.type-tab'));
+    const panels = Array.from(document.querySelectorAll('.question-type-panel'));
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    function activate(type) {
+        typeSelect.value = type;
+        tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.type === type));
+        panels.forEach((panel) => {
+            const p = panel.dataset.panel;
+            panel.classList.toggle('active', p === type || (type === 'MCQ' && p === 'SCQ'));
+        });
+        if (type === 'SCQ') {
+            // SCQ допускает только один correct: снимаем лишние отметки.
+            const checked = optionRows().map((r) => r.querySelector('.option-correct-input')).filter((i) => i && i.checked);
+            checked.slice(1).forEach((i) => { i.checked = false; });
+        }
+    }
+
+    tabs.forEach((tab) => tab.addEventListener('click', () => activate(tab.dataset.type)));
+    typeSelect.addEventListener('change', () => activate(typeSelect.value));
+
+    // --- SCQ/MCQ варианты ---
+    const choiceOptionsList = document.getElementById('choice-options-list');
+    const choiceOptionAddButton = document.getElementById('choice-option-add');
+
+    function optionRows() {
+        return choiceOptionsList ? Array.from(choiceOptionsList.querySelectorAll('.option-row')) : [];
+    }
+
+    function reindexOptions() {
+        optionRows().forEach((row, index) => {
+            const label = letters[index] || ('V' + (index + 1));
+            const labelText = row.querySelector('.option-label');
+            const labelInput = row.querySelector('.option-label-input');
+            if (labelText) labelText.textContent = label;
+            if (labelInput) labelInput.value = label;
+            row.querySelectorAll('[name^="options["]').forEach((el) => {
+                const name = el.getAttribute('name');
+                if (name) el.setAttribute('name', name.replace(/options\[\d+]/, 'options[' + index + ']'));
+            });
+        });
+    }
+
+    function enforceSingleCorrect(changed) {
+        if (typeSelect.value !== 'SCQ' || !changed.checked) return;
+        optionRows().forEach((row) => {
+            const input = row.querySelector('.option-correct-input');
+            if (input && input !== changed) input.checked = false;
+        });
+    }
+
+    function bindOptionRow(row) {
+        const correct = row.querySelector('.option-correct-input');
+        const del = row.querySelector('.option-delete-button');
+        if (correct) correct.addEventListener('change', () => enforceSingleCorrect(correct));
+        if (del) del.addEventListener('click', () => {
+            if (optionRows().length <= 2) { window.alert('Нужно минимум два варианта.'); return; }
+            row.remove();
+            reindexOptions();
+        });
+    }
+
+    function addOption() {
+        const index = optionRows().length;
+        const label = letters[index] || ('V' + (index + 1));
+        const row = document.createElement('div');
+        row.className = 'option-row';
+        row.innerHTML = `
+            <input type="hidden" class="option-label-input" name="options[${index}].label" value="${label}">
+            <strong class="option-label">${label}</strong>
+            <label class="field"><span>RU</span><input name="options[${index}].textRu"></label>
+            <label class="field"><span>KK</span><input name="options[${index}].textKk"></label>
+            <label class="checkbox-field"><input class="option-correct-input" type="checkbox" name="options[${index}].correct" value="true"> Правильный</label>
+            <button class="button danger option-delete-button" type="button" aria-label="Удалить вариант">✕</button>`;
+        choiceOptionsList.appendChild(row);
+        bindOptionRow(row);
+        reindexOptions();
+    }
+
+    if (choiceOptionsList) optionRows().forEach(bindOptionRow);
+    if (choiceOptionAddButton) choiceOptionAddButton.addEventListener('click', addOption);
+
+    // --- MATCHING пары ---
+    const matchingList = document.getElementById('matching-pairs-list');
+    const matchingAddButton = document.getElementById('matching-pair-add');
+
+    function reindexPairs() {
+        if (!matchingList) return;
+        matchingList.querySelectorAll('.pair-row').forEach((row, index) => {
+            row.querySelectorAll('[name^="matchingPairs["]').forEach((el) => {
+                const name = el.getAttribute('name');
+                if (name) el.setAttribute('name', name.replace(/matchingPairs\[\d+]/, 'matchingPairs[' + index + ']'));
+            });
+        });
+    }
+
+    function addPair() {
+        const index = matchingList.querySelectorAll('.pair-row').length;
+        const row = document.createElement('div');
+        row.className = 'pair-row';
+        row.innerHTML = `
+            <label class="field"><span>Левая RU</span><input name="matchingPairs[${index}].leftRu"></label>
+            <label class="field"><span>Левая KK</span><input name="matchingPairs[${index}].leftKk"></label>
+            <label class="field"><span>Правая RU</span><input name="matchingPairs[${index}].rightRu"></label>
+            <label class="field"><span>Правая KK</span><input name="matchingPairs[${index}].rightKk"></label>`;
+        matchingList.appendChild(row);
+        reindexPairs();
+    }
+
+    if (matchingAddButton) matchingAddButton.addEventListener('click', addPair);
+
+    // --- FILL_IN пропуски ---
+    const fillList = document.getElementById('fill-answers-list');
+    const fillAddButton = document.getElementById('fill-answer-add');
+    const FILL_MODES = ['EXACT', 'NORMALIZED', 'NUMERIC_TOLERANCE', 'REGEXP'];
+
+    function reindexFills() {
+        if (!fillList) return;
+        fillList.querySelectorAll('.fill-row').forEach((row, index) => {
+            row.querySelectorAll('[name^="fillAnswers["]').forEach((el) => {
+                const name = el.getAttribute('name');
+                if (name) el.setAttribute('name', name.replace(/fillAnswers\[\d+]/, 'fillAnswers[' + index + ']'));
+            });
+        });
+    }
+
+    function fillModeOptions() {
+        return FILL_MODES.map((m) => '<option value="' + m + '">' + m + '</option>').join('');
+    }
+
+    function bindFillRow(row) {
+        const del = row.querySelector('.fill-delete-button');
+        if (del) del.addEventListener('click', () => {
+            if (fillList.querySelectorAll('.fill-row').length <= 1) { window.alert('Нужна минимум одна строка.'); return; }
+            row.remove();
+            reindexFills();
+        });
+    }
+
+    function addFill() {
+        const index = fillList.querySelectorAll('.fill-row').length;
+        const row = document.createElement('div');
+        row.className = 'fill-row';
+        row.innerHTML = `
+            <label class="field"><span>Метка</span><input name="fillAnswers[${index}].placeholder" placeholder="[[1]]"></label>
+            <label class="field"><span>Ответ</span><input name="fillAnswers[${index}].answer"></label>
+            <label class="field"><span>Правило</span><select name="fillAnswers[${index}].matchMode">${fillModeOptions()}</select></label>
+            <label class="field"><span>Tolerance</span><input name="fillAnswers[${index}].tolerance" placeholder="0.01"></label>
+            <button class="button danger fill-delete-button" type="button" aria-label="Удалить строку">✕</button>`;
+        fillList.appendChild(row);
+        bindFillRow(row);
+        reindexFills();
+    }
+
+    if (fillList) fillList.querySelectorAll('.fill-row').forEach(bindFillRow);
+    if (fillAddButton) fillAddButton.addEventListener('click', addFill);
+
+    // Инициализируем видимую панель по текущему типу.
+    activate(typeSelect.value);
+</script>
+</body>
+</html>

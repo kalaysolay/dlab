@@ -14,8 +14,18 @@ public class AiPromptBuilder {
                 """;
     }
 
+    /**
+     * Собирает user-промпт для генерации черновиков вопросов.
+     *
+     * <p>Структура: параметры (предмет/класс/тема/навык/тип/сложность/язык) + инструкция методиста
+     * + правила по типам ответов. Если у запроса есть эталоны темы ({@link AiQuestionGenerationRequest#examples()}),
+     * в конец добавляется few-shot блок (см. {@link #examplesBlock}).
+     *
+     * <p>Порядок важен: примеры идут ПОСЛЕ правил и содержат явную анти-копирующую инструкцию,
+     * иначе модель склонна дословно воспроизводить эталон вместо генерации нового вопроса.
+     */
     public String questionGenerationPrompt(AiQuestionGenerationRequest request) {
-        return """
+        String base = """
                 Generate %d %s question drafts.
                 Subject RU/KK: %s / %s.
                 Grade: %d.
@@ -43,6 +53,34 @@ public class AiPromptBuilder {
                 request.languageMode().name(),
                 nullToDash(request.methodistInstruction())
         );
+        return base + examplesBlock(request.examples());
+    }
+
+    /**
+     * Few-shot блок с эталонами темы. Возвращает пустую строку, если эталонов нет
+     * (список {@code null} или пуст) — тогда промпт не меняется по сравнению с прежним поведением.
+     *
+     * <p>Каждый эталон печатается как тело RU/KK + ключ ответа (JSON — тот же формат, что
+     * ожидается в ответе модели). Эталоны помечены как «reference only» со строгим требованием
+     * не копировать их дословно.
+     */
+    private String examplesBlock(java.util.List<AiExamplePayload> examples) {
+        if (examples == null || examples.isEmpty()) {
+            return "";
+        }
+        StringBuilder b = new StringBuilder(1024);
+        b.append("\nReference examples from this topic (style and scope only).\n");
+        b.append("IMPORTANT: Generate NEW questions; do not copy these examples verbatim.\n");
+        int index = 1;
+        for (AiExamplePayload example : examples) {
+            b.append("Example ").append(index++)
+                    .append(" (").append(example.questionType().name())
+                    .append(", difficulty ").append(example.difficulty()).append("):\n");
+            b.append("RU: ").append(nullToDash(example.bodyRu())).append("\n");
+            b.append("KK: ").append(nullToDash(example.bodyKk())).append("\n");
+            b.append("Answer key JSON: ").append(nullToDash(example.answerKeyJson())).append("\n");
+        }
+        return b.toString();
     }
 
     public String miniLectureSystemPrompt() {

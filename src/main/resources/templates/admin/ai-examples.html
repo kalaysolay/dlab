@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Эталоны для ИИ</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title">Эталоны для ИИ</h1>
+                    <p class="lede">Покрытие тем few-shot эталонами (SCQ, MCQ, MATCHING, FILL_IN). Отсюда — в список эталонов конкретной темы.</p>
+                </div>
+                <a class="button" th:href="@{/admin/questions/ai-generate}">AI генерация</a>
+            </div>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <!-- Фильтр предмет+класс: список тем в таблице ниже пересобирается на сервере -->
+            <form class="filter-bar" method="get" th:action="@{/admin/ai-examples}">
+                <label class="field compact">
+                    <span>Предмет</span>
+                    <select name="subjectId">
+                        <option th:each="subject : ${subjects}"
+                                th:value="${subject.id}"
+                                th:selected="${subject.id == selectedSubjectId}"
+                                th:text="${subject.titleRu}">Математика</option>
+                    </select>
+                </label>
+                <label class="field compact">
+                    <span>Класс</span>
+                    <select name="gradeId">
+                        <option th:each="grade : ${grades}"
+                                th:value="${grade.id}"
+                                th:selected="${grade.id == selectedGradeId}"
+                                th:text="${grade.titleRu}">4 класс</option>
+                    </select>
+                </label>
+                <button class="button" type="submit">Показать</button>
+            </form>
+
+            <div class="meta-grid">
+                <div class="metric"><strong th:text="${topicsTotal}">12</strong><span>Тем в выборке</span></div>
+                <div class="metric"><strong th:text="${topicsWithExamples}">5</strong><span>С эталонами</span></div>
+                <div class="metric"><strong th:text="${topicsWithoutExamples}">7</strong><span>Без эталонов</span></div>
+            </div>
+
+            <div class="empty-state" th:if="${#lists.isEmpty(coverage)}">
+                <strong>Нет тем</strong>
+                <span>Для выбранной пары предмет+класс тем пока нет. Создайте тему в разделе «Темы».</span>
+            </div>
+
+            <div class="table-wrap" th:if="${!#lists.isEmpty(coverage)}">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Тема</th>
+                        <th>Эталонов</th>
+                        <th>Активные типы</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="row : ${coverage}">
+                        <td>
+                            <strong th:text="${row.titleRu}">Проценты</strong>
+                            <div class="muted-line" th:text="${row.titleKk}">Пайыздар</div>
+                        </td>
+                        <td>
+                            <!-- Бейдж-цвет по покрытию: есть активные -> success, есть только выключенные -> warning, пусто -> danger -->
+                            <span class="badge"
+                                  th:classappend="${row.active > 0} ? 'success' : (${row.total > 0} ? 'warning' : 'danger')"
+                                  th:text="${row.active + ' / ' + row.total}">2 / 3</span>
+                        </td>
+                        <td>
+                            <span th:if="${#lists.isEmpty(row.typesActive)}" class="muted-line">Нет активных</span>
+                            <span th:each="type : ${row.typesActive}" class="badge" th:text="${type}">SCQ</span>
+                        </td>
+                        <td>
+                            <a class="button" th:href="@{/admin/topics/{id}/ai-examples(id=${row.topicId})}">Открыть</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Number line for rounding 7,362 to tenths</title>
+  <desc id="desc">A number line showing that 7,362 is closer to 7,4 than to 7,3.</desc>
+  <rect width="960" height="540" fill="#fffaf3"/>
+  <rect x="40" y="34" width="880" height="472" rx="26" fill="#ffffff" stroke="#ffd19a" stroke-width="3"/>
+  <text x="480" y="86" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#4a2a0a">7,362 санын ондықтарға дейін дөңгелектеу</text>
+  <text x="480" y="124" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#6b4f2a">Округление 7,362 до десятых</text>
+  <line x1="140" y1="285" x2="820" y2="285" stroke="#1f2937" stroke-width="6" stroke-linecap="round"/>
+  <line x1="140" y1="258" x2="140" y2="312" stroke="#1f2937" stroke-width="5"/>
+  <line x1="480" y1="258" x2="480" y2="312" stroke="#6b7280" stroke-width="5"/>
+  <line x1="820" y1="258" x2="820" y2="312" stroke="#1f2937" stroke-width="5"/>
+  <circle cx="562" cy="285" r="17" fill="#2563eb" stroke="#ffffff" stroke-width="5"/>
+  <path d="M562 250 C623 220 735 220 804 250" fill="none" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="818,258 795,244 800,270" fill="#16a34a"/>
+  <path d="M562 320 C464 364 260 364 156 320" fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round" stroke-dasharray="12 12"/>
+  <g font-family="Arial, sans-serif">
+    <text x="140" y="354" text-anchor="middle" font-size="32" font-weight="800" fill="#1f2937">7,3</text>
+    <text x="480" y="354" text-anchor="middle" font-size="30" font-weight="700" fill="#6b7280">7,35</text>
+    <text x="820" y="354" text-anchor="middle" font-size="32" font-weight="800" fill="#1f2937">7,4</text>
+    <text x="562" y="226" text-anchor="middle" font-size="36" font-weight="800" fill="#2563eb">7,362</text>
+    <text x="480" y="402" text-anchor="middle" font-size="23" fill="#6b4f2a">7,362 ортасынан оң жақта, сондықтан 7,4 санына жақынырақ</text>
+    <text x="480" y="434" text-anchor="middle" font-size="21" fill="#6b4f2a">7,362 правее середины, поэтому ближе к 7,4</text>
+    <text x="480" y="476" text-anchor="middle" font-size="30" font-weight="800" fill="#16a34a">Жауап / Ответ: 7,4</text>
+  </g>
+</svg>

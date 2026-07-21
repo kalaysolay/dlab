@@ -1,5 +1,7 @@
 package kz.damulab.ai;
 
+import java.util.List;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -12,6 +14,17 @@ public class AiQuestionGenerationForm {
     private Long topicId;
 
     private Long atomicSkillId;
+
+    /**
+     * Какие эталоны темы включить в few-shot этой генерации.
+     * Семантика (см. AiContentFactoryService.selectExamplesForPrompt):
+     * <ul>
+     *   <li>{@code null} — поле не пришло (например, вызов API без выбора): берём все активные;</li>
+     *   <li>пустой список — методист снял все галочки: не отправлять ни одного эталона;</li>
+     *   <li>непустой — только перечисленные (и только если они активны и принадлежат теме).</li>
+     * </ul>
+     */
+    private List<Long> exampleIds;
 
     @NotNull
     private QuestionType questionType = QuestionType.SCQ;
@@ -44,6 +57,14 @@ public class AiQuestionGenerationForm {
 
     public void setAtomicSkillId(Long atomicSkillId) {
         this.atomicSkillId = atomicSkillId;
+    }
+
+    public List<Long> getExampleIds() {
+        return exampleIds;
+    }
+
+    public void setExampleIds(List<Long> exampleIds) {
+        this.exampleIds = exampleIds;
     }
 
     public QuestionType getQuestionType() {

@@ -77,6 +77,18 @@
                         <small id="ai-topic-hint" class="muted-line">Выберите тему в дереве: вложенность показывает уровень.</small>
                         <small th:if="${#fields.hasErrors('topicId')}" th:errors="*{topicId}" class="field-error">Ошибка</small>
                     </div>
+                    <!--
+                      Пикер эталонов темы (few-shot, вариант B): подгружается JS при выборе темы.
+                      Отмеченные checkbox name="exampleIds" уходят в payload генерации. Если у темы
+                      эталонов нет или блок пуст — по умолчанию используются все активные эталоны.
+                    -->
+                    <div class="field field-ai-examples" style="grid-column: span 2;">
+                        <span>Эталоны для few-shot</span>
+                        <div id="ai-examples-picker" class="ai-examples-picker">
+                            <small class="muted-line">Выберите тему — покажем её эталоны. Их можно включить в этот запрос.</small>
+                        </div>
+                        <small id="ai-examples-hint" class="muted-line"></small>
+                    </div>
                     <label class="field">
                         <span>Тип</span>
                         <select th:field="*{questionType}">
@@ -265,9 +277,68 @@
             radio.addEventListener('change', () => {
                 if (radio.checked) {
                     setAiTopicHint('Тема выбрана. Можно запускать генерацию.', false);
+                    loadTopicExamples(radio.value);
                 }
             });
         });
+    }
+
+    // ───── Пикер эталонов темы (few-shot) ────────────────────────────────────────
+    const aiExamplesPicker = document.getElementById('ai-examples-picker');
+    const aiExamplesHint = document.getElementById('ai-examples-hint');
+
+    function setExamplesMessage(html, hint) {
+        if (aiExamplesPicker) {
+            aiExamplesPicker.innerHTML = html;
+        }
+        if (aiExamplesHint) {
+            aiExamplesHint.textContent = hint || '';
+        }
+    }
+
+    /**
+     * Загружает активные эталоны выбранной темы и рисует чекбоксы name="exampleIds".
+     * По умолчанию все отмечены (включены). Снятые галочки исключат эталон из этого запроса.
+     * Если эталонов нет — показываем ссылку на управление эталонами.
+     */
+    async function loadTopicExamples(topicId) {
+        if (!aiExamplesPicker || !topicId) {
+            return;
+        }
+        setExamplesMessage('<small class="muted-line">Загружаем эталоны темы…</small>', '');
+        try {
+            const response = await fetch('/api/admin/topics/' + encodeURIComponent(topicId) + '/ai-examples', { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('examples load failed');
+            }
+            const examples = await response.json();
+            if (!Array.isArray(examples) || examples.length === 0) {
+                setExamplesMessage(
+                        '<small class="muted-line">У темы нет активных эталонов. '
+                        + '<a href="/admin/topics/' + encodeURIComponent(topicId) + '/ai-examples">Добавить эталоны</a></small>',
+                        'Без эталонов генерация опирается только на название темы.'
+                );
+                return;
+            }
+            const rows = examples.map((ex) => {
+                const body = (ex.bodyRu || '').slice(0, 120);
+                return '<label class="checkbox-field ai-example-option">'
+                        + '<input type="checkbox" name="exampleIds" value="' + ex.id + '" checked>'
+                        + '<span class="badge">' + ex.questionType + '</span> '
+                        + '<span>' + escapeExampleText(body) + '</span>'
+                        + '</label>';
+            }).join('');
+            setExamplesMessage(rows, 'В запрос уйдёт не больше нескольких отмеченных эталонов.');
+        } catch (e) {
+            setExamplesMessage('<small class="field-error">Не удалось загрузить эталоны темы.</small>', '');
+        }
+    }
+
+    function escapeExampleText(value) {
+        return String(value == null ? '' : value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;');
     }
 
     function bindTopicTreeFilter() {
@@ -364,6 +435,12 @@
         const effectiveId = stillExists ? selectedId : '';
         aiTopicTree.appendChild(renderTopicTreeNodes(nodes, effectiveId, 0));
         bindTopicTreeSelection(aiTopicTree);
+        // Синхронизируем пикер эталонов с актуально выбранной темой (или сбрасываем).
+        if (effectiveId) {
+            loadTopicExamples(effectiveId);
+        } else {
+            setExamplesMessage('<small class="muted-line">Выберите тему — покажем её эталоны.</small>', '');
+        }
         setAiTopicHint(
                 effectiveId
                         ? 'Тема выбрана. Можно запускать генерацию.'
@@ -409,6 +486,13 @@
         aiSubject.addEventListener('change', syncAiTopics);
         aiGrade.addEventListener('change', syncAiTopics);
     }
+    // Если страница открыта с уже выбранной темой (server-rendered дерево) — подгрузим её эталоны.
+    (function initExamplesForPreselectedTopic() {
+        const initial = selectedTopicId();
+        if (initial) {
+            loadTopicExamples(initial);
+        }
+    })();
 </script>
 </body>
 </html>

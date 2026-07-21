@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Decimal place values for 7,362</title>
+  <desc id="desc">A place value chart showing units, tenths, hundredths and thousandths in the decimal 7,362.</desc>
+  <rect width="960" height="540" fill="#f6fbff"/>
+  <rect x="40" y="34" width="880" height="472" rx="26" fill="#ffffff" stroke="#b9d8f0" stroke-width="3"/>
+  <text x="480" y="86" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#16324f">7,362 санының разрядтары</text>
+  <text x="480" y="124" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#38536b">Разряды числа 7,362</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="94" y="172" width="772" height="184" rx="18" fill="#eef7ff" stroke="#93c5fd" stroke-width="2"/>
+    <line x1="287" y1="172" x2="287" y2="356" stroke="#93c5fd" stroke-width="2"/>
+    <line x1="480" y1="172" x2="480" y2="356" stroke="#93c5fd" stroke-width="2"/>
+    <line x1="673" y1="172" x2="673" y2="356" stroke="#93c5fd" stroke-width="2"/>
+    <text x="190" y="218" text-anchor="middle" font-size="24" font-weight="700" fill="#0f4c81">Бірліктер</text>
+    <text x="190" y="248" text-anchor="middle" font-size="20" fill="#38536b">единицы</text>
+    <text x="383" y="218" text-anchor="middle" font-size="24" font-weight="700" fill="#0f4c81">Ондықтар</text>
+    <text x="383" y="248" text-anchor="middle" font-size="20" fill="#38536b">десятые</text>
+    <text x="576" y="218" text-anchor="middle" font-size="24" font-weight="700" fill="#0f4c81">Жүздіктер</text>
+    <text x="576" y="248" text-anchor="middle" font-size="20" fill="#38536b">сотые</text>
+    <text x="770" y="218" text-anchor="middle" font-size="24" font-weight="700" fill="#0f4c81">Мыңдықтар</text>
+    <text x="770" y="248" text-anchor="middle" font-size="20" fill="#38536b">тысячные</text>
+    <text x="190" y="326" text-anchor="middle" font-size="60" font-weight="800" fill="#102a43">7</text>
+    <text x="383" y="326" text-anchor="middle" font-size="60" font-weight="800" fill="#2563eb">3</text>
+    <text x="576" y="326" text-anchor="middle" font-size="60" font-weight="800" fill="#16a34a">6</text>
+    <text x="770" y="326" text-anchor="middle" font-size="60" font-weight="800" fill="#f97316">2</text>
+  </g>
+  <path d="M383 368 C383 400 576 400 576 368" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+  <polygon points="576,368 560,361 563,379" fill="#2563eb"/>
+  <text x="480" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#16324f">Дөңгелектеу үшін оң жақтағы бірінші цифрға қараймыз</text>
+  <text x="480" y="462" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#38536b">Для округления смотрим на первую цифру справа</text>
+</svg>

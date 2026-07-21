@@ -16,6 +16,7 @@
         <a th:classappend="${activeAdminNav == 'topics'} ? 'active'" th:href="@{/admin/topics}" th:text="#{admin.nav.topics}">Темы</a>
         <a th:classappend="${activeAdminNav == 'questions'} ? 'active'" th:href="@{/admin/questions}" th:text="#{admin.nav.questions}">Вопросы</a>
         <a th:classappend="${activeAdminNav == 'question-ai'} ? 'active'" th:href="@{/admin/questions/ai-generate}" th:text="#{admin.nav.questionAi}">AI генерация</a>
+        <a th:classappend="${activeAdminNav == 'ai-examples'} ? 'active'" th:href="@{/admin/ai-examples}" th:text="#{admin.nav.aiExamples}">Эталоны для ИИ</a>
         <a th:classappend="${activeAdminNav == 'question-health'} ? 'active'" th:href="@{/admin/questions/health}" th:text="#{admin.nav.questionHealth}">Качество вопросов</a>
         <a th:classappend="${activeAdminNav == 'question-import'} ? 'active'" th:href="@{/admin/questions/import}" th:text="#{admin.nav.questionImport}">Импорт вопросов</a>
         <a th:classappend="${activeAdminNav == 'lectures'} ? 'active'" th:href="@{/admin/lectures}" th:text="#{admin.nav.lectures}">Лекции</a>

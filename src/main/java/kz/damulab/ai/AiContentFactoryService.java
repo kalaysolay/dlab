@@ -1,7 +1,9 @@
 package kz.damulab.ai;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -11,6 +13,8 @@ import kz.damulab.audit.AdminContentAuditService;
 import kz.damulab.content.AtomicSkill;
 import kz.damulab.content.AtomicSkillRepository;
 import kz.damulab.content.Topic;
+import kz.damulab.content.TopicAiExample;
+import kz.damulab.content.TopicAiExampleRepository;
 import kz.damulab.content.TopicRepository;
 import kz.damulab.questions.ChoiceOptionForm;
 import kz.damulab.questions.FillAnswerForm;
@@ -34,12 +38,26 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Service
 public class AiContentFactoryService {
 
+    /**
+     * Сколько эталонов максимум уходит в промпт (prompt cap, решение 2b: хранить до 6, слать ≤3).
+     * Немного few-shot достаточно для стиля/scope; больше — лишние токены и риск копирования.
+     */
+    static final int MAX_EXAMPLES_IN_PROMPT = 3;
+
+    /**
+     * Бюджет символов на все эталоны в промпте. Защита от гигантских примеров: как только
+     * добавление следующего эталона превысит бюджет — прекращаем добор. Ограничивает стоимость
+     * и латентность независимо от {@link #MAX_EXAMPLES_IN_PROMPT}.
+     */
+    static final int EXAMPLES_CHAR_BUDGET = 6000;
+
     private final AiGenerationJobRunner runner;
     private final AiGenerationJobRepository jobs;
     private final AiGeneratedQuestionBatchRepository batches;
     private final AiGeneratedQuestionItemRepository items;
     private final TopicRepository topics;
     private final AtomicSkillRepository skills;
+    private final TopicAiExampleRepository topicExamples;
     private final AppUserRepository users;
     private final QuestionBankService questionBank;
     private final AdminContentAuditService audit;
@@ -53,6 +71,7 @@ public class AiContentFactoryService {
             AiGeneratedQuestionItemRepository items,
             TopicRepository topics,
             AtomicSkillRepository skills,
+            TopicAiExampleRepository topicExamples,
             AppUserRepository users,
             QuestionBankService questionBank,
             AdminContentAuditService audit,
@@ -65,6 +84,7 @@ public class AiContentFactoryService {
         this.items = items;
         this.topics = topics;
         this.skills = skills;
+        this.topicExamples = topicExamples;
         this.users = users;
         this.questionBank = questionBank;
         this.audit = audit;
@@ -192,8 +212,59 @@ public class AiContentFactoryService {
                 form.getDifficulty(),
                 form.getCount(),
                 form.getLanguageMode(),
-                sanitizeInstruction(form.getInstruction())
+                sanitizeInstruction(form.getInstruction()),
+                selectExamplesForPrompt(topic.getId(), form.getExampleIds())
         );
+    }
+
+    /**
+     * Отбирает эталоны темы для few-shot и превращает их в «тонкий» {@link AiExamplePayload}
+     * (без id/PII). Логика отбора:
+     * <ol>
+     *   <li>берём только активные ({@code include_in_ai}) эталоны темы;</li>
+     *   <li>если {@code selectedIds != null} — оставляем только выбранные методистом
+     *       (пустой список => ни одного; см. семантику в {@link AiQuestionGenerationForm});</li>
+     *   <li>ограничиваем количеством {@link #MAX_EXAMPLES_IN_PROMPT} и бюджетом
+     *       {@link #EXAMPLES_CHAR_BUDGET} символов.</li>
+     * </ol>
+     * Порядок сохраняется как в БД (по id), поэтому «первые» эталоны приоритетнее при обрезке.
+     */
+    private List<AiExamplePayload> selectExamplesForPrompt(Long topicId, List<Long> selectedIds) {
+        List<TopicAiExample> active = topicExamples.findByTopicIdAndIncludeInAiTrueOrderByIdAsc(topicId);
+        // null => берём все активные (вызов без явного выбора); иначе фильтруем по выбранным id.
+        Set<Long> allowed = selectedIds == null ? null : new LinkedHashSet<>(selectedIds);
+
+        List<AiExamplePayload> result = new java.util.ArrayList<>();
+        int usedChars = 0;
+        for (TopicAiExample example : active) {
+            if (result.size() >= MAX_EXAMPLES_IN_PROMPT) {
+                break;
+            }
+            if (allowed != null && !allowed.contains(example.getId())) {
+                continue;
+            }
+            // Оценка вклада эталона в промпт: тело RU/KK + сериализованный ключ ответа.
+            int cost = length(example.getBodyRu()) + length(example.getBodyKk())
+                    + length(example.getAnswerKeyJson());
+            if (!result.isEmpty() && usedChars + cost > EXAMPLES_CHAR_BUDGET) {
+                // Первый эталон пропускаем в бюджет всегда (иначе слишком большой единственный
+                // пример полностью выключит few-shot); последующие — только если укладываемся.
+                break;
+            }
+            usedChars += cost;
+            result.add(new AiExamplePayload(
+                    example.getQuestionType(),
+                    example.getDifficulty(),
+                    example.getBodyRu(),
+                    example.getBodyKk(),
+                    example.getAnswerKeyJson()
+            ));
+        }
+        return result;
+    }
+
+    private int length(String value) {
+        return value == null ? 0 : value.length();
     }
 
     private QuestionForm toQuestionForm(AiGeneratedQuestionItem item) {

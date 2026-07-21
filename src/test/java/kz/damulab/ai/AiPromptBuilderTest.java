@@ -2,7 +2,11 @@ package kz.damulab.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
+
+import kz.damulab.questions.QuestionType;
 
 class AiPromptBuilderTest {
 
@@ -47,5 +51,54 @@ class AiPromptBuilderTest {
     void miniLectureSystemPromptRequiresMeaningBeforeFormulas() {
         assertThat(promptBuilder.miniLectureSystemPrompt())
                 .contains("Explain the idea in simple words before showing formulas");
+    }
+
+    @Test
+    void questionPromptIncludesFewShotExamplesWithAntiCopyInstruction() {
+        // Запрос с одним эталоном темы: в промпте должен появиться few-shot блок,
+        // тело эталона, его ключ ответа и строгий запрет копировать пример дословно.
+        AiExamplePayload example = new AiExamplePayload(
+                QuestionType.SCQ,
+                2,
+                "Сколько будет 2+2?",
+                "2+2 неше?",
+                "[{\"label\":\"A\",\"textRu\":\"4\",\"correct\":true}]"
+        );
+        String prompt = promptBuilder.questionGenerationPrompt(requestWithExamples(List.of(example)));
+
+        assertThat(prompt)
+                .contains("Reference examples from this topic")
+                .contains("do not copy these examples verbatim")
+                .contains("Сколько будет 2+2?")
+                .contains("Example 1 (SCQ, difficulty 2)")
+                .contains("[{\"label\":\"A\",\"textRu\":\"4\",\"correct\":true}]");
+    }
+
+    @Test
+    void questionPromptOmitsExamplesBlockWhenNoExamples() {
+        // Пустой/отсутствующий список эталонов => промпт не содержит few-shot блока
+        // (поведение как до фичи), чтобы не тратить токены и не путать модель.
+        assertThat(promptBuilder.questionGenerationPrompt(requestWithExamples(null)))
+                .doesNotContain("Reference examples from this topic");
+        assertThat(promptBuilder.questionGenerationPrompt(requestWithExamples(List.of())))
+                .doesNotContain("Reference examples from this topic");
+    }
+
+    private AiQuestionGenerationRequest requestWithExamples(List<AiExamplePayload> examples) {
+        return new AiQuestionGenerationRequest(
+                "Математика",
+                "Математика",
+                4,
+                "Сложение",
+                "Қосу",
+                null,
+                null,
+                QuestionType.SCQ,
+                2,
+                5,
+                AiLanguageMode.RU_KK,
+                "Один вопрос на жизненный кейс",
+                examples
+        );
     }
 }

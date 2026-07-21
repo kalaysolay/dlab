@@ -242,48 +242,94 @@ public class AdminQuestionPageController {
         }
     }
 
+    /**
+     * HTML-fallback для действий со списком (без JS).
+     * Основной UI шлёт POST на /api/admin/questions/{id}/... и не перезагружает страницу.
+     * Фильтры принимаем query/form-параметрами, чтобы redirect не сбрасывал выборку.
+     */
     @PostMapping("/admin/questions/{id}/approve")
-    String approve(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    String approve(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) QuestionStatus status,
+            @RequestParam(required = false) QuestionType type,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) QuestionQualityFilter quality,
+            RedirectAttributes redirectAttributes
+    ) {
         try {
             questionBank.approve(id);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос одобрен");
         } catch (QuestionBankException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }
-        return "redirect:/admin/questions";
+        return "redirect:/admin/questions" + buildFilterQuery(subjectId, gradeId, topicId, status, type, query, quality);
     }
 
     @PostMapping("/admin/questions/{id}/publish")
-    String publish(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    String publish(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) QuestionStatus status,
+            @RequestParam(required = false) QuestionType type,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) QuestionQualityFilter quality,
+            RedirectAttributes redirectAttributes
+    ) {
         try {
             questionBank.publish(id);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос опубликован");
         } catch (QuestionBankException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }
-        return "redirect:/admin/questions";
+        return "redirect:/admin/questions" + buildFilterQuery(subjectId, gradeId, topicId, status, type, query, quality);
     }
 
     @PostMapping("/admin/questions/{id}/archive")
-    String archive(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    String archive(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) QuestionStatus status,
+            @RequestParam(required = false) QuestionType type,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) QuestionQualityFilter quality,
+            RedirectAttributes redirectAttributes
+    ) {
         try {
             questionBank.archive(id);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос архивирован");
         } catch (QuestionBankException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }
-        return "redirect:/admin/questions";
+        return "redirect:/admin/questions" + buildFilterQuery(subjectId, gradeId, topicId, status, type, query, quality);
     }
 
     @PostMapping("/admin/questions/{id}/flag")
-    String flag(@PathVariable Long id, @RequestParam(required = false) String reason, RedirectAttributes redirectAttributes) {
+    String flag(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) QuestionStatus status,
+            @RequestParam(required = false) QuestionType type,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) QuestionQualityFilter quality,
+            RedirectAttributes redirectAttributes
+    ) {
         try {
             questionBank.flagForReview(id, reason);
             redirectAttributes.addFlashAttribute("successMessage", "Вопрос отправлен на review");
         } catch (QuestionBankException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", humanError(ex.getCode()));
         }
-        return "redirect:/admin/questions";
+        return "redirect:/admin/questions" + buildFilterQuery(subjectId, gradeId, topicId, status, type, query, quality);
     }
 
     @PostMapping("/admin/questions/{id}/flags")

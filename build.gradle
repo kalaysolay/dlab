@@ -1,8 +1,26 @@
+// Flyway Gradle-плагин применяем «классически» через buildscript: так на classpath плагина
+// гарантированно попадают модуль поддержки Postgres (flyway 10 модульный) и JDBC-драйвер.
+// Через plugins{}-DSL добавить эти два артефакта к classpath плагина менее очевидно.
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath 'org.flywaydb:flyway-gradle-plugin:10.10.0'
+        classpath 'org.flywaydb:flyway-database-postgresql:10.10.0'
+        classpath 'org.postgresql:postgresql:42.7.3'
+    }
+}
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.7'
     id 'io.spring.dependency-management' version '1.1.7'
 }
+
+// Применяем Flyway-плагин, подтянутый через buildscript (даёт задачи flywayMigrate/Info/Repair/Clean).
+apply plugin: 'org.flywaydb.flyway'
 
 group = 'kz'
 version = '0.0.1-SNAPSHOT'
@@ -11,6 +29,19 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+}
+
+// Конфиг Flyway для Gradle-задач (bootRun использует автоконфигурацию Spring и этот блок не читает).
+// По умолчанию — та же локальная БД, что в application-local.yml; можно переопределить env-переменными.
+flyway {
+    url = System.getenv('DB_URL') ?: 'jdbc:postgresql://localhost:5432/damulab'
+    user = System.getenv('DB_USERNAME') ?: 'postgres'
+    password = System.getenv('DB_PASSWORD') ?: '123qweasd'
+    // Читаем миграции прямо из исходников, без сборки resources.
+    locations = ['filesystem:src/main/resources/db/migration']
+    // ВНИМАНИЕ: включает flywayClean (в Flyway 10 по умолчанию запрещён). Оставляем доступным
+    // только потому, что блок нацелен на локальную дев-БД. Для боевой БД clean не запускать.
+    cleanDisabled = false
 }
 
 dependencies {
