@@ -1,11 +1,15 @@
 /**
- * Асинхронная генерация вопросов через ИИ.
+ * Асинхронная генерация вопросов через ИИ и review batch без сброса scroll.
  *
- * Поток работы:
+ * Поток генерации:
  * 1. Перехватываем submit формы, отправляем POST /api/admin/ai/questions/generate.
  * 2. Сервер сразу возвращает job в статусе pending — показываем лоадер и toast «Запущено».
  * 3. Polling раз в 2 секунды до терминального статуса (succeeded | failed).
  * 4. При завершении — toast с результатом и полная перезагрузка страницы (сервер отрисует batch).
+ *
+ * Review-действия (одобрить / удалить / сохранить правку):
+ * формы с data-ai-item-action перехватываются и идут на /api/admin/ai/... через fetch.
+ * Карточка обновляется на месте — без POST-Redirect-GET, иначе страница «уезжает» вверх.
  *
  * При загрузке страницы: если jobId задан в window.aiGenJobId и статус pending/running,
  * polling стартует автоматически (перезагрузка не теряет задачу).
@@ -237,11 +241,194 @@
         });
     }
 
+    // ───── Review batch: approve / delete / edit без перезагрузки ───────────────
+
+    /** Человекочитаемые тексты ошибок API (зеркало AdminAiPageController.humanError). */
+    function humanItemError(code) {
+        var map = {
+            ai_item_not_approvable: 'Этот AI-черновик нельзя одобрить',
+            ai_item_not_editable: 'Этот AI-черновик нельзя редактировать',
+            ai_item_approved_not_deletable: 'Одобренный AI-черновик уже перенесен в банк вопросов',
+            ai_item_not_found: 'AI-черновик не найден',
+            validation_error: 'Заполните RU, KK и источник перед сохранением правки'
+        };
+        return map[code] || ('AI Content Factory: ' + code);
+    }
+
+    /**
+     * Разбор ответа API при ошибке: { error, message? }.
+     * validation_error — message с полями; иначе humanItemError(error).
+     */
+    function readApiError(res) {
+        return res.json().then(function (data) {
+            var code = (data && data.error) || 'request_failed';
+            if (code === 'validation_error' && data.message) {
+                throw new Error(data.message);
+            }
+            throw new Error(humanItemError(code));
+        }, function () {
+            throw new Error('request_failed');
+        });
+    }
+
+    /** Обновляет badge reviewStatus: approved→success, deleted→danger, иначе warning. */
+    function setStatusBadge(card, status) {
+        var badge = card.querySelector('[data-ai-status-badge]');
+        if (!badge) {
+            return;
+        }
+        badge.textContent = status;
+        badge.classList.remove('success', 'warning', 'danger');
+        if (status === 'approved') {
+            badge.classList.add('success');
+        } else if (status === 'deleted') {
+            badge.classList.add('danger');
+        } else {
+            badge.classList.add('warning');
+        }
+    }
+
+    /**
+     * После approve/delete: убираем формы правок/кнопок и при необходимости
+     * добавляем ссылку «Открыть в банке» (createdQuestionId из ответа approve).
+     */
+    function lockCardAfterTerminalStatus(card, item) {
+        var editPanel = card.querySelector('[data-ai-edit-panel]');
+        if (editPanel) {
+            editPanel.remove();
+        }
+        var actions = card.querySelector('[data-ai-row-actions]');
+        if (!actions) {
+            return;
+        }
+        actions.querySelectorAll('form[data-ai-item-action]').forEach(function (form) {
+            form.remove();
+        });
+        if (item.reviewStatus === 'approved' && item.createdQuestionId != null) {
+            var existing = actions.querySelector('[data-ai-bank-link]');
+            if (!existing) {
+                var link = document.createElement('a');
+                link.className = 'button';
+                link.setAttribute('data-ai-bank-link', '');
+                link.href = '/admin/questions?query=' + encodeURIComponent('Q-' + item.createdQuestionId);
+                link.textContent = 'Открыть в банке';
+                actions.appendChild(link);
+            }
+        }
+    }
+
+    /** Подставляет тексты черновика в карточку после успешного edit. */
+    function applyEditedTexts(card, item) {
+        var bodyRu = card.querySelector('[data-ai-body-ru]');
+        var bodyKk = card.querySelector('[data-ai-body-kk]');
+        var source = card.querySelector('[data-ai-source]');
+        if (bodyRu) {
+            bodyRu.textContent = item.bodyRu || '';
+        }
+        if (bodyKk) {
+            bodyKk.textContent = item.bodyKk || '';
+        }
+        if (source) {
+            source.textContent = 'Источник: ' + (item.source || '');
+        }
+    }
+
+    /**
+     * Перехват форм карточек review batch.
+     * Без preventDefault браузер сделал бы POST + redirect и сбросил scroll вверх.
+     */
+    function initItemActions() {
+        document.querySelectorAll('form[data-ai-item-action]').forEach(function (form) {
+            form.addEventListener('submit', function (evt) {
+                evt.preventDefault();
+
+                var action = form.getAttribute('data-ai-item-action');
+                var card = form.closest('.ai-result-card');
+                if (!card) {
+                    return;
+                }
+                var batchId = card.getAttribute('data-ai-batch-id');
+                var itemId = card.getAttribute('data-ai-item-id');
+                if (!batchId || !itemId) {
+                    showToast('error', 'Ошибка', 'Не найдены id черновика');
+                    return;
+                }
+
+                var submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                }
+
+                var url = '/api/admin/ai/batches/' + batchId + '/items/' + itemId;
+                var options = {
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRF-TOKEN': csrf() }
+                };
+
+                if (action === 'approve') {
+                    options.method = 'POST';
+                    url += '/approve';
+                } else if (action === 'delete') {
+                    options.method = 'POST';
+                    url += '/delete';
+                } else if (action === 'edit') {
+                    // API ждёт JSON PUT; MVC-форма — application/x-www-form-urlencoded.
+                    options.method = 'PUT';
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify({
+                        bodyRu: readFormValue(form, 'bodyRu'),
+                        bodyKk: readFormValue(form, 'bodyKk'),
+                        source: readFormValue(form, 'source'),
+                        explanationRu: readFormValue(form, 'explanationRu') || null,
+                        explanationKk: readFormValue(form, 'explanationKk') || null
+                    });
+                } else {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                    }
+                    return;
+                }
+
+                fetch(url, options)
+                    .then(function (res) {
+                        if (!res.ok) {
+                            return readApiError(res);
+                        }
+                        return res.json();
+                    })
+                    .then(function (item) {
+                        setStatusBadge(card, item.reviewStatus);
+                        if (action === 'edit') {
+                            applyEditedTexts(card, item);
+                            var panel = card.querySelector('[data-ai-edit-panel]');
+                            if (panel) {
+                                panel.open = false;
+                            }
+                            showToast('success', 'Черновик обновлён', 'AI-Q-' + item.id);
+                        } else if (action === 'approve') {
+                            lockCardAfterTerminalStatus(card, item);
+                            showToast('success', 'Одобрено', 'AI-вопрос перенесен в банк как needs_review');
+                        } else if (action === 'delete') {
+                            lockCardAfterTerminalStatus(card, item);
+                            showToast('success', 'Удалено', 'AI-черновик удален из review batch');
+                        }
+                    })
+                    .catch(function (err) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                        }
+                        showToast('error', 'Не удалось выполнить действие', String(err.message || err));
+                    });
+            });
+        });
+    }
+
     // ───── Инициализация ────────────────────────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', function () {
         initForm();
         initRetryButtons();
+        initItemActions();
 
         // Автостарт polling при перезагрузке с pending/running job
         if (window.aiGenJobId && window.aiGenJobStatus &&

@@ -39,14 +39,21 @@ public class DeepSeekProvider extends ExternalAiProviderSupport implements AiPro
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Генерация черновиков через DeepSeek Chat Completions.
+     * В отличие от OpenAI, здесь нет strict json_schema — контракт держим промптом
+     * ({@link #questionSchemaPromptAppendix}) и мягким разбором ({@link #parseDrafts(String, kz.damulab.questions.QuestionType)}).
+     */
     @Override
     public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request) {
         AiProviderProperties.Provider deepseek = properties.getDeepseek();
         requireConfigured(deepseek.getApiKey(), "deepseek_api_key_missing");
         String model = deepseek.getModel();
         String systemPrompt = promptBuilder.systemPrompt();
+        // Явная JSON Schema в user-промпте: иначе deepseek-chat часто пропускает questionType
+        // или отдаёт snake_case → ai_schema_invalid на валидации.
         String userPrompt = promptBuilder.questionGenerationPrompt(request)
-                + "\nReturn JSON only with root object {\"questions\": [...]} and no markdown.";
+                + questionSchemaPromptAppendix(request.questionType());
         AiCallLogger.logOutbound(
                 log,
                 OP_QUESTIONS,
@@ -72,7 +79,7 @@ public class DeepSeekProvider extends ExternalAiProviderSupport implements AiPro
             JsonNode response = post(deepseek, body);
             String outputJson = extractDeepSeekText(response == null ? objectMapper.createObjectNode() : response);
             AiCallLogger.logInboundRaw(log, OP_QUESTIONS, model, 1, outputJson);
-            List<AiGeneratedQuestionDraft> drafts = parseDrafts(outputJson);
+            List<AiGeneratedQuestionDraft> drafts = parseDrafts(outputJson, request.questionType());
             AiCallLogger.logQuestionDrafts(log, OP_QUESTIONS, model, drafts);
             return new AiQuestionGenerationResult("deepseek", model, drafts);
         } catch (RestClientException ex) {

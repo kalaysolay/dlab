@@ -171,26 +171,32 @@
                     <span>StubAiProvider не вернул черновиков.</span>
                 </div>
 
+                <!--
+                  Карточки review batch: approve/delete/edit перехватывает admin-ai-generate.js
+                  (fetch на /api/admin/ai/...), чтобы не делать POST-Redirect-GET и не сбрасывать scroll.
+                  data-ai-* — якоря для точечного обновления DOM после ответа API.
+                -->
                 <div class="ai-result-list" th:if="${!#lists.isEmpty(job.items)}">
-                    <article class="subpanel ai-result-card" th:each="item : ${job.items}">
+                    <article class="subpanel ai-result-card" th:each="item : ${job.items}"
+                             th:attr="data-ai-item-id=${item.id},data-ai-batch-id=${job.batchId}">
                         <div class="result-row-head">
                             <span class="badge" th:text="${'AI-Q-' + item.id}">AI-Q-1</span>
                             <span class="badge" th:classappend="${item.qualityScore >= 80} ? 'success' : 'warning'"
                                   th:text="${'Quality ' + item.qualityScore + '/100'}">Quality 88/100</span>
-                            <span class="badge"
+                            <span class="badge" data-ai-status-badge
                                   th:classappend="${item.reviewStatus == 'approved'} ? 'success' : (${item.reviewStatus == 'deleted'} ? 'danger' : 'warning')"
                                   th:text="${item.reviewStatus}">pending</span>
                         </div>
-                        <h3 th:text="${item.bodyRu}">AI draft</h3>
-                        <p class="muted-line" th:text="${item.bodyKk}">KK</p>
-                        <p class="muted-line" th:text="${'Источник: ' + item.source}">Источник</p>
+                        <h3 data-ai-body-ru th:text="${item.bodyRu}">AI draft</h3>
+                        <p class="muted-line" data-ai-body-kk th:text="${item.bodyKk}">KK</p>
+                        <p class="muted-line" data-ai-source th:text="${'Источник: ' + item.source}">Источник</p>
                         <div class="notice" th:if="${item.qualityNotes != null}">
                             <span th:text="${item.qualityNotes}">Quality notes</span>
                         </div>
 
-                        <details th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}">
+                        <details th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}" data-ai-edit-panel>
                             <summary class="button">Исправить текст</summary>
-                            <form class="form wide-form ai-edit-form" method="post"
+                            <form class="form wide-form ai-edit-form" method="post" data-ai-item-action="edit"
                                   th:action="@{/admin/ai/batches/{batchId}/items/{itemId}/edit(batchId=${job.batchId},itemId=${item.id})}">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                                 <input type="hidden" name="jobId" th:value="${job.id}">
@@ -218,20 +224,22 @@
                             </form>
                         </details>
 
-                        <div class="row-actions">
-                            <form method="post" th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}"
+                        <div class="row-actions" data-ai-row-actions>
+                            <form method="post" data-ai-item-action="approve"
+                                  th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}"
                                   th:action="@{/admin/ai/batches/{batchId}/items/{itemId}/approve(batchId=${job.batchId},itemId=${item.id})}">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                                 <input type="hidden" name="jobId" th:value="${job.id}">
                                 <button class="button primary" type="submit">Одобрить в needs_review</button>
                             </form>
-                            <form method="post" th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}"
+                            <form method="post" data-ai-item-action="delete"
+                                  th:if="${item.reviewStatus != 'approved' && item.reviewStatus != 'deleted'}"
                                   th:action="@{/admin/ai/batches/{batchId}/items/{itemId}/delete(batchId=${job.batchId},itemId=${item.id})}">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                                 <input type="hidden" name="jobId" th:value="${job.id}">
                                 <button class="button danger" type="submit">Удалить</button>
                             </form>
-                            <a class="button" th:if="${item.createdQuestionId != null}"
+                            <a class="button" data-ai-bank-link th:if="${item.createdQuestionId != null}"
                                th:href="@{/admin/questions(query=${'Q-' + item.createdQuestionId})}">Открыть в банке</a>
                         </div>
                     </article>

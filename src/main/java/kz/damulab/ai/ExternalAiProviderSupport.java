@@ -1,5 +1,6 @@
 package kz.damulab.ai;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import kz.damulab.questions.QuestionType;
+
+/**
+ * Общая логика внешних AI-провайдеров: схемы JSON, разбор ответа, валидация черновиков.
+ * OpenAI держит контракт через strict {@code json_schema}; DeepSeek — через промпт + мягкий разбор
+ * ({@link #parseDrafts(String, QuestionType)}, {@link #questionSchemaPromptAppendix()}).
+ */
 abstract class ExternalAiProviderSupport {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalAiProviderSupport.class);
@@ -62,14 +70,111 @@ abstract class ExternalAiProviderSupport {
         return MiniLectureJsonParser.parse(objectMapper, json);
     }
 
+    /**
+     * Разбор ответа провайдера со строгой схемой (OpenAI). Без подстановки типа из запроса.
+     */
     protected List<AiGeneratedQuestionDraft> parseDrafts(String json) {
+        return parseDrafts(json, null);
+    }
+
+    /**
+     * Разбор ответа LLM в список черновиков.
+     *
+     * @param json             сырой текст (иногда в markdown fence — снимаем)
+     * @param defaultQuestionType если модель забыла {@code questionType}, подставляем тип из формы
+     *                            генерации (у запроса всегда один целевой тип). {@code null} — не подставлять.
+     */
+    protected List<AiGeneratedQuestionDraft> parseDrafts(String json, QuestionType defaultQuestionType) {
         try {
-            ExternalAiQuestionPayload payload = objectMapper.readValue(json, ExternalAiQuestionPayload.class);
-            payload.getQuestions().forEach(validator::validate);
-            return payload.getQuestions();
+            String cleaned = unwrapJsonPayload(json);
+            ExternalAiQuestionPayload payload = objectMapper.readValue(cleaned, ExternalAiQuestionPayload.class);
+            List<AiGeneratedQuestionDraft> raw = payload.getQuestions();
+            if (raw == null || raw.isEmpty()) {
+                throw new AiProviderException("ai_schema_invalid", "questions array is empty");
+            }
+            List<AiGeneratedQuestionDraft> drafts = new ArrayList<>(raw.size());
+            for (AiGeneratedQuestionDraft draft : raw) {
+                AiGeneratedQuestionDraft normalized = applyDefaultQuestionType(draft, defaultQuestionType);
+                validator.validate(normalized);
+                drafts.add(normalized);
+            }
+            return drafts;
         } catch (JsonProcessingException | AiProviderException ex) {
             throw new AiProviderException("ai_schema_invalid", ex.getMessage());
         }
+    }
+
+    /**
+     * Текст со схемой полей для промпта DeepSeek (у API нет OpenAI-style strict json_schema).
+     * Без этого модель часто отдаёт snake_case или пропускает {@code questionType}.
+     */
+    protected String questionSchemaPromptAppendix(QuestionType expectedType) {
+        String schemaJson;
+        try {
+            schemaJson = objectMapper.writeValueAsString(questionJsonSchema());
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize question JSON schema for prompt", ex);
+        }
+        String typeName = expectedType == null ? "SCQ|MCQ|MATCHING|FILL_IN" : expectedType.name();
+        return """
+
+                Return JSON only (no markdown fences). Root object MUST be {"questions":[...]} .
+                Each element of "questions" MUST use camelCase field names exactly as in this JSON Schema:
+                %s
+                Every question MUST include "questionType" with value "%s" (same as the requested type).
+                Do not use snake_case keys (question_type, body_ru, …).
+                """.formatted(schemaJson, typeName);
+    }
+
+    /**
+     * Снимает обёртку ``` / ```json, если модель всё же вернула markdown при json_object.
+     */
+    static String unwrapJsonPayload(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String text = raw.trim();
+        if (!text.startsWith("```")) {
+            return text;
+        }
+        int firstNewline = text.indexOf('\n');
+        if (firstNewline < 0) {
+            return text;
+        }
+        String withoutOpen = text.substring(firstNewline + 1);
+        int fence = withoutOpen.lastIndexOf("```");
+        if (fence >= 0) {
+            withoutOpen = withoutOpen.substring(0, fence);
+        }
+        return withoutOpen.trim();
+    }
+
+    private static AiGeneratedQuestionDraft applyDefaultQuestionType(
+            AiGeneratedQuestionDraft draft,
+            QuestionType defaultQuestionType
+    ) {
+        if (draft == null || draft.questionType() != null || defaultQuestionType == null) {
+            return draft;
+        }
+        log.warn(
+                "AI draft missing questionType — using request type {}",
+                defaultQuestionType
+        );
+        return new AiGeneratedQuestionDraft(
+                defaultQuestionType,
+                draft.difficulty(),
+                draft.bodyRu(),
+                draft.bodyKk(),
+                draft.explanationRu(),
+                draft.explanationKk(),
+                draft.source(),
+                draft.options(),
+                draft.matchingPairs(),
+                draft.fillAnswers(),
+                draft.qualityScore(),
+                draft.qualityNotes(),
+                draft.flags()
+        );
     }
 
     protected String extractOpenAiText(JsonNode response) {
