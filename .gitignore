@@ -22,8 +22,10 @@ logs/
 
 # Environment / secrets
 .env
+.env.prod
 .env.*
 !.env.example
+!.env.prod.example
 application-local.yml
 application-local.yaml
 application-prod.yml
@@ -45,10 +47,12 @@ temp/
 admin-mockups
 Mockups
 docs/
+!docs/
 
 # Agent hints and parent-link API spec (local / volatile)
 AGENTS.md
 /docs/*
+!/docs/DEPLOY_VPS.md
 
 # Local audit files (not for repo)
 GAME_AUDIT.md

@@ -44,6 +44,7 @@ $env:SERVER_PORT="18080"
 
 ## Stage Documentation
 
+- `docs/DEPLOY_VPS.md` - полная настройка Ubuntu 22.04 VPS и production-деплой.
 - `docs/DEPLOY_HTTPS.md` - production HTTPS (Let's Encrypt), nginx и проверка PWA.
 - `docs/PARENT_LINK_API.md` - stage 2 parent-child linking endpoints and rules.
 - `docs/PWA_BASELINE.md` - minimal PWA assets and verification scope.

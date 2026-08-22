@@ -2,6 +2,7 @@ package kz.damulab.auth;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import kz.damulab.users.StudentProfile;
 import kz.damulab.users.StudentProfileRepository;
 
 @Component
+@ConditionalOnProperty(prefix = "damulab.demo-users", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class DemoUserSeeder implements ApplicationRunner {
 
     private final AppUserRepository users;

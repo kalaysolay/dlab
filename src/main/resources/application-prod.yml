@@ -6,6 +6,10 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+damulab:
+  demo-users:
+    enabled: false
+
 server:
   forward-headers-strategy: framework
 
