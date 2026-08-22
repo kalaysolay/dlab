@@ -6,15 +6,154 @@
     <title th:text="#{home.title}">Damulab.kz</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/home.css}">
 </head>
-<body>
+<body class="home-redesign-body">
 <div class="app-shell">
     <header th:replace="~{fragments/header :: header}"></header>
-    <main class="page public-home">
-        <section id="hero" class="hero">
+    <main class="page public-home home-v2">
+        <section class="home-v2-hero" aria-labelledby="home-v2-title">
+            <div class="home-v2-copy">
+                <span class="home-v2-eyebrow" th:text="#{home.hero.badge}">ИИ-тренажёр по школьным предметам</span>
+                <h1 id="home-v2-title">
+                    <span th:text="#{home.hero.title}">Разберись в теме.</span>
+                    <em th:text="#{home.hero.title.accent}">Не заучивай.</em>
+                </h1>
+                <p th:text="#{home.subtitle}">
+                    Тренажёр подбирает задания, объясняет ошибки и ведёт от простого к сложному.
+                </p>
+                <a class="home-v2-primary" th:href="@{/login}">
+                    <span th:text="#{home.hero.cta.start}">Начать учиться</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h14M13 6l6 6-6 6"></path>
+                    </svg>
+                </a>
+                <ul class="home-v2-subjects" th:aria-label="#{home.subjects.aria}" aria-label="Школьные предметы">
+                    <li th:text="#{home.subject.math}">Математика</li>
+                    <li th:text="#{home.subject.physics}">Физика</li>
+                    <li th:text="#{home.subject.biology}">Биология</li>
+                    <li th:text="#{home.subject.history}">История</li>
+                    <li th:text="#{home.subject.languages}">Языки</li>
+                </ul>
+            </div>
+
+            <div class="home-v2-slider" data-home-slider th:aria-label="#{home.slider.aria}" aria-label="Возможности Damulab">
+                <div class="home-v2-slider-head">
+                    <span th:text="#{home.slider.kicker}">Damulab · школьные предметы</span>
+                    <span data-home-slide-counter>01 / 03</span>
+                </div>
+
+                <div class="home-v2-slides">
+                    <article class="home-v2-slide is-active" data-home-slide aria-hidden="false">
+                        <div class="home-v2-slide-copy">
+                            <span th:text="#{home.slider.adaptive.badge}">Персональная практика</span>
+                            <h2 th:text="#{home.slider.adaptive.title}">Задания подстраиваются под твой уровень</h2>
+                            <p th:text="#{home.slider.adaptive.body}">От простого к сложному, без случайных скачков и перегруза.</p>
+                        </div>
+                        <div class="home-v2-visual-stack" aria-hidden="true">
+                            <div class="home-v2-visual-back"><i></i><i></i><i></i></div>
+                            <div class="home-v2-visual-front">
+                                <small th:text="#{home.slider.adaptive.meta}">Математика · 7 класс</small>
+                                <strong th:text="#{home.slider.adaptive.topic}">Линейные уравнения</strong>
+                                <span class="home-v2-visual-progress"><i></i></span>
+                                <span class="home-v2-visual-line"></span>
+                                <span class="home-v2-visual-line short"></span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="home-v2-slide" data-home-slide aria-hidden="true">
+                        <div class="home-v2-slide-copy">
+                            <span th:text="#{home.slider.explain.badge}">Понятные объяснения</span>
+                            <h2 th:text="#{home.slider.explain.title}">Ошибка становится следующим шагом</h2>
+                            <p th:text="#{home.slider.explain.body}">Короткий разбор помогает понять принцип, а не запомнить ответ.</p>
+                        </div>
+                        <div class="home-v2-explanation" aria-hidden="true">
+                            <strong>3x + 7 = 22</strong>
+                            <div><b>1</b><span th:text="#{home.slider.explain.step1}">Вычитаем 7 из обеих частей</span></div>
+                            <div><b>2</b><span th:text="#{home.slider.explain.step2}">Делим результат на 3</span></div>
+                            <mark>✓&nbsp; x = 5</mark>
+                        </div>
+                    </article>
+
+                    <article class="home-v2-slide" data-home-slide aria-hidden="true">
+                        <div class="home-v2-slide-copy">
+                            <span th:text="#{home.slider.progress.badge}">Видимый прогресс</span>
+                            <h2 th:text="#{home.slider.progress.title}">Понятно, что уже получается</h2>
+                            <p th:text="#{home.slider.progress.body}">Темы, динамика и следующий шаг собраны в одном месте.</p>
+                        </div>
+                        <div class="home-v2-progress-visual" aria-hidden="true">
+                            <div class="home-v2-ring"><span>72%</span></div>
+                            <div class="home-v2-bars"><i></i><i></i><i></i><i></i></div>
+                            <div class="home-v2-progress-copy">
+                                <strong th:text="#{home.slider.progress.growth}">Уровень растёт</strong>
+                                <span th:text="#{home.slider.progress.completed}">28 тем пройдено</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="home-v2-slider-controls">
+                    <div class="home-v2-dots" role="group" th:aria-label="#{home.slider.controls}" aria-label="Выбор слайда">
+                        <button class="is-active" type="button" data-home-slide-to="0" aria-label="1" aria-pressed="true"></button>
+                        <button type="button" data-home-slide-to="1" aria-label="2" aria-pressed="false"></button>
+                        <button type="button" data-home-slide-to="2" aria-label="3" aria-pressed="false"></button>
+                    </div>
+                    <div class="home-v2-arrows">
+                        <button type="button" data-home-slide-prev th:aria-label="#{home.slider.previous}" aria-label="Предыдущий слайд">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6 6-6-6 6-6"></path></svg>
+                        </button>
+                        <button type="button" data-home-slide-next th:aria-label="#{home.slider.next}" aria-label="Следующий слайд">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="home-v2-benefits" th:aria-label="#{home.benefits.aria}" aria-label="Преимущества">
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <div><strong th:text="#{home.benefit.time.title}">15 минут в день</strong><span th:text="#{home.benefit.time.body}">Короткая регулярная практика</span></div>
+            </article>
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg>
+                <div><strong th:text="#{home.benefit.level.title}">Персональный уровень</strong><span th:text="#{home.benefit.level.body}">Сложность меняется по ответам</span></div>
+            </article>
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <div><strong th:text="#{home.benefit.parent.title}">Прогресс виден родителю</strong><span th:text="#{home.benefit.parent.body}">Темы и динамика без давления</span></div>
+            </article>
+        </section>
+
+        <section class="home-v2-section" aria-labelledby="home-v2-flow-title">
+            <header class="home-v2-section-head">
+                <span th:text="#{home.flow.badge}">Как это работает</span>
+                <h2 id="home-v2-flow-title" th:text="#{home.flow.title}">Одна тренировка — три понятных шага</h2>
+            </header>
+            <div class="home-v2-steps">
+                <article><span>01</span><h3 th:text="#{home.flow.step1.title}">Выбираешь тему</h3><p th:text="#{home.flow.step1.body}">Предмет, класс и нужный раздел школьной программы.</p></article>
+                <article><span>02</span><h3 th:text="#{home.flow.step2.title}">Решаешь задания</h3><p th:text="#{home.flow.step2.body}">Тренажёр подстраивает следующий вопрос под твой ответ.</p></article>
+                <article><span>03</span><h3 th:text="#{home.flow.step3.title}">Понимаешь ошибку</h3><p th:text="#{home.flow.step3.body}">ИИ объясняет решение и предлагает закрепить сложное место.</p></article>
+            </div>
+        </section>
+
+        <section class="home-v2-section home-v2-platform" aria-labelledby="home-v2-platform-title">
+            <header class="home-v2-section-head">
+                <span th:text="#{home.platform.badge}">Возможности платформы</span>
+                <h2 id="home-v2-platform-title" th:text="#{home.platform.title}">Учёба, игра и прогресс в одном месте</h2>
+            </header>
+            <div class="home-v2-platform-grid">
+                <a th:href="@{/login}"><span>01</span><div><small th:text="#{home.platform.practice.badge}">Практика</small><h3 th:text="#{home.platform.practice.title}">Тренировки по предметам</h3><p th:text="#{home.platform.practice.body}">Темы, задания и объяснения в личном темпе.</p></div></a>
+                <a th:href="@{/login}"><span>02</span><div><small th:text="#{home.platform.quiz.badge}">Игровой режим</small><h3 th:text="#{home.platform.quiz.title}">Викторины с друзьями</h3><p th:text="#{home.platform.quiz.body}">Создать комнату или присоединиться по коду.</p></div></a>
+                <a th:href="@{/parent}"><span>03</span><div><small th:text="#{home.platform.parent.badge}">Для семьи</small><h3 th:text="#{home.platform.parent.title}">Кабинет родителя</h3><p th:text="#{home.platform.parent.body}">Прогресс ребёнка, регулярность и сложные темы.</p></div></a>
+            </div>
+        </section>
+
+        <section id="hero" class="hero" hidden>
             <div>
-                <span class="badge success" th:text="#{home.hero.badge}">СОР / СОЧ / МОДО</span>
-                <h1 th:text="#{home.hero.title}">Подготовка к СОР, СОЧ и МОДО без перегруза</h1>
+                <span class="badge success" th:text="#{home.hero.badge}">ИИ-тренажёр по школьным предметам</span>
+                <h1 th:text="#{home.hero.title}">Разберись в теме.</h1>
                 <p class="lede" th:text="#{home.subtitle}">
                     Базовый учебный цикл: контент, тест, результат, аналитика, родитель.
                 </p>
@@ -66,7 +205,7 @@
             </div>
         </section>
 
-        <section class="feature-grid public-quick-links" th:aria-label="#{home.quick.aria}" aria-label="Быстрый старт">
+        <section class="feature-grid public-quick-links" th:aria-label="#{home.quick.aria}" aria-label="Быстрый старт" hidden>
             <a class="warm-card" th:href="@{/login}">
                 <span class="badge" th:text="#{home.quick.login.badge}">Быстрый старт</span>
                 <h2 th:text="#{home.quick.login.title}">Единый вход</h2>
@@ -84,7 +223,7 @@
             </a>
         </section>
 
-        <section id="flow" class="program-band public-flow">
+        <section id="flow" class="program-band public-flow" hidden>
             <div class="section-head">
                 <span class="badge" th:text="#{home.flow.badge}">Процесс</span>
                 <h2 th:text="#{home.flow.title}">Как это работает</h2>
@@ -109,7 +248,7 @@
             </div>
         </section>
 
-        <section class="program-band public-faq">
+        <section class="program-band public-faq" hidden>
             <div class="section-head">
                 <span class="badge" th:text="#{home.faq.badge}">FAQ</span>
                 <h2 th:text="#{home.faq.title}">Частые вопросы</h2>
@@ -131,7 +270,7 @@
         </section>
     </main>
     <footer class="site-footer">
-        <p th:text="#{footer.copy}">© 2026 Damulab.kz. СОР/СОЧ и школьная теория без стресса.</p>
+        <p th:text="#{footer.copy}">© 2026 Damulab.kz. Школьные предметы в понятном темпе.</p>
         <div>
             <a th:href="@{/login}" th:text="#{nav.dashboard}">Кабинет</a>
             <a th:href="@{/register}" th:text="#{nav.register}">Регистрация</a>
@@ -139,5 +278,6 @@
         </div>
     </footer>
 </div>
+<script th:src="@{/js/home.js}" defer></script>
 </body>
 </html>

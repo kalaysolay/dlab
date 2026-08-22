@@ -29,14 +29,20 @@ class PageSecuritySmokeTest {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Damulab.kz")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Damulab.kz")))
+                .andExpect(content().string(Matchers.containsString("Разберись в теме.")))
+                .andExpect(content().string(Matchers.containsString("/css/home.css")))
+                .andExpect(content().string(Matchers.containsString("/js/home.js")));
     }
 
     @Test
     void loginPageIsPublic() throws Exception {
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("auth/login"));
+                .andExpect(view().name("auth/login"))
+                // Редизайн временной концепции изолирован на index.html.
+                .andExpect(content().string(Matchers.not(Matchers.containsString("/css/home.css"))))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("/js/home.js"))));
     }
 
     @Test
