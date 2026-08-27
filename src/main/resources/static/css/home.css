@@ -138,6 +138,48 @@
 }
 
 @media (max-width: 760px) {
+    /*
+     * home.css подключается после app.css, поэтому базовая ширина оболочки
+     * выше иначе возвращает на мобильном лишние 32 px справа. На узком экране
+     * главная должна занимать весь viewport, как и остальные страницы.
+     */
+    .home-redesign-body .app-shell {
+        width: 100%;
+    }
+
+    /*
+     * Пункты публичного меню помещаем в одну адаптивную строку без нативного
+     * горизонтального скролла. Первая колонка с языком может сжиматься, а
+     * ссылки остаются полностью видимыми и удобными для нажатия.
+     */
+    .home-redesign-body .topbar {
+        gap: 12px;
+        padding: 12px 16px 14px;
+    }
+
+    .home-redesign-body .topbar .nav {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        width: 100%;
+        overflow-x: visible;
+        gap: 4px;
+    }
+
+    .home-redesign-body .topbar .language-select-wrap,
+    .home-redesign-body .topbar .language-form {
+        min-width: 0;
+    }
+
+    .home-redesign-body .topbar .language-select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .home-redesign-body .topbar .nav > a {
+        justify-content: center;
+        padding-inline: 10px;
+    }
+
     .home-redesign-body .home-v2 {
         width: min(100% - 20px, 1280px);
         margin-top: 12px;
@@ -209,6 +251,21 @@
 
     .home-v2-steps article {
         min-height: 185px;
+    }
+}
+
+@media (max-width: 380px) {
+    .home-redesign-body .topbar {
+        padding-inline: 12px;
+    }
+
+    .home-redesign-body .topbar .language-icon {
+        display: none;
+    }
+
+    .home-redesign-body .topbar .language-select-wrap,
+    .home-redesign-body .topbar .nav > a {
+        padding-inline: 7px;
     }
 }
 
