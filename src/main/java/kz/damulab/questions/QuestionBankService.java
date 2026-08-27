@@ -39,7 +39,9 @@ import org.springframework.web.multipart.MultipartFile;
 import kz.damulab.ai.AiCallLogger;
 import kz.damulab.ai.AiMiniLectureResult;
 import kz.damulab.ai.AiProvider;
-import kz.damulab.ai.AiProviderProperties;
+import kz.damulab.ai.AiProviderCode;
+import kz.damulab.ai.AiRuntimeSettingsService;
+import kz.damulab.ai.AiUsageType;
 import kz.damulab.ai.MiniLectureGenerationRequest;
 import kz.damulab.audit.AdminContentAuditService;
 import kz.damulab.content.AtomicSkill;
@@ -71,7 +73,7 @@ public class QuestionBankService {
     private final ObjectMapper objectMapper;
     private final AdminContentAuditService audit;
     private final AiProvider aiProvider;
-    private final AiProviderProperties aiProviderProperties;
+    private final AiRuntimeSettingsService aiRuntimeSettings;
 
     public QuestionBankService(
             QuestionRepository questions,
@@ -87,7 +89,7 @@ public class QuestionBankService {
             ObjectMapper objectMapper,
             AdminContentAuditService audit,
             AiProvider aiProvider,
-            AiProviderProperties aiProviderProperties
+            AiRuntimeSettingsService aiRuntimeSettings
     ) {
         this.questions = questions;
         this.versions = versions;
@@ -102,7 +104,7 @@ public class QuestionBankService {
         this.objectMapper = objectMapper;
         this.audit = audit;
         this.aiProvider = aiProvider;
-        this.aiProviderProperties = aiProviderProperties;
+        this.aiRuntimeSettings = aiRuntimeSettings;
     }
 
     @Transactional(readOnly = true)
@@ -471,10 +473,9 @@ public class QuestionBankService {
         );
     }
 
-    /** {@code true}, если в конфигурации выбран намеренный stub (без сетевого LLM). Не путать с ошибкой провайдера. */
+    /** {@code true}, если для лекций в админке выбран намеренный stub (без сетевого LLM). */
     private boolean isStubAiProviderConfigured() {
-        String p = aiProviderProperties.getProvider();
-        return p == null || p.isBlank() || "stub".equalsIgnoreCase(p.trim());
+        return aiRuntimeSettings.resolve(AiUsageType.LECTURES).provider() == AiProviderCode.STUB;
     }
 
     private MiniLectureGenerationRequest toMiniLectureGenerationRequest(

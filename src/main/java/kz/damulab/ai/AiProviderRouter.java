@@ -8,8 +8,9 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
- * Единая точка выбора AI: {@code damulab.ai.provider}, флаг {@code real-providers-enabled}, fallback.
- * Логирует ветвление по мини-лекции и генерации черновиков — смотреть консоль / файл логов при отладке.
+ * Единая точка выбора AI. Провайдер и модель для каждого сценария читаются из
+ * {@code ai_runtime_settings}; конфигурационный {@code real-providers-enabled}
+ * остаётся аварийным server-side выключателем внешних запросов.
  */
 @Primary
 @Component
@@ -18,141 +19,93 @@ public class AiProviderRouter implements AiProvider {
     private static final Logger log = LoggerFactory.getLogger(AiProviderRouter.class);
 
     private final AiProviderProperties properties;
+    private final AiRuntimeSettingsService settings;
     private final StubAiProvider stub;
     private final OpenAiProvider openAi;
     private final DeepSeekProvider deepSeek;
 
     public AiProviderRouter(
             AiProviderProperties properties,
+            AiRuntimeSettingsService settings,
             StubAiProvider stub,
             OpenAiProvider openAi,
             DeepSeekProvider deepSeek
     ) {
         this.properties = properties;
+        this.settings = settings;
         this.stub = stub;
         this.openAi = openAi;
         this.deepSeek = deepSeek;
     }
 
-    /**
-     * Одна строка при старте (ASCII): в Windows-консоли часто ломается UTF-8 в логах, а эти поля критичны для отладки AI.
-     */
+    /** Логирует только наличие секретов, но никогда не их значения. */
     @PostConstruct
     void logStartupAiBinding() {
-        String provider = properties.getProvider() == null ? "" : properties.getProvider().trim();
-        boolean openAiKey = properties.getOpenai().getApiKey() != null
-                && !properties.getOpenai().getApiKey().isBlank();
+        boolean openAiKey = isConfigured(properties.getOpenai().getApiKey());
+        boolean deepSeekKey = isConfigured(properties.getDeepseek().getApiKey());
         log.info(
-                "damulab.ai binding: provider={} realProvidersEnabled={} openaiApiKeyConfigured={} "
-                        + "openaiModel={} miniLectureOpenAiModel={} deepseekModel={} miniLectureDeepSeekModel={}",
-                provider.isEmpty() ? "(empty)" : provider,
+                "damulab.ai binding: runtime routes come from DB; realProvidersEnabled={} "
+                        + "openaiApiKeyConfigured={} deepseekApiKeyConfigured={}",
                 properties.isRealProvidersEnabled(),
                 openAiKey,
-                properties.getOpenai().getModel(),
-                properties.resolvedMiniLectureOpenAiModel(),
-                properties.getDeepseek().getModel(),
-                properties.resolvedMiniLectureDeepSeekModel()
+                deepSeekKey
         );
     }
 
+    /** Вызывает маршрут QUESTIONS, актуальный на момент начала генерации. */
     @Override
     public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request) {
-        String provider = normalize(properties.getProvider());
+        AiRuntimeSelection selection = settings.resolve(AiUsageType.QUESTIONS);
         log.info(
-                "AiProviderRouter: generateQuestions provider='{}' (prompt=questionGenerationPrompt, поле explanationRu — НЕ мини-лекция)",
-                provider.isEmpty() ? "(empty)" : provider
+                "AiProviderRouter: generateQuestions provider={} model={} (prompt=questionGenerationPrompt)",
+                selection.provider(),
+                selection.model()
         );
-        if ("stub".equals(provider)) {
+        if (selection.provider() == AiProviderCode.STUB) {
             return stub.generateQuestions(request);
         }
-        if (!properties.isRealProvidersEnabled()) {
-            throw new AiProviderException("ai_provider_disabled", "Real AI providers are disabled by configuration");
-        }
-        try {
-            return delegate(provider).generateQuestions(request);
-        } catch (AiProviderException ex) {
-            if (!shouldRetryWithFallback(ex)) {
-                log.warn("AI generateQuestions: skip fallback (code={}). Fix primary provider or keys.", ex.getCode());
-                throw ex;
-            }
-            String fallback = normalize(properties.getFallbackProvider());
-            if (fallback.isBlank() || fallback.equals(provider) || "stub".equals(fallback)) {
-                throw ex;
-            }
-            log.info("AI generateQuestions: primary '{}' failed, trying fallback '{}'", provider, fallback);
-            return delegate(fallback).generateQuestions(request);
-        }
+        ensureExternalProvidersEnabled(selection.provider());
+        return switch (selection.provider()) {
+            case OPENAI -> openAi.generateQuestions(request, selection.model());
+            case DEEPSEEK -> deepSeek.generateQuestions(request, selection.model());
+            case STUB -> throw new IllegalStateException("Stub route must be handled before external dispatch");
+        };
     }
 
+    /** Вызывает отдельный маршрут LECTURES для генерации мини-лекции к вопросу. */
     @Override
     public AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request) {
-        String provider = normalize(properties.getProvider());
-        boolean realOn = properties.isRealProvidersEnabled();
+        AiRuntimeSelection selection = settings.resolve(AiUsageType.LECTURES);
         log.info(
-                "AiProviderRouter: generateMiniLecture provider='{}' resolvedOpenAiModel='{}' (prompt=miniLecturePrompt + quality validator)",
-                provider.isEmpty() ? "(пусто)" : provider,
-                properties.resolvedMiniLectureOpenAiModel()
+                "AiProviderRouter: generateMiniLecture provider={} model={} "
+                        + "(prompt=miniLecturePrompt + quality validator)",
+                selection.provider(),
+                selection.model()
         );
-        if ("stub".equals(provider)) {
-            log.warn(
-                    "Мини-лекция: выбран stub — внешний LLM не вызывается. "
-                            + "Для OpenAI: AI_PROVIDER=openai, AI_REAL_PROVIDERS_ENABLED=true, OPENAI_API_KEY=..."
-            );
+        if (selection.provider() == AiProviderCode.STUB) {
+            log.warn("Мини-лекция: в настройках админки выбран stub — внешний LLM не вызывается");
             return stub.generateMiniLecture(request);
         }
-        if (!realOn) {
-            log.error(
-                    "Мини-лекция: real-провайдеры выключены (damulab.ai.real-providers-enabled=false). "
-                            + "Запрос к '{}' не будет отправлен наружу.",
-                    provider
-            );
-            throw new AiProviderException("ai_provider_disabled", "Real AI providers are disabled by configuration");
-        }
-        try {
-            log.info("Мини-лекция: вызов основного провайдера '{}'", provider);
-            return delegate(provider).generateMiniLecture(request);
-        } catch (AiProviderException ex) {
-            log.warn(
-                    "Мини-лекция: провайдер '{}' вернул ошибку code={} message={}",
-                    provider,
-                    ex.getCode(),
-                    ex.getMessage()
-            );
-            if (!shouldRetryWithFallback(ex)) {
-                log.warn("Mini-lecture: skip fallback (code={}). Not a transient error — fix OpenAI/DeepSeek config.", ex.getCode());
-                throw ex;
-            }
-            String fallback = normalize(properties.getFallbackProvider());
-            if (fallback.isBlank() || fallback.equals(provider) || "stub".equals(fallback)) {
-                throw ex;
-            }
-            log.info("Мини-лекция: пробуем fallback-провайдер '{}'", fallback);
-            return delegate(fallback).generateMiniLecture(request);
-        }
-    }
-
-    /**
-     * Fallback имеет смысл при сбое сети/ответа модели. Если не настроен ключ или провайдер — второй бэкенд не поможет.
-     */
-    private static boolean shouldRetryWithFallback(AiProviderException ex) {
-        return switch (ex.getCode()) {
-            case "openai_api_key_missing",
-                    "deepseek_api_key_missing",
-                    "ai_provider_disabled",
-                    "ai_provider_unknown" -> false;
-            default -> true;
+        ensureExternalProvidersEnabled(selection.provider());
+        return switch (selection.provider()) {
+            case OPENAI -> openAi.generateMiniLecture(request, selection.model());
+            case DEEPSEEK -> deepSeek.generateMiniLecture(request, selection.model());
+            case STUB -> throw new IllegalStateException("Stub route must be handled before external dispatch");
         };
     }
 
-    private AiProvider delegate(String provider) {
-        return switch (provider) {
-            case "openai" -> openAi;
-            case "deepseek" -> deepSeek;
-            default -> throw new AiProviderException("ai_provider_unknown", "Unknown AI provider: " + provider);
-        };
+    private void ensureExternalProvidersEnabled(AiProviderCode provider) {
+        if (properties.isRealProvidersEnabled()) {
+            return;
+        }
+        log.error(
+                "AI request blocked: real providers are disabled by damulab.ai.real-providers-enabled; provider={}",
+                provider
+        );
+        throw new AiProviderException("ai_provider_disabled", "Real AI providers are disabled by configuration");
     }
 
-    private String normalize(String value) {
-        return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
+    private boolean isConfigured(String value) {
+        return value != null && !value.isBlank();
     }
 }

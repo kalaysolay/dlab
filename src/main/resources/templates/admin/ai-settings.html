@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Настройки AI</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-title">Настройки AI</h1>
+                    <p class="lede">Отдельные провайдеры и модели для генерации вопросов и лекций.</p>
+                </div>
+            </header>
+
+            <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+            <div class="notice warning" th:if="${!realProvidersEnabled}">
+                Внешние AI-провайдеры отключены серверным флагом
+                <code>damulab.ai.real-providers-enabled</code>. Настройки сохранятся, но запросы не будут отправляться.
+            </div>
+
+            <div class="meta-grid">
+                <div class="metric">
+                    <strong th:text="${openAiKeyConfigured ? 'Настроен' : 'Не настроен'}">Не настроен</strong>
+                    <span>OPENAI_API_KEY</span>
+                </div>
+                <div class="metric">
+                    <strong th:text="${deepSeekKeyConfigured ? 'Настроен' : 'Не настроен'}">Не настроен</strong>
+                    <span>DEEPSEEK_API_KEY</span>
+                </div>
+            </div>
+
+            <form class="form wide-form" method="post" th:action="@{/admin/settings/ai}"
+                  th:object="${aiSettingsForm}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <div class="notice">
+                    API-ключи и адреса провайдеров остаются в защищённой конфигурации сервера.
+                    Здесь хранится только активный маршрут и публичный идентификатор модели.
+                </div>
+
+                <section class="subpanel">
+                    <div class="section-head">
+                        <div>
+                            <h2>Вопросы</h2>
+                            <p>AI Content Factory: генерация черновиков вопросов для последующей проверки методистом.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid two-col">
+                        <label class="field">
+                            <span>Провайдер</span>
+                            <select th:field="*{questionsProvider}">
+                                <option th:each="provider : ${providers}"
+                                        th:value="${provider.name()}"
+                                        th:text="${provider.title}">OpenAI</option>
+                            </select>
+                            <small class="error" th:errors="*{questionsProvider}">Выберите провайдера</small>
+                        </label>
+                        <label class="field">
+                            <span>Модель</span>
+                            <input th:field="*{questionsModel}" maxlength="128" list="question-model-examples"
+                                   placeholder="Например: deepseek-v4-pro">
+                            <small class="error" th:errors="*{questionsModel}">Укажите модель</small>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="subpanel">
+                    <div class="section-head">
+                        <div>
+                            <h2>Лекции</h2>
+                            <p>Генерация двуязычных мини-лекций и объяснений к вопросам.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid two-col">
+                        <label class="field">
+                            <span>Провайдер</span>
+                            <select th:field="*{lecturesProvider}">
+                                <option th:each="provider : ${providers}"
+                                        th:value="${provider.name()}"
+                                        th:text="${provider.title}">OpenAI</option>
+                            </select>
+                            <small class="error" th:errors="*{lecturesProvider}">Выберите провайдера</small>
+                        </label>
+                        <label class="field">
+                            <span>Модель</span>
+                            <input th:field="*{lecturesModel}" maxlength="128" list="lecture-model-examples"
+                                   placeholder="Например: gpt-5.6">
+                            <small class="error" th:errors="*{lecturesModel}">Укажите модель</small>
+                        </label>
+                    </div>
+                </section>
+
+                <datalist id="question-model-examples">
+                    <option value="deepseek-v4-pro"></option>
+                    <option value="gpt-5.6"></option>
+                </datalist>
+                <datalist id="lecture-model-examples">
+                    <option value="gpt-5.6"></option>
+                    <option value="deepseek-v4-pro"></option>
+                </datalist>
+
+                <div class="actions">
+                    <button class="button primary" type="submit">Сохранить и применить</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</div>
+</body>
+</html>

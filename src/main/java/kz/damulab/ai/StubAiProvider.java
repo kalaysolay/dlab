@@ -18,20 +18,14 @@ public class StubAiProvider implements AiProvider {
     static final String FAILURE_TOKEN = "__FAIL_PROVIDER__";
 
     private static final String STUB_MINI_LECTURE_HINT_RU = """
-            Это ЗАГЛУШКА: внешний LLM не вызывается. Чтобы получить реальную мини-лекцию (JSON → HTML по промпту приложения), задайте в окружении:
-            AI_PROVIDER=openai
-            AI_REAL_PROVIDERS_ENABLED=true
-            OPENAI_API_KEY=sk-…
-            (опционально OPENAI_MINI_LECTURE_MODEL=gpt-4o), перезапустите сервер и снова нажмите «Сгенерировать».
+            Это ЗАГЛУШКА: внешний LLM не вызывается. Чтобы получить реальную мини-лекцию, выберите провайдера и модель
+            в «Админка → Настройки AI». API-ключ выбранного провайдера должен быть настроен на сервере.
 
             Ниже — сжатая выжимка из полей формы только для проверки UI.""";
 
     private static final String STUB_MINI_LECTURE_HINT_KK = """
-            Бұл STUB: сыртқы LLM шақырылмайды. Нақты мини-лекция үшін ортада:
-            AI_PROVIDER=openai
-            AI_REAL_PROVIDERS_ENABLED=true
-            OPENAI_API_KEY=sk-…
-            орнатып, серверді қайта іске қосыңыз.
+            Бұл STUB: сыртқы LLM шақырылмайды. Нақты мини-лекция үшін «Әкімші → AI баптаулары» бөлімінде
+            провайдер мен модельді таңдаңыз. Таңдалған провайдердің API кілті серверде бапталуы керек.
 
             Төменде — UI тексеруі үшін форма өрістерінің қысқаша мазмұны.""";
 

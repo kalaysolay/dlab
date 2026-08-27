@@ -55,22 +55,13 @@ damulab:
     rp-id: ${WEBAUTHN_RP_ID:localhost}
     rp-name: ${WEBAUTHN_RP_NAME:Damulab.kz}
     allowed-origins: ${WEBAUTHN_ALLOWED_ORIGINS:http://localhost:8080}
-  # Базовые значения; профиль local переопределяет в application-local.yml (openai + real по умолчанию).
-  # Если real=false: провайдер openai не вызывается (кроме тестов со своими overrides).
+  # Провайдер и модель выбираются в /admin/settings/ai и хранятся в ai_runtime_settings.
+  # В конфиге остаются только endpoint-ы, секреты и аварийный выключатель внешних запросов.
   ai:
-    provider: ${AI_PROVIDER:openai}
-    # Пустой fallback = не переключаться на DeepSeek при сбое primary (иначе без ключа — deepseek_api_key_missing).
-    fallback-provider: ${AI_FALLBACK_PROVIDER:}
     real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:true}
     openai:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
-      model: ${OPENAI_MODEL:gpt-5.2}
       api-key: ${OPENAI_API_KEY:}
     deepseek:
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-      model: ${DEEPSEEK_MODEL:deepseek-chat}
       api-key: ${DEEPSEEK_API_KEY:}
-    mini-lecture:
-      # Пусто = та же модель, что damulab.ai.openai.model (OPENAI_MODEL). Отдельно: OPENAI_MINI_LECTURE_MODEL.
-      openai-model: ${OPENAI_MINI_LECTURE_MODEL:}
-      deepseek-model: ${DEEPSEEK_MINI_LECTURE_MODEL:}

@@ -863,7 +863,7 @@
                     deepseek_response_empty: 'DeepSeek вернул пустой ответ.',
                     ai_schema_invalid: 'Ответ модели не соответствует ожидаемой схеме JSON.',
                     ai_mini_lecture_too_brief: 'Модель вернула слишком короткую мини-лекцию. Повторите генерацию или допишите текст вручную.',
-                    ai_provider_unknown: 'Неизвестное значение damulab.ai.provider.'
+                    ai_provider_unknown: 'В настройках AI выбран неподдерживаемый провайдер.'
                 };
                 let msg = human[code] || ('Ошибка: ' + code);
                 if (detail && detail !== code) {
@@ -880,7 +880,7 @@
             if (stubBanner) {
                 if (data.stubMode === true) {
                     stubBanner.hidden = false;
-                    stubBanner.textContent = 'Режим заглушки (stub): внешний LLM не вызывался. Текст ниже — для проверки формы. Для реальной генерации задайте AI_PROVIDER=openai, AI_REAL_PROVIDERS_ENABLED=true, OPENAI_API_KEY и перезапустите сервер.';
+                    stubBanner.textContent = 'Режим заглушки (stub): внешний LLM не вызывался. Выберите провайдера и модель в разделе «Настройки AI». API-ключ провайдера должен быть настроен на сервере.';
                 } else {
                     stubBanner.hidden = true;
                     stubBanner.textContent = '';

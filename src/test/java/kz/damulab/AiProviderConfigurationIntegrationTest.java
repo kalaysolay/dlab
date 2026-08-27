@@ -12,22 +12,27 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.SubjectRepository;
+import kz.damulab.ai.AiProviderCode;
+import kz.damulab.ai.AiRuntimeSetting;
+import kz.damulab.ai.AiRuntimeSettingRepository;
+import kz.damulab.ai.AiUsageType;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
-        "damulab.ai.provider=openai",
-        "damulab.ai.fallback-provider=deepseek",
         "damulab.ai.real-providers-enabled=false"
 })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AiProviderConfigurationIntegrationTest {
 
     @Autowired
@@ -41,6 +46,16 @@ class AiProviderConfigurationIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private AiRuntimeSettingRepository aiSettings;
+
+    @BeforeEach
+    void selectExternalQuestionProvider() {
+        AiRuntimeSetting setting = aiSettings.findById(AiUsageType.QUESTIONS).orElseThrow();
+        setting.update(AiProviderCode.OPENAI, "gpt-test", "test");
+        aiSettings.save(setting);
+    }
 
     @Test
     void realProviderCallsAreBlockedWhenFeatureFlagIsOff() throws Exception {

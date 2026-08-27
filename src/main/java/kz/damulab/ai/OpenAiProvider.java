@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 @Component
-public class OpenAiProvider extends ExternalAiProviderSupport implements AiProvider {
+public class OpenAiProvider extends ExternalAiProviderSupport {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiProvider.class);
     private static final String OP_QUESTIONS = "openai_question_drafts";
@@ -39,11 +39,9 @@ public class OpenAiProvider extends ExternalAiProviderSupport implements AiProvi
         this.objectMapper = objectMapper;
     }
 
-    @Override
-    public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request) {
+    public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request, String model) {
         AiProviderProperties.Provider openai = properties.getOpenai();
         requireConfigured(openai.getApiKey(), "openai_api_key_missing");
-        String model = openai.getModel();
         String systemPrompt = promptBuilder.systemPrompt();
         String userPrompt = promptBuilder.questionGenerationPrompt(request);
         AiCallLogger.logOutbound(
@@ -51,7 +49,7 @@ public class OpenAiProvider extends ExternalAiProviderSupport implements AiProvi
                 OP_QUESTIONS,
                 "openai",
                 model,
-                "damulab.ai.openai.model / OPENAI_MODEL",
+                "admin.ai_runtime_settings[QUESTIONS]",
                 ENDPOINT,
                 1,
                 1,
@@ -84,15 +82,9 @@ public class OpenAiProvider extends ExternalAiProviderSupport implements AiProvi
         }
     }
 
-    @Override
-    public AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request) {
+    public AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request, String model) {
         AiProviderProperties.Provider openai = properties.getOpenai();
         requireConfigured(openai.getApiKey(), "openai_api_key_missing");
-        String model = properties.resolvedMiniLectureOpenAiModel();
-        String modelConfigKey = properties.getMiniLecture().getOpenaiModel() == null
-                || properties.getMiniLecture().getOpenaiModel().isBlank()
-                ? "damulab.ai.openai.model / OPENAI_MODEL (fallback)"
-                : "damulab.ai.mini-lecture.openai-model / OPENAI_MINI_LECTURE_MODEL";
         String systemPrompt = promptBuilder.miniLectureSystemPrompt();
         String userPrompt = promptBuilder.miniLecturePrompt(request);
         AiProviderException lastQualityError = null;
@@ -112,7 +104,7 @@ public class OpenAiProvider extends ExternalAiProviderSupport implements AiProvi
                     OP_MINI_LECTURE,
                     "openai",
                     model,
-                    modelConfigKey,
+                    "admin.ai_runtime_settings[LECTURES]",
                     ENDPOINT,
                     attempt,
                     3,

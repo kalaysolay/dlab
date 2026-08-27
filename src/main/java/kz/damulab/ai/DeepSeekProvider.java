@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 @Component
-public class DeepSeekProvider extends ExternalAiProviderSupport implements AiProvider {
+public class DeepSeekProvider extends ExternalAiProviderSupport {
 
     private static final Logger log = LoggerFactory.getLogger(DeepSeekProvider.class);
     private static final String OP_QUESTIONS = "deepseek_question_drafts";
@@ -44,11 +44,9 @@ public class DeepSeekProvider extends ExternalAiProviderSupport implements AiPro
      * В отличие от OpenAI, здесь нет strict json_schema — контракт держим промптом
      * ({@link #questionSchemaPromptAppendix}) и мягким разбором ({@link #parseDrafts(String, kz.damulab.questions.QuestionType)}).
      */
-    @Override
-    public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request) {
+    public AiQuestionGenerationResult generateQuestions(AiQuestionGenerationRequest request, String model) {
         AiProviderProperties.Provider deepseek = properties.getDeepseek();
         requireConfigured(deepseek.getApiKey(), "deepseek_api_key_missing");
-        String model = deepseek.getModel();
         String systemPrompt = promptBuilder.systemPrompt();
         // Явная JSON Schema в user-промпте: иначе deepseek-chat часто пропускает questionType
         // или отдаёт snake_case → ai_schema_invalid на валидации.
@@ -59,7 +57,7 @@ public class DeepSeekProvider extends ExternalAiProviderSupport implements AiPro
                 OP_QUESTIONS,
                 "deepseek",
                 model,
-                "damulab.ai.deepseek.model / DEEPSEEK_MODEL",
+                "admin.ai_runtime_settings[QUESTIONS]",
                 ENDPOINT,
                 1,
                 1,
@@ -88,15 +86,9 @@ public class DeepSeekProvider extends ExternalAiProviderSupport implements AiPro
         }
     }
 
-    @Override
-    public AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request) {
+    public AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request, String model) {
         AiProviderProperties.Provider deepseek = properties.getDeepseek();
         requireConfigured(deepseek.getApiKey(), "deepseek_api_key_missing");
-        String model = properties.resolvedMiniLectureDeepSeekModel();
-        String modelConfigKey = properties.getMiniLecture().getDeepseekModel() == null
-                || properties.getMiniLecture().getDeepseekModel().isBlank()
-                ? "damulab.ai.deepseek.model / DEEPSEEK_MODEL (fallback)"
-                : "damulab.ai.mini-lecture.deepseek-model / DEEPSEEK_MINI_LECTURE_MODEL";
         String systemPrompt = promptBuilder.miniLectureSystemPrompt();
         String jsonSuffix = """
 
@@ -121,7 +113,7 @@ public class DeepSeekProvider extends ExternalAiProviderSupport implements AiPro
                     OP_MINI_LECTURE,
                     "deepseek",
                     model,
-                    modelConfigKey,
+                    "admin.ai_runtime_settings[LECTURES]",
                     ENDPOINT,
                     attempt,
                     3,

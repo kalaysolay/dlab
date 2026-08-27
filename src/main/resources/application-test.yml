@@ -11,8 +11,7 @@ spring:
     enabled: true
 damulab:
   ai:
-    # Интеграционные тесты без сети: стабильный stub (см. AiContentFactoryIntegrationTest и др.).
-    provider: stub
+    # Миграция V26 создаёт runtime-маршруты STUB; внешний API дополнительно заблокирован флагом.
     real-providers-enabled: false
   testing:
     default-question-count: 12
