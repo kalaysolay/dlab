@@ -2,8 +2,13 @@
   "name": "Damulab.kz",
   "short_name": "Damulab",
   "description": "Подготовка к СОР, СОЧ и МОДО без перегруза",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#f6f7fb",

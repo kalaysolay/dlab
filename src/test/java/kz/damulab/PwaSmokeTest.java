@@ -43,15 +43,20 @@ class PwaSmokeTest {
                 .andExpect(content().string(containsString("icon-192.png")))
                 .andExpect(content().string(containsString("icon-512.png")))
                 .andExpect(content().string(containsString("icon-maskable-512.png")))
+                .andExpect(content().string(containsString("\"id\": \"/\"")))
+                .andExpect(content().string(containsString("\"client_mode\": \"navigate-existing\"")))
+                .andExpect(content().string(containsString("\"handle_links\": \"preferred\"")))
                 .andExpect(content().string(containsString("\"display\": \"standalone\"")))
                 .andExpect(content().string(containsString("\"theme_color\": \"#1668dc\"")));
     }
 
     @Test
-    void serviceWorkerIsServedAndContainsV2Markers() throws Exception {
+    void serviceWorkerIsServedAndDoesNotCacheActivationTokens() throws Exception {
         mockMvc.perform(get("/service-worker.js"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("damulab-shell-v2")))
+                .andExpect(content().string(containsString("damulab-shell-v3")))
+                .andExpect(content().string(containsString("/activate-account")))
+                .andExpect(content().string(containsString("searchParams.has('token')")))
                 // Офлайн-fallback должен быть прописан в SW
                 .andExpect(content().string(containsString("/offline")))
                 .andExpect(content().string(containsString("self.addEventListener('fetch'")))

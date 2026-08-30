@@ -130,15 +130,25 @@
                 inputByPlaceholder.set(input.dataset.fillPlaceholder, input);
             });
 
-            const parts = source.split(placeholderPattern);
-            body.textContent = "";
-            parts.forEach((part) => {
-                const input = inputByPlaceholder.get(part);
-                if (input) {
-                    body.appendChild(input);
-                } else if (part) {
-                    body.appendChild(document.createTextNode(part));
-                }
+            // source уже очищен QuestionBodyHtml на сервере. Разбираем HTML и заменяем
+            // placeholder только внутри текстовых узлов, сохраняя изображения и форматирование.
+            body.innerHTML = source;
+            const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+            const textNodes = [];
+            while (walker.nextNode()) textNodes.push(walker.currentNode);
+            textNodes.forEach((node) => {
+                const parts = node.nodeValue.split(placeholderPattern);
+                if (parts.length === 1) return;
+                const fragment = document.createDocumentFragment();
+                parts.forEach((part) => {
+                    const input = inputByPlaceholder.get(part);
+                    if (input) {
+                        fragment.appendChild(input);
+                    } else if (part) {
+                        fragment.appendChild(document.createTextNode(part));
+                    }
+                });
+                node.replaceWith(fragment);
             });
         });
     };

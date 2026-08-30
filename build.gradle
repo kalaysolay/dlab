@@ -92,6 +92,11 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
+// Исходники и двуязычные шаблоны писем компилируются одинаково на Windows и Linux.
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
 /**
  * Генерирует PNG-иконки PWA (192, 512, maskable-512) из SVG-исходника через Java2D.
  * Chrome требует растровые иконки для показа кнопки «Установить приложение».

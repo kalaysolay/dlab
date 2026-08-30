@@ -342,7 +342,10 @@
     syncTopicMirror();
 
     function checkpointLabel(item) {
-        const body = item.bodyRu || item.bodyKk || 'Вопрос без текста';
+        const rawBody = item.bodyRu || item.bodyKk || 'Вопрос без текста';
+        const parser = document.createElement('div');
+        parser.innerHTML = rawBody;
+        const body = parser.textContent || rawBody;
         return `${item.type || 'Q'} · ${body}`;
     }
 

@@ -109,15 +109,15 @@
                     <span class="muted-line" th:text="${round.topicTitle}">Тема</span>
                 </div>
                 <!-- Для обычных типов вопросов — заголовок как есть -->
-                <h2 th:if="${round.type != 'FILL_IN'}" th:text="${round.body}">Текст вопроса</h2>
+                <div class="question-rich-body" th:if="${round.type != 'FILL_IN'}" th:utext="${@questionBodyHtml.render(round.body)}">Текст вопроса</div>
 
                 <!--
                     FILL_IN: текст вопроса содержит метки [[1]], [[2]] и т.д.
                     JS (renderInlineFillQuestions) подставит input'ы прямо в текст.
                     Скрытый .fill-inline-bank хранит поля до подстановки.
                 -->
-                <div class="fill-inline-question" th:if="${round.type == 'FILL_IN'}" th:attr="data-fill-body=${round.body}">
-                    <h2 class="fill-inline-body" th:text="${round.body}">Текст вопроса</h2>
+                <div class="fill-inline-question" th:if="${round.type == 'FILL_IN'}" th:attr="data-fill-body=${@questionBodyHtml.render(round.body)}">
+                    <div class="fill-inline-body question-rich-body" th:utext="${@questionBodyHtml.render(round.body)}">Текст вопроса</div>
                     <div class="fill-inline-bank" hidden>
                         <input th:each="placeholder,fillStat : ${round.fillPlaceholders}"
                                th:name="${'fill_' + round.id + '_' + fillStat.index}"

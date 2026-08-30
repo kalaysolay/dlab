@@ -7,9 +7,9 @@
         <span>Вопрос <span th:text="${question.orderNo}">1</span> из <span th:text="${totalQuestions}">4</span></span>
         <span class="muted-line" th:text="${question.topicTitle}">Тема</span>
     </div>
-    <h2 th:if="${question.type != 'FILL_IN'}" th:text="${question.body}">Текст вопроса</h2>
-    <div class="fill-inline-question" th:if="${question.type == 'FILL_IN'}" th:attr="data-fill-body=${question.body}">
-        <h2 class="fill-inline-body" th:text="${question.body}">Текст вопроса</h2>
+    <div class="question-rich-body" th:if="${question.type != 'FILL_IN'}" th:utext="${@questionBodyHtml.render(question.body)}">Текст вопроса</div>
+    <div class="fill-inline-question" th:if="${question.type == 'FILL_IN'}" th:attr="data-fill-body=${@questionBodyHtml.render(question.body)}">
+        <div class="fill-inline-body question-rich-body" th:utext="${@questionBodyHtml.render(question.body)}">Текст вопроса</div>
         <div class="fill-inline-bank" hidden>
             <input th:each="placeholder,fillStat : ${question.fillPlaceholders}"
                    th:name="${'fill_' + question.id + '_' + fillStat.index}"
@@ -86,12 +86,15 @@
         <span class="badge success" th:if="${question.correct}">Верно</span>
         <span class="badge danger" th:if="${!question.correct}">Ошибка</span>
     </div>
-    <!-- FILL_IN: сырой body с [[N]] кладём в data-*, видимый текст собирает JS (подстановка значений). -->
-    <h3 th:if="${question.type != 'FILL_IN'}" th:text="${question.orderNo + '. ' + question.body}">Вопрос</h3>
-    <h3 class="result-fill-body"
+    <!-- FILL_IN: очищенный HTML с [[N]] кладём в data-*, JS заменяет метки, сохраняя разметку. -->
+    <div class="question-rich-body result-question-body" th:if="${question.type != 'FILL_IN'}">
+        <strong th:text="${question.orderNo + '. '}">1. </strong>
+        <div th:utext="${@questionBodyHtml.render(question.body)}">Вопрос</div>
+    </div>
+    <div class="result-fill-body question-rich-body"
         th:if="${question.type == 'FILL_IN'}"
-        th:attr="data-order-no=${question.orderNo},data-fill-body=${question.body},data-student-answer=${question.studentAnswer},data-correct-answer=${question.correctAnswer}"
-        th:text="${question.orderNo + '. ' + question.body}">Вопрос</h3>
+        th:attr="data-order-no=${question.orderNo},data-fill-body=${@questionBodyHtml.render(question.body)},data-student-answer=${question.studentAnswer},data-correct-answer=${question.correctAnswer}"
+        th:utext="${@questionBodyHtml.render(question.body)}">Вопрос</div>
     <p class="muted-line" th:text="${question.topicTitle}">Тема</p>
 
     <div class="result-choice-list"

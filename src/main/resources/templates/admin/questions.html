@@ -143,6 +143,16 @@
 
             <hr class="divider">
 
+            <div class="question-bulk-bar" data-bulk-bar hidden aria-live="polite">
+                <strong><span data-bulk-count>0</span> выбрано</strong>
+                <span class="muted-line">Действие применяется только к отмеченным строкам.</span>
+                <div class="row-actions">
+                    <button class="button" type="button" data-bulk-action="approve">Одобрить выбранные</button>
+                    <button class="button primary" type="button" data-bulk-action="publish">Опубликовать выбранные</button>
+                    <button class="button" type="button" data-bulk-clear>Снять выбор</button>
+                </div>
+            </div>
+
             <div class="empty-state" th:if="${#lists.isEmpty(questions)}">
                 <strong>Вопросы не найдены</strong>
                 <span>Сбросьте фильтры или добавьте первый вопрос вручную.</span>
@@ -152,6 +162,11 @@
                 <table class="data-table">
                     <thead>
                     <tr>
+                        <th class="question-select-cell">
+                            <label class="question-row-check" title="Выбрать все вопросы на странице">
+                                <input type="checkbox" data-select-all aria-label="Выбрать все вопросы на странице">
+                            </label>
+                        </th>
                         <th>ID</th>
                         <th>Вопрос</th>
                         <th>Тема / навык</th>
@@ -165,10 +180,19 @@
                     <tbody>
                     <tr th:each="question : ${questions}"
                         th:attr="data-question-id=${question.id},data-status=${question.status},data-pending-draft=${question.pendingDraftVersionNo}">
+                        <td class="question-select-cell">
+                            <label class="question-row-check">
+                                <input type="checkbox" data-question-select
+                                       th:attr="aria-label=${'Выбрать вопрос Q-' + question.id}">
+                            </label>
+                        </td>
                         <td th:text="${'Q-' + question.id}">Q-1</td>
                         <td>
-                            <strong th:text="${question.bodyRu}">Найдите 20% от 350</strong>
-                            <span class="muted-line" th:text="${question.bodyKk}">Қазақша мәтін</span>
+                            <a class="question-preview-link" href="#" data-preview-open
+                                    th:attr="aria-label=${'Просмотреть вопрос Q-' + question.id}">
+                                <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(question.bodyRu)}">Найдите 20% от 350</div>
+                                <div class="muted-line question-list-rich-body" th:utext="${@questionBodyHtml.render(question.bodyKk)}">Қазақша мәтін</div>
+                            </a>
                             <span class="badge" th:text="${'v' + question.versionNo}">v1</span>
                             <span class="badge" th:text="${question.difficulty + '/5'}">2/5</span>
                         </td>
@@ -202,6 +226,7 @@
                                     type=${selectedType},
                                     query=${query},
                                     quality=${selectedQuality})}">Редактировать</a>
+                            <button class="button" type="button" data-preview-open>Просмотр</button>
                             <!-- Действия без перезагрузки: admin-questions.js → /api/admin/questions/{id}/... -->
                             <button class="button" type="button"
                                     th:if="${question.status != 'archived'}"
@@ -224,7 +249,70 @@
             </div>
         </section>
     </main>
-    <div th:replace="~{fragments/modal :: modalShell}"></div>
+    <div id="question-preview-modal" class="question-preview-modal" hidden>
+        <div class="question-preview-backdrop" data-preview-close></div>
+        <section class="question-preview-dialog" role="dialog" aria-modal="true"
+                 aria-labelledby="question-preview-title" tabindex="-1">
+            <header class="question-preview-head">
+                <div>
+                    <div class="question-preview-kicker">
+                        <span data-preview-id>Q-</span>
+                        <span class="badge warning" data-preview-status>draft</span>
+                        <span class="badge" data-preview-version>v1</span>
+                    </div>
+                    <h2 id="question-preview-title">Просмотр вопроса</h2>
+                </div>
+                <button class="question-preview-close" type="button" data-preview-close aria-label="Закрыть">×</button>
+            </header>
+
+            <div class="question-preview-loading" data-preview-loading hidden>Загружаем вопрос…</div>
+            <div class="question-preview-error notice error" data-preview-error hidden></div>
+
+            <div class="question-preview-content" data-preview-content hidden>
+                <div class="question-preview-meta" data-preview-meta></div>
+                <div class="question-preview-languages">
+                    <article class="question-preview-language">
+                        <span class="question-preview-lang-label">Русский</span>
+                        <div class="question-list-rich-body" data-preview-body-ru></div>
+                    </article>
+                    <article class="question-preview-language">
+                        <span class="question-preview-lang-label">Қазақша</span>
+                        <div class="question-list-rich-body" data-preview-body-kk></div>
+                    </article>
+                </div>
+
+                <section class="question-preview-section">
+                    <h3>Ответы и варианты</h3>
+                    <div class="question-preview-answers" data-preview-answers></div>
+                </section>
+
+                <section class="question-preview-section question-preview-lecture">
+                    <div class="question-preview-section-head">
+                        <div>
+                            <h3>Мини-лекция</h3>
+                            <span class="muted-line">Генерация сохраняет лекцию в проверяемую версию вопроса.</span>
+                        </div>
+                        <button class="button" type="button" data-preview-generate-lecture>Сгенерировать лекцию</button>
+                    </div>
+                    <div class="question-preview-lecture-tabs" role="tablist" aria-label="Язык мини-лекции">
+                        <button class="button active" type="button" data-lecture-lang="ru" role="tab" aria-selected="true">Русский</button>
+                        <button class="button" type="button" data-lecture-lang="kk" role="tab" aria-selected="false">Қазақша</button>
+                    </div>
+                    <div class="question-preview-lecture-body" data-preview-lecture-ru></div>
+                    <div class="question-preview-lecture-body" data-preview-lecture-kk hidden></div>
+                    <div class="empty-state" data-preview-lecture-empty>
+                        <strong>Лекция ещё не создана</strong>
+                        <span>Нажмите «Сгенерировать лекцию», чтобы сразу получить и сохранить HTML.</span>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="question-preview-footer">
+                <a class="button" data-preview-edit href="#">Редактировать</a>
+                <div class="row-actions" data-preview-actions></div>
+            </footer>
+        </section>
+    </div>
 </div>
 <script th:src="@{/js/toast.js}" defer></script>
 <script th:src="@{/js/admin-questions.js}" defer></script>

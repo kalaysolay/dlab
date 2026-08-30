@@ -14,6 +14,8 @@
 
     var STORAGE_KEY = 'damulab.admin.questions.filters';
     var FILTER_KEYS = ['subjectId', 'gradeId', 'topicId', 'type', 'status', 'quality', 'query'];
+    var activePreviewId = null;
+    var previewReturnFocus = null;
 
     var SUCCESS_TITLES = {
         approve: 'Вопрос одобрен',
@@ -40,6 +42,18 @@
     function csrfHeaderName() {
         var meta = document.querySelector('meta[name="_csrf_header"]');
         return meta && meta.content ? meta.content : 'X-CSRF-TOKEN';
+    }
+
+    function apiHeaders(withJsonBody) {
+        var headers = { 'Accept': 'application/json' };
+        var token = csrfToken();
+        if (token) {
+            headers[csrfHeaderName()] = token;
+        }
+        if (withJsonBody) {
+            headers['Content-Type'] = 'application/json';
+        }
+        return headers;
     }
 
     function filterForm() {
@@ -200,6 +214,7 @@
         var tbody = row.parentElement;
         row.remove();
         setMetric('total', readMetric('total') - 1);
+        updateSelectionUi();
         if (tbody && !tbody.querySelector('tr')) {
             window.location.reload();
         }
@@ -295,40 +310,406 @@
                 return 'Вопрос уже в архиве';
             case 'question_not_found':
                 return 'Вопрос не найден';
+            case 'validation_failed':
+                return 'Проверьте выбранные вопросы';
+            case 'ai_provider_disabled':
+                return 'Генерация лекций отключена в настройках AI';
+            case 'openai_api_key_missing':
+            case 'deepseek_api_key_missing':
+                return 'Для генерации не настроен API-ключ';
+            case 'openai_request_failed':
+            case 'deepseek_request_failed':
+                return 'AI-провайдер не ответил. Попробуйте ещё раз';
             default:
                 return code ? ('Ошибка: ' + code) : 'Не удалось выполнить действие';
         }
     }
 
-    async function runAction(button) {
-        var row = button.closest('tr[data-question-id]');
-        if (!row) {
+    function rowByQuestionId(questionId) {
+        return document.querySelector('tr[data-question-id="' + String(questionId) + '"]');
+    }
+
+    function modal() {
+        return document.getElementById('question-preview-modal');
+    }
+
+    function setPreviewBusy(isBusy) {
+        var root = modal();
+        if (!root) {
             return;
         }
-        var questionId = row.dataset.questionId;
+        root.querySelectorAll('[data-preview-actions] button, [data-preview-generate-lecture]').forEach(function (button) {
+            button.disabled = isBusy;
+        });
+    }
+
+    function openPreview(questionId, opener) {
+        var root = modal();
+        if (!root) {
+            return;
+        }
+        activePreviewId = String(questionId);
+        previewReturnFocus = opener || document.activeElement;
+        root.hidden = false;
+        document.body.classList.add('question-preview-open');
+        root.querySelector('[data-preview-content]').hidden = true;
+        root.querySelector('[data-preview-error]').hidden = true;
+        root.querySelector('[data-preview-loading]').hidden = false;
+        root.querySelector('.question-preview-dialog').focus();
+        loadPreview(questionId);
+    }
+
+    function closePreview() {
+        var root = modal();
+        if (!root || root.hidden) {
+            return;
+        }
+        root.hidden = true;
+        activePreviewId = null;
+        document.body.classList.remove('question-preview-open');
+        if (previewReturnFocus && document.contains(previewReturnFocus)) {
+            previewReturnFocus.focus();
+        }
+        previewReturnFocus = null;
+    }
+
+    async function loadPreview(questionId) {
+        var root = modal();
+        try {
+            var response = await fetch('/api/admin/questions/' + questionId + '/preview', {
+                credentials: 'same-origin',
+                headers: apiHeaders(false)
+            });
+            var payload = await response.json();
+            if (!response.ok) {
+                throw new Error(humanApiError(payload && payload.error));
+            }
+            if (activePreviewId !== String(questionId)) {
+                return;
+            }
+            renderPreview(payload);
+            root.querySelector('[data-preview-loading]').hidden = true;
+            root.querySelector('[data-preview-content]').hidden = false;
+        } catch (err) {
+            if (activePreviewId !== String(questionId)) {
+                return;
+            }
+            root.querySelector('[data-preview-loading]').hidden = true;
+            var error = root.querySelector('[data-preview-error]');
+            error.textContent = String(err.message || err);
+            error.hidden = false;
+        }
+    }
+
+    function setText(root, selector, value) {
+        var node = root.querySelector(selector);
+        if (node) {
+            node.textContent = value == null ? '' : String(value);
+        }
+    }
+
+    function appendAnswerText(parent, primary, secondary) {
+        var main = document.createElement('span');
+        main.textContent = primary || '—';
+        parent.appendChild(main);
+        if (secondary && secondary !== primary) {
+            var translated = document.createElement('span');
+            translated.className = 'muted-line';
+            translated.textContent = secondary;
+            parent.appendChild(translated);
+        }
+    }
+
+    function renderChoiceAnswers(container, options) {
+        (options || []).filter(function (option) {
+            return option.textRu || option.textKk;
+        }).forEach(function (option) {
+            var item = document.createElement('div');
+            item.className = 'question-preview-answer' + (option.correct ? ' is-correct' : '');
+            var label = document.createElement('strong');
+            label.className = 'question-preview-answer-label';
+            label.textContent = option.label || '•';
+            item.appendChild(label);
+            var text = document.createElement('div');
+            appendAnswerText(text, option.textRu, option.textKk);
+            item.appendChild(text);
+            if (option.correct) {
+                var correct = document.createElement('span');
+                correct.className = 'badge success';
+                correct.textContent = 'Правильный';
+                item.appendChild(correct);
+            }
+            container.appendChild(item);
+        });
+    }
+
+    function renderMatchingAnswers(container, pairs) {
+        (pairs || []).filter(function (pair) {
+            return pair.leftRu || pair.leftKk || pair.rightRu || pair.rightKk;
+        }).forEach(function (pair, index) {
+            var item = document.createElement('div');
+            item.className = 'question-preview-match';
+            var left = document.createElement('div');
+            appendAnswerText(left, pair.leftRu, pair.leftKk);
+            var arrow = document.createElement('strong');
+            arrow.textContent = '→';
+            arrow.setAttribute('aria-label', 'соответствует');
+            var right = document.createElement('div');
+            appendAnswerText(right, pair.rightRu, pair.rightKk);
+            var number = document.createElement('span');
+            number.className = 'badge';
+            number.textContent = String(index + 1);
+            item.appendChild(number);
+            item.appendChild(left);
+            item.appendChild(arrow);
+            item.appendChild(right);
+            container.appendChild(item);
+        });
+    }
+
+    function renderFillAnswers(container, answers) {
+        (answers || []).filter(function (answer) {
+            return answer.placeholder || answer.answer;
+        }).forEach(function (answer) {
+            var item = document.createElement('div');
+            item.className = 'question-preview-answer is-correct';
+            var placeholder = document.createElement('strong');
+            placeholder.textContent = answer.placeholder || 'Поле';
+            var value = document.createElement('span');
+            value.textContent = answer.answer || '—';
+            var mode = document.createElement('span');
+            mode.className = 'badge success';
+            mode.textContent = answer.matchMode + (answer.tolerance == null ? '' : ' ± ' + answer.tolerance);
+            item.appendChild(placeholder);
+            item.appendChild(value);
+            item.appendChild(mode);
+            container.appendChild(item);
+        });
+    }
+
+    function renderPreviewAnswers(root, content) {
+        var container = root.querySelector('[data-preview-answers]');
+        container.replaceChildren();
+        if (content.type === 'SCQ' || content.type === 'MCQ') {
+            renderChoiceAnswers(container, content.options);
+        } else if (content.type === 'MATCHING') {
+            renderMatchingAnswers(container, content.matchingPairs);
+        } else if (content.type === 'FILL_IN') {
+            renderFillAnswers(container, content.fillAnswers);
+        }
+        if (!container.children.length) {
+            var empty = document.createElement('span');
+            empty.className = 'muted-line';
+            empty.textContent = 'Ответы не заданы';
+            container.appendChild(empty);
+        }
+    }
+
+    function renderPreviewActions(root, question) {
+        var container = root.querySelector('[data-preview-actions]');
+        container.replaceChildren();
+        if (question.status !== 'archived') {
+            container.appendChild(createActionButton('flag', 'На review', 'button', 'content_health'));
+        }
+        if (question.status !== 'archived' && question.status !== 'approved' && question.status !== 'published') {
+            container.appendChild(createActionButton('approve', 'Одобрить', 'button'));
+        }
+        if (question.status === 'approved' || (question.status === 'published' && question.pendingDraftVersionNo != null)) {
+            var label = question.status === 'published' ? 'Опубликовать черновик' : 'Опубликовать';
+            container.appendChild(createActionButton('publish', label, 'button primary'));
+        }
+        if (question.status !== 'archived') {
+            container.appendChild(createActionButton('archive', 'Архив', 'button danger'));
+        }
+        container.querySelectorAll('[data-action]').forEach(function (button) {
+            button.dataset.questionId = question.id;
+        });
+    }
+
+    function renderLecture(root, preview) {
+        var ru = root.querySelector('[data-preview-lecture-ru]');
+        var kk = root.querySelector('[data-preview-lecture-kk]');
+        ru.innerHTML = preview.miniLectureRuHtml || '';
+        kk.innerHTML = preview.miniLectureKkHtml || '';
+        var hasLecture = Boolean(preview.miniLectureRuHtml || preview.miniLectureKkHtml);
+        root.querySelector('[data-preview-lecture-empty]').hidden = hasLecture;
+        root.querySelector('.question-preview-lecture-tabs').hidden = !hasLecture;
+        ru.hidden = !hasLecture;
+        kk.hidden = true;
+        root.querySelectorAll('[data-lecture-lang]').forEach(function (button) {
+            var active = button.dataset.lectureLang === 'ru';
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+    }
+
+    function renderPreview(preview) {
+        var root = modal();
+        var question = preview.question;
+        var content = preview.content;
+        activePreviewId = String(question.id);
+        setText(root, '[data-preview-id]', 'Q-' + question.id);
+        setText(root, '[data-preview-status]', question.status);
+        setText(root, '[data-preview-version]', 'v' + preview.previewVersionNo + (preview.pendingDraft ? ' · черновик' : ''));
+        root.querySelector('[data-preview-status]').className = statusBadgeClass(question.status);
+        root.querySelector('[data-preview-body-ru]').innerHTML = preview.bodyRuHtml || '';
+        root.querySelector('[data-preview-body-kk]').innerHTML = preview.bodyKkHtml || '';
+        setText(root, '[data-preview-meta]', [content.type, 'сложность ' + content.difficulty + '/5', question.primaryTopicTitleRu || 'Без темы', content.source].join(' · '));
+        root.querySelector('[data-preview-edit]').href = buildEditHref(question.id);
+        root.querySelector('[data-preview-generate-lecture]').disabled = question.status === 'archived';
+        renderPreviewAnswers(root, content);
+        renderLecture(root, preview);
+        renderPreviewActions(root, question);
+    }
+
+    function switchLectureLanguage(language) {
+        var root = modal();
+        root.querySelector('[data-preview-lecture-ru]').hidden = language !== 'ru';
+        root.querySelector('[data-preview-lecture-kk]').hidden = language !== 'kk';
+        root.querySelectorAll('[data-lecture-lang]').forEach(function (button) {
+            var active = button.dataset.lectureLang === language;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+    }
+
+    async function generatePreviewLecture(button) {
+        if (!activePreviewId) {
+            return;
+        }
+        var original = button.textContent;
+        setPreviewBusy(true);
+        button.textContent = 'Генерируем…';
+        try {
+            var response = await fetch('/api/admin/questions/' + activePreviewId + '/mini-lecture/generate', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: apiHeaders(false)
+            });
+            var payload = await response.json();
+            if (!response.ok) {
+                throw new Error(humanApiError(payload && payload.error));
+            }
+            var row = rowByQuestionId(activePreviewId);
+            if (row) {
+                applyQuestionToRow(row, payload.preview.question);
+            }
+            renderPreview(payload.preview);
+            showToast('success', 'Мини-лекция создана', payload.stubMode ? 'Использован Stub-провайдер' : 'Лекция сохранена в вопросе');
+        } catch (err) {
+            showToast('error', 'Лекция не создана', String(err.message || err));
+        } finally {
+            button.textContent = original;
+            setPreviewBusy(false);
+        }
+    }
+
+    function selectedRows() {
+        return Array.from(document.querySelectorAll('tr[data-question-id]')).filter(function (row) {
+            var checkbox = row.querySelector('[data-question-select]');
+            return checkbox && checkbox.checked;
+        });
+    }
+
+    function updateSelectionUi() {
+        var selected = selectedRows();
+        var all = Array.from(document.querySelectorAll('tr[data-question-id] [data-question-select]'));
+        var bar = document.querySelector('[data-bulk-bar]');
+        var count = document.querySelector('[data-bulk-count]');
+        var selectAll = document.querySelector('[data-select-all]');
+        if (bar) {
+            bar.hidden = selected.length === 0;
+        }
+        if (count) {
+            count.textContent = String(selected.length);
+        }
+        if (selectAll) {
+            selectAll.checked = all.length > 0 && selected.length === all.length;
+            selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+        }
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('[data-question-select], [data-select-all]').forEach(function (checkbox) {
+            checkbox.checked = false;
+            checkbox.indeterminate = false;
+        });
+        updateSelectionUi();
+    }
+
+    async function runBulkAction(button) {
+        var rows = selectedRows();
+        if (!rows.length) {
+            return;
+        }
+        var action = button.dataset.bulkAction;
+        var ids = rows.map(function (row) { return Number(row.dataset.questionId); });
+        document.querySelectorAll('[data-bulk-action], [data-bulk-clear]').forEach(function (item) {
+            item.disabled = true;
+        });
+        try {
+            var response = await fetch('/api/admin/questions/bulk', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: apiHeaders(true),
+                body: JSON.stringify({ questionIds: ids, action: String(action).toUpperCase() })
+            });
+            var payload = await response.json();
+            if (!response.ok) {
+                throw new Error(humanApiError(payload && payload.error));
+            }
+            payload.items.forEach(function (item) {
+                if (!item.question) {
+                    return;
+                }
+                var row = rowByQuestionId(item.questionId);
+                if (row) {
+                    var checkbox = row.querySelector('[data-question-select]');
+                    if (checkbox) {
+                        checkbox.checked = false;
+                    }
+                    applyQuestionToRow(row, item.question);
+                }
+            });
+            var title = action === 'publish' ? 'Публикация завершена' : 'Одобрение завершено';
+            var body = payload.succeeded + ' успешно';
+            if (payload.failed) {
+                body += ', ' + payload.failed + ' с ошибкой';
+            }
+            showToast(payload.failed ? 'warning' : 'success', title, body);
+        } catch (err) {
+            showToast('error', 'Пакетное действие не выполнено', String(err.message || err));
+        } finally {
+            document.querySelectorAll('[data-bulk-action], [data-bulk-clear]').forEach(function (item) {
+                item.disabled = false;
+            });
+            updateSelectionUi();
+        }
+    }
+
+    async function runAction(button) {
+        var row = button.closest('tr[data-question-id]');
+        var questionId = row ? row.dataset.questionId : button.dataset.questionId;
         var action = button.dataset.action;
         if (!questionId || !action) {
             return;
         }
 
-        var headers = {
-            'Accept': 'application/json'
-        };
-        var token = csrfToken();
-        if (token) {
-            headers[csrfHeaderName()] = token;
-        }
-
+        var headers = apiHeaders(action === 'flag');
         var body = undefined;
         if (action === 'flag') {
-            headers['Content-Type'] = 'application/json';
             body = JSON.stringify({ reason: button.dataset.reason || 'content_health' });
         }
 
         button.disabled = true;
-        row.querySelectorAll('button[data-action]').forEach(function (btn) {
-            btn.disabled = true;
-        });
+        if (row) {
+            row.querySelectorAll('button[data-action]').forEach(function (btn) {
+                btn.disabled = true;
+            });
+        }
+        if (activePreviewId === String(questionId)) {
+            setPreviewBusy(true);
+        }
 
         try {
             var response = await fetch('/api/admin/questions/' + questionId + '/' + action, {
@@ -347,13 +728,28 @@
                 var code = payload && payload.error ? payload.error : ('http_' + response.status);
                 throw new Error(humanApiError(code));
             }
-            applyQuestionToRow(row, payload);
+            if (row) {
+                applyQuestionToRow(row, payload);
+            }
+            if (activePreviewId === String(questionId)) {
+                if (action === 'archive') {
+                    closePreview();
+                } else {
+                    await loadPreview(questionId);
+                }
+            }
             showToast('success', SUCCESS_TITLES[action] || 'Готово', 'Q-' + questionId);
         } catch (err) {
             showToast('error', 'Действие не выполнено', String(err.message || err));
-            row.querySelectorAll('button[data-action]').forEach(function (btn) {
-                btn.disabled = false;
-            });
+            if (row) {
+                row.querySelectorAll('button[data-action]').forEach(function (btn) {
+                    btn.disabled = false;
+                });
+            }
+        } finally {
+            if (activePreviewId === String(questionId)) {
+                setPreviewBusy(false);
+            }
         }
     }
 
@@ -373,13 +769,73 @@
         }
 
         document.addEventListener('click', function (event) {
+            var previewOpen = event.target.closest('[data-preview-open]');
+            if (previewOpen) {
+                var previewRow = previewOpen.closest('tr[data-question-id]');
+                if (previewRow) {
+                    event.preventDefault();
+                    openPreview(previewRow.dataset.questionId, previewOpen);
+                }
+                return;
+            }
+
+            if (event.target.closest('[data-preview-close]')) {
+                event.preventDefault();
+                closePreview();
+                return;
+            }
+
+            var lectureTab = event.target.closest('[data-lecture-lang]');
+            if (lectureTab) {
+                switchLectureLanguage(lectureTab.dataset.lectureLang);
+                return;
+            }
+
+            var generateLecture = event.target.closest('[data-preview-generate-lecture]');
+            if (generateLecture) {
+                generatePreviewLecture(generateLecture);
+                return;
+            }
+
+            var bulkAction = event.target.closest('[data-bulk-action]');
+            if (bulkAction) {
+                runBulkAction(bulkAction);
+                return;
+            }
+
+            if (event.target.closest('[data-bulk-clear]')) {
+                clearSelection();
+                return;
+            }
+
             var button = event.target.closest('button[data-action]');
-            if (!button || !button.closest('.data-table')) {
+            if (!button) {
                 return;
             }
             event.preventDefault();
             runAction(button);
         });
+
+        document.addEventListener('change', function (event) {
+            if (event.target.matches('[data-select-all]')) {
+                document.querySelectorAll('[data-question-select]').forEach(function (checkbox) {
+                    checkbox.checked = event.target.checked;
+                });
+                updateSelectionUi();
+                return;
+            }
+            if (event.target.matches('[data-question-select]')) {
+                updateSelectionUi();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && activePreviewId) {
+                closePreview();
+            }
+        });
+
+        updateSelectionUi();
     }
 
     if (document.readyState === 'loading') {

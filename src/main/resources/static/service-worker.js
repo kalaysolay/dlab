@@ -1,5 +1,5 @@
 /**
- * Damulab Service Worker v2.
+ * Damulab Service Worker v3.
  *
  * Стратегия: network-first с записью в кэш; при офлайне — кэш, затем /offline.
  * SHELL_ASSETS предзагружаются при install: критичные страницы + статика.
@@ -7,7 +7,7 @@
  *
  * Версия кэша: меняй CACHE_NAME при обновлении shell-ресурсов, чтобы старый кэш очистился.
  */
-const CACHE_NAME = 'damulab-shell-v2';
+const CACHE_NAME = 'damulab-shell-v3';
 
 // Ресурсы публичной оболочки, кэшируемые при первом install.
 // /offline — обязателен: используется как fallback при отсутствии сети.
@@ -54,6 +54,25 @@ self.addEventListener('fetch', event => {
 
     // Навигационные запросы (HTML-страницы): офлайн → /offline
     const isNavigation = event.request.mode === 'navigate';
+    const requestUrl = new URL(event.request.url);
+    const isSensitive = requestUrl.origin === self.location.origin && (
+        requestUrl.pathname === '/activate-account'
+        || requestUrl.pathname === '/verify-email'
+        || requestUrl.pathname.startsWith('/api/auth/')
+        || requestUrl.searchParams.has('token')
+    );
+
+    // Ссылки с токенами и auth API никогда не записываем в Cache Storage.
+    if (isSensitive) {
+        event.respondWith(
+            fetch(event.request).catch(() =>
+                isNavigation
+                    ? caches.match('/offline')
+                    : new Response('', { status: 503 })
+            )
+        );
+        return;
+    }
 
     event.respondWith(
         fetch(event.request)

@@ -1,6 +1,7 @@
 package kz.damulab.auth;
 
 import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,21 +30,40 @@ public class AuthApiController {
     private final RegistrationService registrationService;
     private final AuthenticationManager authenticationManager;
     private final AppUserRepository users;
+    private final EmailVerificationService emailVerificationService;
 
     public AuthApiController(
             RegistrationService registrationService,
             AuthenticationManager authenticationManager,
-            AppUserRepository users
+            AppUserRepository users,
+            EmailVerificationService emailVerificationService
     ) {
         this.registrationService = registrationService;
         this.authenticationManager = authenticationManager;
         this.users = users;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @PostMapping("/auth/register")
     @ResponseStatus(HttpStatus.CREATED)
-    CurrentUserResponse register(@Valid @RequestBody RegisterForm form) {
-        return toResponse(registrationService.register(form));
+    RegistrationResponse register(@Valid @RequestBody RegisterForm form) {
+        RegistrationResult registration = registrationService.registerWithResult(form);
+        CurrentUserResponse user = toResponse(registration.user());
+        return new RegistrationResponse(
+                user.id(),
+                user.email(),
+                user.fullName(),
+                user.roles(),
+                registration.verificationRequired(),
+                registration.deliveryStatus() == null ? null : registration.deliveryStatus().name()
+        );
+    }
+
+    /** Принимает нейтральный запрос повторной отправки, не раскрывая наличие аккаунта. */
+    @PostMapping("/auth/verification-email/resend")
+    Map<String, String> resendVerificationEmail(@Valid @RequestBody EmailVerificationRequest request) {
+        emailVerificationService.resend(request.email());
+        return Map.of("message", "If the account requires verification, an email has been sent");
     }
 
     @PostMapping("/auth/login")

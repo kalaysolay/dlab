@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import kz.damulab.auth.EmailVerificationService;
 import kz.damulab.auth.RegisterForm;
 import kz.damulab.gamification.StudentEngagementService;
 
@@ -15,9 +16,11 @@ import kz.damulab.gamification.StudentEngagementService;
 public class PageController {
 
     private final StudentEngagementService engagementService;
+    private final EmailVerificationService emailVerificationService;
 
-    public PageController(StudentEngagementService engagementService) {
+    public PageController(StudentEngagementService engagementService, EmailVerificationService emailVerificationService) {
         this.engagementService = engagementService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping("/")
@@ -40,6 +43,7 @@ public class PageController {
         if (!model.containsAttribute("registerForm")) {
             model.addAttribute("registerForm", new RegisterForm());
         }
+        model.addAttribute("emailVerificationEnabled", emailVerificationService.isEnabled());
         return "auth/register";
     }
 

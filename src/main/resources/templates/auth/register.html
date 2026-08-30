@@ -13,7 +13,7 @@
     <main class="page auth-grid auth-page">
         <section class="auth-copy">
             <h1 class="page-title" th:text="#{register.pageTitle}">Создание аккаунта</h1>
-            <p class="lede" th:text="#{register.lede}">Создайте профиль ученика или родителя. Вход станет доступен после серверной проверки формы.</p>
+            <p class="lede" th:text="${emailVerificationEnabled == true} ? #{register.lede} : #{register.ledeImmediate}">Создайте профиль ученика или родителя. Для входа подтвердите email по ссылке из письма.</p>
             <div class="warm-card">
                 <strong th:text="#{register.roleCard.title}">Роль задает стартовый кабинет</strong>
                 <p th:text="#{register.roleCard.body}">Ученик получает задания и тесты, родитель видит семейную аналитику.</p>
@@ -26,6 +26,7 @@
             </div>
             <h2 class="section-title" th:text="#{register.sectionTitle}">Регистрация</h2>
             <form class="form wide-form" th:action="@{/register}" th:object="${registerForm}" method="post">
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error.defaultMessage}"></div>
                 <div class="form-grid two-col auth-register-grid">
                     <div class="field auth-register-span">
                         <label for="email" th:text="#{register.label.email}">Email</label>
@@ -59,7 +60,7 @@
                         <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="5">
                         <span class="alert error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></span>
                     </div>
-                    <label class="checkbox-field auth-register-passkey">
+                    <label class="checkbox-field auth-register-passkey" th:if="${emailVerificationEnabled != true}">
                         <input type="checkbox" th:field="*{passkeySetupRequested}">
                         <span>После регистрации настроить вход по отпечатку, Face ID или PIN</span>
                     </label>

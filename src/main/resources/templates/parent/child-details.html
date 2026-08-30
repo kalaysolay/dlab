@@ -76,7 +76,7 @@
             </div>
             <div class="result-list" th:if="${!#lists.isEmpty(analytics.lastErrors())}">
                 <article class="result-row" th:each="error : ${analytics.lastErrors()}">
-                    <h3 th:text="${error.questionBody()}">Вопрос</h3>
+                    <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(error.questionBody())}">Вопрос</div>
                     <p class="muted-line" th:text="${error.topicTitle()}">Тема</p>
                     <div class="notice" th:if="${error.explanation() != null}">
                         <strong>Что повторить</strong>

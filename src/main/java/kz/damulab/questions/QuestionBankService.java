@@ -74,6 +74,7 @@ public class QuestionBankService {
     private final AdminContentAuditService audit;
     private final AiProvider aiProvider;
     private final AiRuntimeSettingsService aiRuntimeSettings;
+    private final QuestionBodyHtml questionBodyHtml;
 
     public QuestionBankService(
             QuestionRepository questions,
@@ -89,7 +90,8 @@ public class QuestionBankService {
             ObjectMapper objectMapper,
             AdminContentAuditService audit,
             AiProvider aiProvider,
-            AiRuntimeSettingsService aiRuntimeSettings
+            AiRuntimeSettingsService aiRuntimeSettings,
+            QuestionBodyHtml questionBodyHtml
     ) {
         this.questions = questions;
         this.versions = versions;
@@ -105,6 +107,7 @@ public class QuestionBankService {
         this.audit = audit;
         this.aiProvider = aiProvider;
         this.aiRuntimeSettings = aiRuntimeSettings;
+        this.questionBodyHtml = questionBodyHtml;
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +128,22 @@ public class QuestionBankService {
     @Transactional(readOnly = true)
     public QuestionResponse getQuestion(Long id) {
         return toResponse(findQuestion(id));
+    }
+
+    /**
+     * Собирает карточку предпросмотра. Если у опубликованной версии есть черновик,
+     * берём его: именно он будет опубликован следующим действием методиста.
+     */
+    @Transactional(readOnly = true)
+    public QuestionPreviewResponse getQuestionPreview(Long id) {
+        Question question = findQuestion(id);
+        QuestionVersion current = question.getCurrentVersion();
+        if (current == null) {
+            throw new QuestionBankException("question_version_not_found");
+        }
+        java.util.Optional<QuestionVersion> pending = pendingDraft(question);
+        QuestionVersion source = pending.orElse(current);
+        return toPreviewResponse(question, source, pending.isPresent());
     }
 
     @Transactional(readOnly = true)
@@ -434,7 +453,8 @@ public class QuestionBankService {
             throw new QuestionBankException("grade_not_found");
         }
         Topic topic = findTopic(form.getTopicIds().get(0));
-        if (isBlank(form.getBodyRu()) || isBlank(form.getBodyKk())) {
+        if (!questionBodyHtml.hasMeaningfulContent(form.getBodyRu())
+                || !questionBodyHtml.hasMeaningfulContent(form.getBodyKk())) {
             throw new QuestionBankException("question_body_required");
         }
 
@@ -473,6 +493,41 @@ public class QuestionBankService {
         );
     }
 
+    /**
+     * Генерирует и сохраняет мини-лекцию из модалки. Для опубликованного вопроса
+     * {@link #updateQuestion(Long, QuestionForm)} создаёт/обновляет ожидающий черновик,
+     * поэтому живая версия тестов не меняется до отдельной публикации.
+     */
+    @Transactional
+    public GeneratedQuestionMiniLectureResponse generateAndSaveMiniLecture(Long id) {
+        Question question = findQuestion(id);
+        if (question.getStatus() == QuestionStatus.ARCHIVED) {
+            throw new QuestionBankException("question_archived");
+        }
+        QuestionVersion current = question.getCurrentVersion();
+        if (current == null) {
+            throw new QuestionBankException("question_version_not_found");
+        }
+        QuestionVersion source = pendingDraft(question).orElse(current);
+        QuestionForm form = toEditForm(question, source);
+        MiniLectureDraftResponse generated = composeMiniLectureDraft(form);
+        form.setExplanationRu(generated.explanationRu());
+        form.setExplanationKk(generated.explanationKk());
+        form.setMiniLectureRu(generated.miniLectureRu());
+        form.setMiniLectureKk(generated.miniLectureKk());
+        updateQuestion(id, form);
+
+        Question refreshed = findQuestion(id);
+        java.util.Optional<QuestionVersion> pending = pendingDraft(refreshed);
+        QuestionVersion previewVersion = pending.orElse(refreshed.getCurrentVersion());
+        audit.record("question_mini_lecture_generated", "Question", id,
+                generated.stubMode() ? "stub" : "ai");
+        return new GeneratedQuestionMiniLectureResponse(
+                toPreviewResponse(refreshed, previewVersion, pending.isPresent()),
+                generated.stubMode()
+        );
+    }
+
     /** {@code true}, если для лекций в админке выбран намеренный stub (без сетевого LLM). */
     private boolean isStubAiProviderConfigured() {
         return aiRuntimeSettings.resolve(AiUsageType.LECTURES).provider() == AiProviderCode.STUB;
@@ -496,8 +551,8 @@ public class QuestionBankService {
                 gradeNo,
                 topic.getTitleRu(),
                 topic.getTitleKk(),
-                form.getBodyRu().trim(),
-                form.getBodyKk().trim(),
+                questionBodyHtml.toPlainText(form.getBodyRu()),
+                questionBodyHtml.toPlainText(form.getBodyKk()),
                 taskOptionsSummaryForLanguage(form, true),
                 taskOptionsSummaryForLanguage(form, false),
                 correctAnswerRu,
@@ -785,7 +840,8 @@ public class QuestionBankService {
                 throw new QuestionBankException("skill_topic_mismatch");
             }
         }
-        if (isBlank(form.getBodyRu()) || isBlank(form.getBodyKk())) {
+        if (!questionBodyHtml.hasMeaningfulContent(form.getBodyRu())
+                || !questionBodyHtml.hasMeaningfulContent(form.getBodyKk())) {
             throw new QuestionBankException("question_body_required");
         }
         if (isBlank(form.getSource())) {
@@ -898,8 +954,8 @@ public class QuestionBankService {
                 subject,
                 skill,
                 form.getDifficulty(),
-                form.getBodyRu().trim(),
-                form.getBodyKk().trim(),
+                questionBodyHtml.normalizeForStorage(form.getBodyRu()),
+                questionBodyHtml.normalizeForStorage(form.getBodyKk()),
                 explanationRu,
                 explanationKk,
                 miniLectureRu,
@@ -1117,6 +1173,24 @@ public class QuestionBankService {
                 version == null ? null : version.getSource(),
                 question.getUpdatedAt(),
                 pendingVersionNo
+        );
+    }
+
+    private QuestionPreviewResponse toPreviewResponse(
+            Question question,
+            QuestionVersion version,
+            boolean pendingDraft
+    ) {
+        QuestionForm content = toEditForm(question, version);
+        return new QuestionPreviewResponse(
+                toResponse(question),
+                version.getVersionNo(),
+                pendingDraft,
+                content,
+                questionBodyHtml.render(version.getBodyRu()),
+                questionBodyHtml.render(version.getBodyKk()),
+                questionBodyHtml.render(content.getMiniLectureRu()),
+                questionBodyHtml.render(content.getMiniLectureKk())
         );
     }
 

@@ -1,6 +1,8 @@
 package kz.damulab.questions;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -42,6 +44,12 @@ public class AdminQuestionApiController {
         return questionBank.getQuestion(id);
     }
 
+    /** Отдаёт двуязычное содержимое, ответы и лекцию только для admin-модалки. */
+    @GetMapping("/{id}/preview")
+    QuestionPreviewResponse preview(@PathVariable Long id) {
+        return questionBank.getQuestionPreview(id);
+    }
+
     @GetMapping("/health")
     QuestionHealthSummaryResponse health(@RequestParam(required = false) QuestionQualityFilter quality) {
         return questionBank.listQuestionHealth(quality);
@@ -56,6 +64,12 @@ public class AdminQuestionApiController {
     @PostMapping("/mini-lecture/generate")
     MiniLectureDraftResponse generateMiniLecture(@RequestBody QuestionForm form) {
         return questionBank.composeMiniLectureDraft(form);
+    }
+
+    /** Генерирует мини-лекцию по сохранённому вопросу и сразу сохраняет её в проверяемую версию. */
+    @PostMapping("/{id}/mini-lecture/generate")
+    GeneratedQuestionMiniLectureResponse generateMiniLecture(@PathVariable Long id) {
+        return questionBank.generateAndSaveMiniLecture(id);
     }
 
     @PatchMapping("/{id}")
@@ -81,6 +95,33 @@ public class AdminQuestionApiController {
     @PostMapping("/{id}/flag")
     QuestionResponse flag(@PathVariable Long id, @RequestBody(required = false) FlagQuestionRequest request) {
         return questionBank.flagForReview(id, request == null ? null : request.getReason());
+    }
+
+    /**
+     * Выполняет approve/publish независимо для каждой строки. Частичная ошибка не откатывает
+     * успешные вопросы и возвращается в теле, чтобы таблица могла обновиться без перезагрузки.
+     */
+    @PostMapping("/bulk")
+    QuestionBulkActionResponse bulk(@Valid @RequestBody QuestionBulkActionRequest request) {
+        List<QuestionBulkActionItemResponse> items = new ArrayList<>();
+        for (Long id : new LinkedHashSet<>(request.questionIds())) {
+            try {
+                QuestionResponse question = switch (request.action()) {
+                    case APPROVE -> questionBank.approve(id);
+                    case PUBLISH -> questionBank.publish(id);
+                };
+                items.add(new QuestionBulkActionItemResponse(id, question, null));
+            } catch (QuestionBankException ex) {
+                items.add(new QuestionBulkActionItemResponse(id, null, ex.getCode()));
+            }
+        }
+        int succeeded = (int) items.stream().filter(item -> item.error() == null).count();
+        return new QuestionBulkActionResponse(
+                request.action().name().toLowerCase(),
+                succeeded,
+                items.size() - succeeded,
+                items
+        );
     }
 
     @GetMapping("/{id}/flags")

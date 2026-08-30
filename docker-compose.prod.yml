@@ -30,6 +30,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}
       DB_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      EMAIL_VERIFICATION_ENABLED: ${EMAIL_VERIFICATION_ENABLED:-true}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-https://damulab.kz}
+      EMAIL_API_BASE_URL: ${EMAIL_API_BASE_URL:-https://api.smtp.bz/v1}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:?EMAIL_API_KEY is required}
+      EMAIL_FROM: ${EMAIL_FROM:?EMAIL_FROM is required}
+      EMAIL_SENDER_NAME: ${EMAIL_SENDER_NAME:-Damulab}
       AI_REAL_PROVIDERS_ENABLED: ${AI_REAL_PROVIDERS_ENABLED:-true}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -42,18 +48,21 @@ services:
       WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Damulab.kz}
       WEBAUTHN_ALLOWED_ORIGINS: ${WEBAUTHN_ALLOWED_ORIGINS:-https://damulab.kz}
       DAMULAB_LECTURES_ATTACHMENTS_STORAGE_DIR: /data/lecture-attachments
+      QUESTION_IMAGES_STORAGE_DIR: /data/question-images
       SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 25MB
       SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 30MB
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - lecture-attachments:/data/lecture-attachments
+      - question-images:/data/question-images
     networks:
       - backend
 
 volumes:
   postgres-data:
   lecture-attachments:
+  question-images:
 
 networks:
   backend:

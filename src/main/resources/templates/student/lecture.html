@@ -63,8 +63,8 @@
                 <div class="checkpoint-list">
                     <article class="checkpoint-card" th:each="checkpoint, stat : ${lecture.checkpoints}">
                         <span class="badge" th:text="${checkpoint.type}">SCQ</span>
-                        <h3 th:text="${stat.count + '. ' + checkpoint.bodyRu}">1. Вопрос</h3>
-                        <p th:text="${checkpoint.bodyKk}">Қазақша сұрақ</p>
+                        <div class="question-list-rich-body"><strong th:text="${stat.count + '. '}">1. </strong><div th:utext="${@questionBodyHtml.render(checkpoint.bodyRu)}">Вопрос</div></div>
+                        <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(checkpoint.bodyKk)}">Қазақша сұрақ</div>
                         <div class="notice">
                             <strong>Ответы проверяются на сервере</strong>
                             <span>Полный интерактивный checkpoint-flow подключается после MVP LMS viewer.</span>

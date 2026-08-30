@@ -35,6 +35,22 @@ logging:
     kz.damulab.questions.QuestionBankService: INFO
 
 damulab:
+  questions:
+    images:
+      # Иллюстрации внутри HTML вопроса не смешиваются с файлами лекций.
+      storage-dir: ${QUESTION_IMAGES_STORAGE_DIR:uploads/question-images}
+  # Подтверждение аккаунта через HTTP API SMTP.BZ. При enabled=false новые аккаунты
+  # активируются сразу; при true обязательны API-ключ, подтверждённый адрес отправителя
+  # и публичный HTTPS-адрес приложения.
+  email-verification:
+    enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+    public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+    token-ttl: ${EMAIL_VERIFICATION_TOKEN_TTL:24h}
+    resend-cooldown: ${EMAIL_VERIFICATION_RESEND_COOLDOWN:1m}
+    api-base-url: ${EMAIL_API_BASE_URL:https://api.smtp.bz/v1}
+    api-key: ${EMAIL_API_KEY:}
+    from: ${EMAIL_FROM:}
+    sender-name: ${EMAIL_SENDER_NAME:Damulab}
   testing:
     default-question-count: 12
     max-question-count: 20

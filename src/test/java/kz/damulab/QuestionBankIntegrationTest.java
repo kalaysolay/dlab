@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +28,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import kz.damulab.audit.AdminContentAuditLogRepository;
+import kz.damulab.ai.AiProviderCode;
+import kz.damulab.ai.AiRuntimeSetting;
+import kz.damulab.ai.AiRuntimeSettingRepository;
+import kz.damulab.ai.AiUsageType;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.SubjectRepository;
 
@@ -46,6 +51,17 @@ class QuestionBankIntegrationTest {
 
     @Autowired
     private AdminContentAuditLogRepository auditLogs;
+
+    @Autowired
+    private AiRuntimeSettingRepository aiSettings;
+
+    /** Другие интеграционные классы меняют общий H2 runtime-route; этому классу нужен предсказуемый stub. */
+    @BeforeEach
+    void restoreLectureStubRoute() {
+        AiRuntimeSetting setting = aiSettings.findById(AiUsageType.LECTURES).orElseThrow();
+        setting.update(AiProviderCode.STUB, "stub", "question-bank-test");
+        aiSettings.save(setting);
+    }
 
     private record TopicFixture(long topicId, long subjectId, long gradeId) {
     }
@@ -253,6 +269,81 @@ class QuestionBankIntegrationTest {
     }
 
     @Test
+    void adminCanPreviewQuestionWithCorrectAnswersAndSaveGeneratedLecture() throws Exception {
+        TopicFixture tf = createTopic("question-preview-topic-");
+        Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(tf, "<p>Предпросмотр <strong>вопроса</strong></p>", true)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        mockMvc.perform(get("/api/admin/questions/{id}/preview", questionId)
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.question.id").value(questionId))
+                .andExpect(jsonPath("$.bodyRuHtml").value(containsString("<strong>вопроса</strong>")))
+                .andExpect(jsonPath("$.content.options[1].label").value("B"))
+                .andExpect(jsonPath("$.content.options[1].correct").value(true));
+
+        mockMvc.perform(post("/api/admin/questions/{id}/mini-lecture/generate", questionId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.preview.question.id").value(questionId))
+                .andExpect(jsonPath("$.preview.miniLectureRuHtml").value(containsString("Мини-лекция (stub")))
+                .andExpect(jsonPath("$.stubMode").value(true));
+
+        mockMvc.perform(get("/api/admin/questions/{id}/preview", questionId)
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.miniLectureRuHtml").value(containsString("Мини-лекция (stub")));
+    }
+
+    @Test
+    void adminCanApproveAndPublishSeveralQuestionsAtOnce() throws Exception {
+        TopicFixture tf = createTopic("bulk-question-topic-");
+        Long firstId = idFrom(mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(tf, "Первый пакетный вопрос", true)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        Long secondId = idFrom(mockMvc.perform(post("/api/admin/questions")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scqBody(tf, "Второй пакетный вопрос", true)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+
+        String ids = "[%d,%d,%d]".formatted(firstId, secondId, firstId);
+        mockMvc.perform(post("/api/admin/questions/bulk")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"questionIds\":" + ids + ",\"action\":\"APPROVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.succeeded").value(2))
+                .andExpect(jsonPath("$.failed").value(0))
+                .andExpect(jsonPath("$.items[0].question.status").value("approved"));
+
+        mockMvc.perform(post("/api/admin/questions/bulk")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"questionIds\":[%d,%d],\"action\":\"PUBLISH\"}".formatted(firstId, secondId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.succeeded").value(2))
+                .andExpect(jsonPath("$.failed").value(0))
+                .andExpect(jsonPath("$.items[1].question.status").value("published"));
+    }
+
+    @Test
     void publishedQuestionEditKeepsPublishedVersionLive() throws Exception {
         TopicFixture tf = createTopic("version-topic-");
         Long questionId = idFrom(mockMvc.perform(post("/api/admin/questions")
@@ -344,7 +435,8 @@ class QuestionBankIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/questions"))
                 .andExpect(content().string(containsString("Банк вопросов")))
-                .andExpect(content().string(containsString("admin-questions.js")));
+                .andExpect(content().string(containsString("admin-questions.js")))
+                .andExpect(content().string(containsString("question-preview-modal")));
 
         mockMvc.perform(get("/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -352,6 +444,7 @@ class QuestionBankIntegrationTest {
                         .param("gradeId", String.valueOf(tf.gradeId()))
                         .param("topicId", String.valueOf(tf.topicId())))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-select-all")))
                 .andExpect(content().string(containsString("data-action=\"approve\"")))
                 .andExpect(content().string(containsString("Q-" + questionId)));
 
@@ -359,7 +452,11 @@ class QuestionBankIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/question-form"))
-                .andExpect(content().string(containsString("Добавить вопрос")));
+                .andExpect(content().string(containsString("Добавить вопрос")))
+                .andExpect(content().string(containsString("question-body-editor-ru")))
+                .andExpect(content().string(containsString("data-question-body-tab=\"kk\"")))
+                .andExpect(content().string(containsString("/webjars/quill/")))
+                .andExpect(content().string(containsString("dist/quill.js")));
 
         mockMvc.perform(get("/admin/questions/{id}/edit", questionId)
                         .with(user("admin@damulab.kz").roles("ADMIN")))

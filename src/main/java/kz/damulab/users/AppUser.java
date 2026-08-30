@@ -42,6 +42,9 @@ public class AppUser {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
+    @Column(name = "email_verified_at")
+    private OffsetDateTime emailVerifiedAt;
+
     @Column(name = "webauthn_user_handle", unique = true)
     private byte[] webAuthnUserHandle;
 
@@ -90,6 +93,24 @@ public class AppUser {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /**
+     * Закрывает вход до подтверждения адреса. Используется только для самостоятельной регистрации:
+     * созданные администратором и родителем аккаунты сохраняют прежнее поведение.
+     */
+    public void requireEmailVerification() {
+        this.enabled = false;
+    }
+
+    /** Разрешает вход после успешной проверки одноразового email-токена. */
+    public void confirmEmail(OffsetDateTime verifiedAt) {
+        this.enabled = true;
+        this.emailVerifiedAt = verifiedAt;
+    }
+
+    public OffsetDateTime getEmailVerifiedAt() {
+        return emailVerifiedAt;
     }
 
     public Set<Role> getRoles() {

@@ -78,7 +78,7 @@
                         </div>
                         <span class="muted-line" th:text="${item.type}">SCQ</span>
                     </div>
-                    <h2 th:text="${item.bodyRu}">Вопрос</h2>
+                    <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(item.bodyRu)}">Вопрос</div>
                     <p class="muted-line" th:text="${item.topicTitleRu}">Тема</p>
                     <dl class="health-stat-list">
                         <div>

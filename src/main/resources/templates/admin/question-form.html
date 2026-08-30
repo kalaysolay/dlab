@@ -6,6 +6,7 @@
     <title th:text="${mode == 'edit'} ? 'Редактировать вопрос' : 'Добавить вопрос'">Добавить вопрос</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/webjars/quill/dist/quill.snow.css}">
     <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
 </head>
 <body>
@@ -139,19 +140,25 @@
                 <hr class="divider">
 
                 <h2 class="section-title">Текст вопроса</h2>
-                <div class="form-grid two-col question-body-row">
-                    <label class="field">
-                        <span>RU</span>
-                        <textarea id="question-body-ru" th:field="*{bodyRu}" required></textarea>
+                <p class="muted-line">Текст хранится как безопасный HTML. Картинку можно вставить в любое место; файлы до 10 МБ сохраняются отдельно от вложений лекций.</p>
+                <div class="question-body-editor">
+                    <div class="question-body-tabs" role="tablist" aria-label="Язык текста вопроса">
+                        <button type="button" class="question-body-tab active" data-question-body-tab="ru" role="tab" aria-selected="true">Русский</button>
+                        <button type="button" class="question-body-tab" data-question-body-tab="kk" role="tab" aria-selected="false">Казахский</button>
+                    </div>
+                    <div class="question-body-panel active" data-question-body-panel="ru" role="tabpanel">
+                        <div id="question-body-editor-ru" class="question-rich-editor"></div>
+                        <textarea id="question-body-ru" th:field="*{bodyRu}" class="question-body-value" aria-hidden="true" tabindex="-1"></textarea>
                         <small class="muted-line">Для FILL_IN добавьте метки вида <code>[[1]]</code> в текст вопроса.</small>
                         <small class="field-error" th:if="${#fields.hasErrors('bodyRu')}" th:errors="*{bodyRu}">Ошибка</small>
-                    </label>
-                    <label class="field">
-                        <span>KK</span>
-                        <textarea id="question-body-kk" th:field="*{bodyKk}" required></textarea>
+                    </div>
+                    <div class="question-body-panel" data-question-body-panel="kk" role="tabpanel" hidden>
+                        <div id="question-body-editor-kk" class="question-rich-editor"></div>
+                        <textarea id="question-body-kk" th:field="*{bodyKk}" class="question-body-value" aria-hidden="true" tabindex="-1"></textarea>
                         <small class="muted-line">Для FILL_IN используйте те же placeholder-метки, что и в RU.</small>
                         <small class="field-error" th:if="${#fields.hasErrors('bodyKk')}" th:errors="*{bodyKk}">Ошибка</small>
-                    </label>
+                    </div>
+                    <div id="question-image-upload-status" class="muted-line" aria-live="polite"></div>
                 </div>
 
                 <section class="question-mini-lecture-section">
@@ -312,6 +319,7 @@
 <script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
 <script th:src="@{/webjars/katex/dist/contrib/auto-render.min.js}"></script>
 <script th:src="@{/webjars/dompurify/dist/purify.min.js}"></script>
+<script th:src="@{/webjars/quill/dist/quill.js}"></script>
 <script>
     const typeSelect = document.getElementById('question-type');
     const subjectSelect = document.getElementById('question-subject');
@@ -322,6 +330,9 @@
     const questionForm = document.getElementById('question-form');
     const bodyRuInput = document.getElementById('question-body-ru');
     const bodyKkInput = document.getElementById('question-body-kk');
+    const questionBodyTabs = Array.from(document.querySelectorAll('.question-body-tab'));
+    const questionBodyPanels = Array.from(document.querySelectorAll('.question-body-panel'));
+    const questionImageUploadStatus = document.getElementById('question-image-upload-status');
     const miniLectureRuInput = document.getElementById('question-mini-lecture-ru');
     const miniLectureKkInput = document.getElementById('question-mini-lecture-kk');
     const generateMiniLectureButton = document.getElementById('generate-mini-lecture');
@@ -333,6 +344,103 @@
     const miniLecturePreviewKk = document.getElementById('question-mini-lecture-preview-kk');
     const lectureLangTabs = Array.from(document.querySelectorAll('.lecture-lang-tab'));
     const lectureLangPanels = Array.from(document.querySelectorAll('.lecture-lang-panel'));
+    const questionEditors = new Map();
+
+    const activateQuestionBodyTab = (lang) => {
+        questionBodyTabs.forEach((tab) => {
+            const active = tab.dataset.questionBodyTab === lang;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        questionBodyPanels.forEach((panel) => {
+            const active = panel.dataset.questionBodyPanel === lang;
+            panel.classList.toggle('active', active);
+            panel.hidden = !active;
+        });
+        // Quill измеряет область при инициализации. После открытия скрытой вкладки обновляем selection.
+        window.requestAnimationFrame(() => questionEditors.get(lang)?.update());
+    };
+
+    questionBodyTabs.forEach((tab) => {
+        tab.addEventListener('click', () => activateQuestionBodyTab(tab.dataset.questionBodyTab));
+    });
+
+    const looksLikeHtml = (value) => /<\s*\/?\s*(p|div|br|strong|b|em|i|u|s|ol|ul|li|a|img|blockquote|pre|code|sub|sup|h[2-4])(?:\s|\/?>)/i.test(value || '');
+    const sanitizedInitialQuestionBody = (value) => window.DOMPurify.sanitize(value || '', {
+        ALLOWED_TAGS: ['p', 'div', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ol', 'ul', 'li', 'a', 'img', 'blockquote', 'pre', 'code', 'sub', 'sup', 'h2', 'h3', 'h4'],
+        ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'src', 'alt', 'width', 'height', 'data-list'],
+        ALLOW_DATA_ATTR: false
+    });
+
+    const uploadQuestionImage = async (quill) => {
+        const picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = 'image/png,image/jpeg,image/gif,image/webp';
+        picker.addEventListener('change', async () => {
+            const file = picker.files?.[0];
+            if (!file) return;
+            if (questionImageUploadStatus) questionImageUploadStatus.textContent = 'Загружаем изображение…';
+            const data = new FormData();
+            data.append('file', file);
+            const csrfInput = questionForm.querySelector('input[name="_csrf"]');
+            if (csrfInput) data.append(csrfInput.name, csrfInput.value);
+            try {
+                const response = await fetch('/api/admin/question-images', {method: 'POST', body: data});
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.url) {
+                    const messages = {
+                        question_image_too_large: 'Файл больше 10 МБ.',
+                        question_image_type_not_allowed: 'Поддерживаются PNG, JPEG, GIF и WebP.'
+                    };
+                    throw new Error(messages[payload.error] || 'Не удалось загрузить изображение.');
+                }
+                const range = quill.getSelection(true) || {index: quill.getLength(), length: 0};
+                quill.insertEmbed(range.index, 'image', payload.url, 'user');
+                quill.setSelection(range.index + 1, 0, 'silent');
+                if (questionImageUploadStatus) questionImageUploadStatus.textContent = 'Изображение добавлено.';
+            } catch (error) {
+                if (questionImageUploadStatus) questionImageUploadStatus.textContent = error.message;
+            }
+        }, {once: true});
+        picker.click();
+    };
+
+    const createQuestionEditor = (lang, input) => {
+        const quill = new window.Quill(`#question-body-editor-${lang}`, {
+            theme: 'snow',
+            placeholder: lang === 'ru' ? 'Введите текст вопроса на русском…' : 'Қазақ тіліндегі сұрақ мәтінін енгізіңіз…',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    [{list: 'ordered'}, {list: 'bullet'}],
+                    ['blockquote', 'code-block'],
+                    ['link', 'image'],
+                    ['clean']
+                ]
+            }
+        });
+        const initial = input.value || '';
+        if (looksLikeHtml(initial)) {
+            quill.clipboard.dangerouslyPasteHTML(sanitizedInitialQuestionBody(initial));
+        } else if (initial) {
+            // Старые записи — plain text. setText экранирует угловые скобки и сохраняет переносы.
+            quill.setText(initial);
+        }
+        const sync = () => {
+            const html = quill.root.innerHTML;
+            input.value = (quill.getText().trim() || quill.root.querySelector('img'))
+                ? sanitizedInitialQuestionBody(html)
+                : '';
+        };
+        quill.on('text-change', sync);
+        quill.getModule('toolbar').addHandler('image', () => uploadQuestionImage(quill));
+        sync();
+        questionEditors.set(lang, quill);
+    };
+
+    createQuestionEditor('ru', bodyRuInput);
+    createQuestionEditor('kk', bodyKkInput);
+
     const activateLectureTab = (lang) => {
         lectureLangTabs.forEach((tab) => {
             const active = tab.dataset.lectureTab === lang;

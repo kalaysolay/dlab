@@ -26,6 +26,9 @@ public class SecurityConfig {
                                 "/",
                                 "/login",
                                 "/register",
+                                "/activate-account",
+                                "/verify-email",
+                                "/verify-email/resend",
                                 "/css/**",
                                 "/js/**",
                                 "/icons/**",
@@ -37,7 +40,7 @@ public class SecurityConfig {
                                 // Офлайн-страница кэшируется SW и отдаётся без сети — должна быть публичной
                                 "/offline"
                         ).permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/verification-email/resend").permitAll()
                         .requestMatchers("/api/passkeys/login/options", "/api/passkeys/login").permitAll()
                         // Web Push: сохранение подписки браузера; только аутентифицированный STUDENT
                         .requestMatchers("/api/push/subscribe").hasRole("STUDENT")

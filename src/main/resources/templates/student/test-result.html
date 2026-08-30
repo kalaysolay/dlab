@@ -275,11 +275,27 @@
             const body = normalizeValue(heading.dataset.fillBody);
             const student = toFillMap(heading.dataset.studentAnswer);
             const correct = toFillMap(heading.dataset.correctAnswer);
-            const htmlBody = escapeHtml(body).replace(/\[\[(\d+)]]/g, (_, digits) => {
-                const placeholder = `[[${digits}]]`;
-                return fillChipMarkup(placeholder, student[placeholder] ?? "", correct[placeholder] ?? "");
+            // body очищен на сервере. Сохраняем HTML и меняем метки только в текстовых узлах.
+            heading.innerHTML = body;
+            const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+            const textNodes = [];
+            while (walker.nextNode()) textNodes.push(walker.currentNode);
+            textNodes.forEach((node) => {
+                const parts = node.nodeValue.split(/(\[\[\d+]])/g);
+                if (parts.length === 1) return;
+                const fragment = document.createDocumentFragment();
+                parts.forEach((part) => {
+                    if (/^\[\[\d+]]$/.test(part)) {
+                        const holder = document.createElement('span');
+                        holder.innerHTML = fillChipMarkup(part, student[part] ?? "", correct[part] ?? "");
+                        fragment.appendChild(holder.firstElementChild);
+                    } else if (part) {
+                        fragment.appendChild(document.createTextNode(part));
+                    }
+                });
+                node.replaceWith(fragment);
             });
-            heading.innerHTML = `${escapeHtml(orderNo)}. ${htmlBody}`;
+            heading.insertAdjacentHTML('afterbegin', `<strong>${escapeHtml(orderNo)}. </strong>`);
         });
     };
 

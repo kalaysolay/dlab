@@ -98,7 +98,7 @@
                         <span class="badge danger">Ошибка</span>
                         <span class="badge" th:text="'сложность ' + ${error.difficulty()}">2</span>
                     </div>
-                    <h3 th:text="${error.questionBody()}">Вопрос</h3>
+                    <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(error.questionBody())}">Вопрос</div>
                     <p class="muted-line" th:text="${error.topicTitle()}">Тема</p>
                     <div class="notice" th:if="${error.explanation() != null}">
                         <strong>Повторить</strong>

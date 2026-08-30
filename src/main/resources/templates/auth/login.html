@@ -37,6 +37,19 @@
                 </div>
                 <button class="button primary" type="submit" th:text="#{login.submit}">Войти</button>
             </form>
+            <details class="muted-line">
+                <summary th:text="#{login.verification.resendSummary}">Не пришло письмо подтверждения?</summary>
+                <form id="verification-resend-form" class="form wide-form" th:action="@{/verify-email/resend}" method="post">
+                    <div class="field">
+                        <label for="verification-email" th:text="#{login.email}">Email</label>
+                        <input id="verification-email" name="email" type="email" autocomplete="email" required>
+                    </div>
+                    <button id="verification-resend-button" class="button" type="submit"
+                            th:attr="data-label=#{login.verification.resendButton}"
+                            th:text="#{login.verification.resendButton}">Отправить ещё раз</button>
+                    <span id="verification-resend-status" class="muted-line" aria-live="polite"></span>
+                </form>
+            </details>
             <!-- Подсказка с demo-паролями отключена перед прод-деплоем
             <p class="muted-line" th:text="#{login.demoHint}">
                 Demo: admin@damulab.kz / student@damulab.kz / parent@damulab.kz, пароль password.
@@ -45,5 +58,6 @@
         </section>
     </main>
 </div>
+<script th:src="@{/js/email-verification.js}" defer></script>
 </body>
 </html>
