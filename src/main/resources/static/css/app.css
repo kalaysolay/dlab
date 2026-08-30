@@ -248,6 +248,12 @@ h2 {
     }
 }
 
+/* Атрибут hidden используется в шаблонах для временно скрытых состояний. Правило с important
+   не даёт компонентным классам (например .notice с display: grid) оставить пустой блок на экране. */
+[hidden] {
+    display: none !important;
+}
+
 * {
     box-sizing: border-box;
 }
