@@ -4,21 +4,25 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kz.damulab.analytics.AnalyticsService;
+import kz.damulab.analytics.SkillMasteryRepository;
 import kz.damulab.config.DamulabTestingProperties;
+import kz.damulab.config.QuestionSelectionStrategy;
 import kz.damulab.content.Grade;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.Subject;
@@ -51,6 +55,8 @@ public class TestingHubService {
     private final ObjectMapper objectMapper;
     private final DamulabTestingProperties testingProperties;
     private final TestStartAvailabilityService testStartAvailability;
+    private final SkillMasteryRepository masteries;
+    private final AdaptiveQuestionSelector questionSelector;
 
     public TestingHubService(
             TestTemplateRepository templates,
@@ -68,7 +74,9 @@ public class TestingHubService {
             StudentEngagementService engagementService,
             ObjectMapper objectMapper,
             DamulabTestingProperties testingProperties,
-            TestStartAvailabilityService testStartAvailability
+            TestStartAvailabilityService testStartAvailability,
+            SkillMasteryRepository masteries,
+            AdaptiveQuestionSelector questionSelector
     ) {
         this.templates = templates;
         this.sessions = sessions;
@@ -86,6 +94,8 @@ public class TestingHubService {
         this.objectMapper = objectMapper;
         this.testingProperties = testingProperties;
         this.testStartAvailability = testStartAvailability;
+        this.masteries = masteries;
+        this.questionSelector = questionSelector;
     }
 
     @Transactional
@@ -103,24 +113,34 @@ public class TestingHubService {
         int timeLimit = template == null ? FALLBACK_TIME_LIMIT_SECONDS : template.getTimeLimitSeconds();
         String language = normalizeLanguage(request.getLanguage(), student.getPreferredLanguage());
 
-        int fetchPool = Math.min(500, Math.max(testingProperties.getMaxQuestionCount() * 25, 50));
-        List<QuestionVersion> pool = new ArrayList<>(questionVersions.findPublishedForTest(
+        List<QuestionVersion> pool = questionVersions.findPublishedForTest(
                 subject.getId(),
                 grade.getId(),
                 request.getDifficulty(),
-                PageRequest.of(0, fetchPool)
-        ));
+                Pageable.unpaged()
+        );
         if (pool.isEmpty()) {
             throw new TestingHubException("published_questions_not_found");
         }
-        Collections.shuffle(pool, ThreadLocalRandom.current());
         int requested = testingProperties.getDefaultQuestionCount();
         if (request.getQuestionCount() != null) {
             requested = Math.min(request.getQuestionCount(), testingProperties.getMaxQuestionCount());
         }
         requested = Math.min(requested, testingProperties.getMaxQuestionCount());
         int targetCount = Math.min(requested, pool.size());
-        List<QuestionVersion> selected = pool.subList(0, targetCount);
+        SelectionHistory history = selectionHistory(student.getId());
+        QuestionSelectionStrategy strategy = testType == TestType.SUBJECT
+                ? testingProperties.getSelectionStrategy()
+                : QuestionSelectionStrategy.RANDOM;
+        QuestionSelectionResult selection = questionSelector.select(
+                pool,
+                targetCount,
+                masteries.findByStudentProfileIdOrderByMasteryPercentAscUpdatedAtDesc(student.getId()),
+                history.attemptedVersionIds(),
+                history.recentVersionIds(),
+                history.latestCorrectByVersion(),
+                strategy
+        );
 
         TestSession session = sessions.save(new TestSession(
                 student,
@@ -130,10 +150,10 @@ public class TestingHubService {
                 language,
                 request.getDifficulty(),
                 timeLimit,
-                settingsJson(targetCount)
+                settingsJson(selection)
         ));
         int orderNo = 1;
-        for (QuestionVersion version : selected) {
+        for (QuestionVersion version : selection.questions()) {
             sessionQuestions.save(new TestSessionQuestion(session, version, orderNo, BigDecimal.ONE));
             orderNo++;
         }
@@ -444,8 +464,38 @@ public class TestingHubService {
         return "kk".equals(value) ? "kk" : "ru";
     }
 
-    private String settingsJson(int questionCount) {
-        return toJson(Map.of("questionCount", questionCount));
+    private SelectionHistory selectionHistory(Long studentProfileId) {
+        Set<Long> attemptedVersionIds = new HashSet<>(evaluations.findAttemptedQuestionVersionIds(studentProfileId));
+        int recentWindow = Math.max(0, Math.min(10, testingProperties.getRecentSessionWindow()));
+        List<Long> recentSessionIds = sessions.findTop10ByStudentProfileIdOrderByStartedAtDesc(studentProfileId).stream()
+                .limit(recentWindow)
+                .map(TestSession::getId)
+                .toList();
+        if (recentSessionIds.isEmpty()) {
+            return new SelectionHistory(attemptedVersionIds, Set.of(), Map.of());
+        }
+
+        Set<Long> recentVersionIds = new HashSet<>();
+        sessionQuestions.findBySessionIdIn(recentSessionIds)
+                .forEach(question -> recentVersionIds.add(question.getQuestionVersion().getId()));
+        Map<Long, Boolean> latestCorrectByVersion = new LinkedHashMap<>();
+        evaluations.findBySessionQuestionSessionIdInOrderByEvaluatedAtDesc(recentSessionIds)
+                .forEach(evaluation -> latestCorrectByVersion.putIfAbsent(
+                        evaluation.getSessionQuestion().getQuestionVersion().getId(),
+                        evaluation.isCorrect()
+                ));
+        return new SelectionHistory(attemptedVersionIds, recentVersionIds, latestCorrectByVersion);
+    }
+
+    private String settingsJson(QuestionSelectionResult selection) {
+        return toJson(Map.of(
+                "questionCount", selection.questions().size(),
+                "selectionStrategy", selection.strategy().name(),
+                "weakQuestions", selection.weakQuestions(),
+                "watchQuestions", selection.watchQuestions(),
+                "unseenQuestions", selection.unseenQuestions(),
+                "strongQuestions", selection.strongQuestions()
+        ));
     }
 
     private JsonNode objectNode(Object value) {
@@ -466,5 +516,12 @@ public class TestingHubService {
         } catch (JsonProcessingException ex) {
             throw new TestingHubException("answer_payload_invalid");
         }
+    }
+
+    private record SelectionHistory(
+            Set<Long> attemptedVersionIds,
+            Set<Long> recentVersionIds,
+            Map<Long, Boolean> latestCorrectByVersion
+    ) {
     }
 }

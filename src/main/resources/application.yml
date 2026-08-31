@@ -55,6 +55,11 @@ damulab:
     default-question-count: 12
     max-question-count: 20
     min-published-per-subject-grade: 1
+    # SUBJECT — учебный тест: слабые навыки получают больший вес, но сильные периодически повторяются.
+    selection-strategy: adaptive
+    recent-session-window: 3
+    max-topic-share-percent: 40
+    mastery-stale-after-days: 30
   ui:
     server-time-zone: Asia/Almaty
   # Web Push / VAPID: при пустых ключах активируется StubPushProvider (без реальных уведомлений).
