@@ -8,6 +8,7 @@
     <title>Банк вопросов</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
 </head>
 <body>
 <div class="app-shell admin-shell">
@@ -314,6 +315,8 @@
         </section>
     </div>
 </div>
+<script th:src="@{/webjars/katex/dist/katex.min.js}" defer></script>
+<script th:src="@{/webjars/katex/dist/contrib/auto-render.min.js}" defer></script>
 <script th:src="@{/js/toast.js}" defer></script>
 <script th:src="@{/js/admin-questions.js}" defer></script>
 </body>

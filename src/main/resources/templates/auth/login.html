@@ -26,6 +26,7 @@
             </div>
             <h2 class="section-title" th:text="#{login.title}">Вход</h2>
             <div th:replace="~{fragments/alerts :: alerts}"></div>
+            <div th:replace="~{fragments/google-auth :: googleAuth}"></div>
             <form class="form wide-form" th:action="@{/login}" method="post">
                 <div class="field">
                     <label for="username" th:text="#{login.email}">Email</label>

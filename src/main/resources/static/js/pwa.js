@@ -324,6 +324,7 @@ if (document.readyState === 'loading') {
 
 document.addEventListener('DOMContentLoaded', () => {
     const pushBtn = document.getElementById('pwa-push-subscribe-btn');
+    const unsubscribeBtn = document.getElementById('pwa-push-unsubscribe-btn');
     if (!pushBtn) return;
     checkPushStatus(pushBtn);
     pushBtn.addEventListener('click', async () => {
@@ -341,6 +342,21 @@ document.addEventListener('DOMContentLoaded', () => {
             pushBtn.disabled = false;
         }
     });
+    if (unsubscribeBtn) {
+        unsubscribeBtn.addEventListener('click', async () => {
+            unsubscribeBtn.disabled = true;
+            try {
+                const unsubscribed = await unsubscribeFromPush();
+                if (unsubscribed) {
+                    setPushBtnUnsubscribed(pushBtn);
+                } else {
+                    unsubscribeBtn.disabled = false;
+                }
+            } catch {
+                unsubscribeBtn.disabled = false;
+            }
+        });
+    }
 });
 
 async function subscribeToPush() {
@@ -395,6 +411,26 @@ async function savePushSubscription(subscription) {
     }
 }
 
+async function unsubscribeFromPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+
+    const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
+    const subscription = reg ? await reg.pushManager.getSubscription() : null;
+    if (!subscription) return true;
+
+    // Сначала помечаем endpoint неактивным на сервере. Если сеть временно недоступна,
+    // браузерная подписка останется на месте и пользователь сможет повторить действие.
+    const response = await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint })
+    });
+    if (!response.ok) throw new Error('Push subscription was not disabled');
+
+    await subscription.unsubscribe();
+    return true;
+}
+
 async function checkPushStatus(btn) {
     if (!('Notification' in window) || !('PushManager' in window)) {
         btn.disabled = true;
@@ -405,7 +441,12 @@ async function checkPushStatus(btn) {
         const reg = window.__swRegistration ?? await navigator.serviceWorker.ready;
         const existing = reg ? await reg.pushManager.getSubscription() : null;
         const currentKey = currentVapidApplicationServerKey();
-        if (existing && subscriptionUsesApplicationServerKey(existing, currentKey)) setPushBtnSubscribed(btn);
+        if (existing && subscriptionUsesApplicationServerKey(existing, currentKey)) {
+            // Восстанавливает активность записи после 404/410 либо после ручного
+            // отключения, если браузер всё ещё держит валидную подписку.
+            await savePushSubscription(existing);
+            setPushBtnSubscribed(btn);
+        }
     } else if (Notification.permission === 'denied') {
         btn.disabled = true;
         btn.textContent = 'Уведомления заблокированы в браузере';
@@ -416,6 +457,21 @@ function setPushBtnSubscribed(btn) {
     btn.disabled = true;
     btn.textContent = 'Уведомления включены ✓';
     btn.classList.add('is-subscribed');
+    const unsubscribeBtn = document.getElementById('pwa-push-unsubscribe-btn');
+    if (unsubscribeBtn) {
+        unsubscribeBtn.disabled = false;
+        unsubscribeBtn.removeAttribute('hidden');
+    }
+}
+
+function setPushBtnUnsubscribed(btn) {
+    btn.disabled = false;
+    btn.textContent = 'Включить push-уведомления';
+    btn.classList.remove('is-subscribed');
+    const unsubscribeBtn = document.getElementById('pwa-push-unsubscribe-btn');
+    if (unsubscribeBtn) {
+        unsubscribeBtn.setAttribute('hidden', '');
+    }
 }
 
 function currentVapidApplicationServerKey() {

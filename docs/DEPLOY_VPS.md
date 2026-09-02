@@ -179,6 +179,24 @@ WEBAUTHN_RP_ID=damulab.kz
 WEBAUTHN_ALLOWED_ORIGINS=https://damulab.kz
 ```
 
+Для входа через Google создайте в Google Cloud Console OAuth client типа
+**Web application**. В `Authorized redirect URIs` добавьте точное значение:
+
+```text
+https://damulab.kz/login/oauth2/code/google
+```
+
+Затем добавьте выданные значения в `.env.prod` и включите интеграцию:
+
+```dotenv
+GOOGLE_OAUTH_ENABLED=true
+GOOGLE_CLIENT_ID=<OAuth Client ID>
+GOOGLE_CLIENT_SECRET=<OAuth Client Secret>
+```
+
+Для локальной проверки разрешённый callback имеет вид
+`http://localhost:8080/login/oauth2/code/google`. Не коммитьте Client Secret.
+
 Если AI пока не нужен, безопаснее явно установить аварийный выключатель:
 
 ```dotenv
@@ -314,6 +332,7 @@ sudo ss -lntp
 - `5432` отсутствует среди внешних listening ports;
 - `https://damulab.kz` открывается без предупреждения;
 - регистрация, вход, logout и загрузка вложения работают;
+- вход через Google работает для нового и существующего email;
 - Passkeys работают только с production-значениями `WEBAUTHN_*`;
 - при заданном OpenAI-ключе генерация проходит с VPS из Нидерландов;
 - после перезагрузки VPS контейнеры поднимаются (`restart: unless-stopped`).
@@ -398,6 +417,8 @@ free -h
 | Certbot не выпускает сертификат | DNS ещё указывает на старый IP, неверная AAAA-запись или закрыт порт 80 |
 | OpenAI не отвечает | проверить `OPENAI_API_KEY`, логи приложения и исходящий HTTPS с VPS |
 | Passkey отклоняется | `WEBAUTHN_RP_ID=damulab.kz`, origin строго `https://damulab.kz` |
+| Google возвращает `redirect_uri_mismatch` | в OAuth client должен быть точный callback `https://damulab.kz/login/oauth2/code/google` |
+| Кнопки Google нет | проверить `GOOGLE_OAUTH_ENABLED=true`, Client ID/Secret и перезапуск контейнера |
 | вложения исчезли | не подключён volume `lecture-attachments` или был удалён volume |
 
 Не запускайте `docker compose down -v`: ключ `-v` удаляет данные PostgreSQL и

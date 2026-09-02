@@ -35,6 +35,13 @@ logging:
     kz.damulab.questions.QuestionBankService: INFO
 
 damulab:
+  auth:
+    google:
+      # Включается только при наличии OAuth client в Google Cloud Console.
+      # Callback для production: https://damulab.kz/login/oauth2/code/google
+      enabled: ${GOOGLE_OAUTH_ENABLED:false}
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
   questions:
     images:
       # Иллюстрации внутри HTML вопроса не смешиваются с файлами лекций.

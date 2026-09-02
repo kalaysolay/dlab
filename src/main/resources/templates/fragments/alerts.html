@@ -5,6 +5,12 @@
     <div class="alert error" th:if="${param.error}">
         <span th:text="#{alert.loginError}">Неверный email или пароль.</span>
     </div>
+    <div class="alert error" th:if="${param.oauthError}">
+        <span th:text="#{alert.googleError}">Не удалось войти через Google. Попробуйте ещё раз.</span>
+    </div>
+    <div class="alert error" th:if="${param.oauthExpired}">
+        <span th:text="#{alert.googleExpired}">Регистрация через Google устарела. Начните вход заново.</span>
+    </div>
     <div class="alert" th:if="${param.logout}">
         <span th:text="#{alert.logout}">Вы вышли из системы.</span>
     </div>

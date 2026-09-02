@@ -116,6 +116,7 @@ public class WebPushProvider implements PushProvider {
                             notification.getId(), token.getId(), userId(token), endpointHost(token), statusCode);
                 } else {
                     String responseDetails = responseDetails(response);
+                    disableExpiredSubscription(token, statusCode);
                     lastFailure = "Push service returned HTTP " + statusCode + " " + responseDetails;
                     log.warn("webpush delivery rejected: notificationId={} deviceTokenId={} userId={} endpointHost={} httpStatus={} response={}",
                             notification.getId(), token.getId(), userId(token), endpointHost(token), statusCode, responseDetails);
@@ -179,6 +180,7 @@ public class WebPushProvider implements PushProvider {
                 return PushDeliveryResult.sent("webpush", "token-" + token.getId() + " status=" + statusCode);
             }
             String responseDetails = responseDetails(response);
+            disableExpiredSubscription(token, statusCode);
             log.warn("webpush sendRaw rejected: deviceTokenId={} userId={} endpointHost={} httpStatus={} response={}",
                     token.getId(), userId(token), endpointHost(token), statusCode, responseDetails);
             return PushDeliveryResult.failed("webpush", "http_" + statusCode,
@@ -297,6 +299,20 @@ public class WebPushProvider implements PushProvider {
      */
     private boolean isSuccessfulPushStatus(int statusCode) {
         return statusCode >= 200 && statusCode < 300;
+    }
+
+    /**
+     * Браузерные push-сервисы возвращают 404/410, когда подписка отозвана или
+     * истекла. Повторять такие запросы бессмысленно: выключаем только этот token,
+     * а при следующем subscribe браузер автоматически активирует его снова.
+     */
+    private void disableExpiredSubscription(DeviceToken token, int statusCode) {
+        if (statusCode != 404 && statusCode != 410) {
+            return;
+        }
+        token.disable();
+        log.info("webpush subscription disabled: deviceTokenId={} userId={} reason=http_{}",
+                token.getId(), userId(token), statusCode);
     }
 
     /**

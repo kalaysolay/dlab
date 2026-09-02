@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="#{google.register.title}">Завершение регистрации</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/header :: header}"></header>
+    <main class="page auth-grid auth-page">
+        <section class="auth-copy">
+            <h1 class="page-title" th:text="#{google.register.pageTitle}">Остался один шаг</h1>
+            <p class="lede" th:text="#{google.register.lede}">Google подтвердил ваш email. Выберите тип кабинета.</p>
+            <div class="warm-card">
+                <strong th:text="#{register.roleCard.title}">Роль задает стартовый кабинет</strong>
+                <p th:text="#{register.roleCard.body}">Ученик получает задания и тесты, родитель видит семейную аналитику.</p>
+            </div>
+        </section>
+        <section class="panel auth-panel">
+            <h2 class="section-title" th:text="#{google.register.sectionTitle}">Настройка профиля</h2>
+            <p class="muted-line google-account-email">
+                <span th:text="#{google.register.account}">Аккаунт Google:</span>
+                <strong th:text="${googleEmail}">user@example.com</strong>
+            </p>
+            <form class="form wide-form" th:action="@{/register/google}"
+                  th:object="${googleRegistrationForm}" method="post">
+                <div class="alert error" th:if="${#fields.hasGlobalErrors()}"
+                     th:each="error : ${#fields.globalErrors()}" th:text="${error.defaultMessage}"></div>
+                <div class="field">
+                    <label for="fullName" th:text="#{register.label.fullName}">Имя</label>
+                    <input id="fullName" th:field="*{fullName}" type="text" autocomplete="name" required>
+                    <span class="alert error" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></span>
+                </div>
+                <div class="form-grid two-col">
+                    <div class="field">
+                        <label for="role" th:text="#{register.label.role}">Роль</label>
+                        <select id="role" th:field="*{role}">
+                            <option value="STUDENT" th:text="#{register.role.student}">Ученик</option>
+                            <option value="PARENT" th:text="#{register.role.parent}">Родитель</option>
+                        </select>
+                        <span class="alert error" th:if="${#fields.hasErrors('role')}" th:errors="*{role}"></span>
+                    </div>
+                    <div class="field">
+                        <label for="gradeNo" th:text="#{register.label.gradeNo}">Класс ученика</label>
+                        <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="5">
+                        <span class="alert error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></span>
+                    </div>
+                </div>
+                <input th:field="*{preferredLanguage}" type="hidden">
+                <button class="button primary" type="submit" th:text="#{google.register.submit}">Открыть кабинет</button>
+            </form>
+        </section>
+    </main>
+</div>
+</body>
+</html>
