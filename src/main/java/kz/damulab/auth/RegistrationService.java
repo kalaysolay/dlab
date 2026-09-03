@@ -9,8 +9,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import kz.damulab.users.AppUser;
 import kz.damulab.users.AppUserRepository;
+import kz.damulab.users.DuplicatePhoneException;
 import kz.damulab.users.ParentProfile;
 import kz.damulab.users.ParentProfileRepository;
+import kz.damulab.users.PhoneNormalizer;
 import kz.damulab.users.Role;
 import kz.damulab.users.RoleCode;
 import kz.damulab.users.RoleRepository;
@@ -25,6 +27,7 @@ public class RegistrationService {
     private final StudentProfileRepository studentProfiles;
     private final ParentProfileRepository parentProfiles;
     private final PasswordEncoder passwordEncoder;
+    private final PhoneNormalizer phoneNormalizer;
     private final EmailVerificationService emailVerificationService;
     private final TransactionTemplate transactions;
 
@@ -34,6 +37,7 @@ public class RegistrationService {
             StudentProfileRepository studentProfiles,
             ParentProfileRepository parentProfiles,
             PasswordEncoder passwordEncoder,
+            PhoneNormalizer phoneNormalizer,
             EmailVerificationService emailVerificationService,
             PlatformTransactionManager transactionManager
     ) {
@@ -42,6 +46,7 @@ public class RegistrationService {
         this.studentProfiles = studentProfiles;
         this.parentProfiles = parentProfiles;
         this.passwordEncoder = passwordEncoder;
+        this.phoneNormalizer = phoneNormalizer;
         this.emailVerificationService = emailVerificationService;
         this.transactions = new TransactionTemplate(transactionManager);
     }
@@ -74,11 +79,15 @@ public class RegistrationService {
 
         Role role = roles.findByCode(roleCode)
                 .orElseThrow(() -> new IllegalStateException("Missing role: " + roleCode));
+        String phone = phoneNormalizer.normalize(form.getPhone());
+        if (phone != null && users.existsByPhone(phone)) {
+            throw new DuplicatePhoneException();
+        }
         AppUser user = new AppUser(
                 email,
                 passwordEncoder.encode(form.getPassword()),
                 form.getFullName().trim(),
-                blankToNull(form.getPhone())
+                phone
         );
         // При включённом damulab.email-verification.enabled Spring Security не даст войти,
         // пока одноразовая ссылка из письма не активирует пользователя.
@@ -91,7 +100,7 @@ public class RegistrationService {
         if (roleCode == RoleCode.STUDENT) {
             studentProfiles.save(new StudentProfile(saved, form.getGradeNo(), form.getPreferredLanguage()));
         } else if (roleCode == RoleCode.PARENT) {
-            parentProfiles.save(new ParentProfile(saved, blankToNull(form.getPhone())));
+            parentProfiles.save(new ParentProfile(saved));
         }
         return saved;
     }
@@ -100,7 +109,4 @@ public class RegistrationService {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }

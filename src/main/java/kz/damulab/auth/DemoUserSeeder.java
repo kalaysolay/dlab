@@ -62,7 +62,7 @@ public class DemoUserSeeder implements ApplicationRunner {
             studentProfiles.save(new StudentProfile(saved, 4, "ru"));
         }
         if (roleCode == RoleCode.PARENT) {
-            parentProfiles.save(new ParentProfile(saved, null));
+            parentProfiles.save(new ParentProfile(saved));
         }
     }
 }

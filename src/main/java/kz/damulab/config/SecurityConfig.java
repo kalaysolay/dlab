@@ -2,6 +2,7 @@ package kz.damulab.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import kz.damulab.parentlink.ParentLinkInvitationPageController;
 
 @Configuration
 public class SecurityConfig {
@@ -22,6 +24,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/parent-link-invitations/confirm").permitAll()
                         .requestMatchers(
                                 "/",
                                 "/login",
@@ -59,7 +62,13 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler((request, response, authentication) ->
-                                redirectStrategy.sendRedirect(request, response, successUrl(authentication)))
+                                redirectStrategy.sendRedirect(
+                                        request,
+                                        response,
+                                        hasPendingParentLinkInvitation(request)
+                                                ? "/parent-link-invitations/confirm"
+                                                : successUrl(authentication)
+                                ))
                         .permitAll()
                 )
                 .logout(logout -> logout
@@ -96,6 +105,14 @@ public class SecurityConfig {
     private boolean hasRole(Authentication authentication, String role) {
         return authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals(role));
+    }
+
+    /** После входа возвращает пользователя к ссылке, чей секрет уже убран в серверную сессию. */
+    private boolean hasPendingParentLinkInvitation(jakarta.servlet.http.HttpServletRequest request) {
+        return request.getSession(false) != null
+                && request.getSession(false).getAttribute(
+                        ParentLinkInvitationPageController.SESSION_TOKEN_ATTRIBUTE
+                ) != null;
     }
 
     /**

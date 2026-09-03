@@ -8,10 +8,15 @@ public class ProfileService {
 
     private final StudentProfileRepository studentProfiles;
     private final ParentProfileRepository parentProfiles;
+    private final AppUserRepository users;
+    private final PhoneNormalizer phoneNormalizer;
 
-    public ProfileService(StudentProfileRepository studentProfiles, ParentProfileRepository parentProfiles) {
+    public ProfileService(StudentProfileRepository studentProfiles, ParentProfileRepository parentProfiles,
+                          AppUserRepository users, PhoneNormalizer phoneNormalizer) {
         this.studentProfiles = studentProfiles;
         this.parentProfiles = parentProfiles;
+        this.users = users;
+        this.phoneNormalizer = phoneNormalizer;
     }
 
     @Transactional(readOnly = true)
@@ -22,7 +27,7 @@ public class ProfileService {
     @Transactional
     public StudentProfileResponse updateStudentProfile(String email, StudentProfileForm form) {
         StudentProfile profile = findStudent(email);
-        profile.getUser().updateProfile(form.getFullName(), form.getPhone());
+        updateUser(profile.getUser(), form.getFullName(), form.getPhone());
         profile.update(form.getGradeNo(), form.getPreferredLanguage());
         profile.updateNotificationSettings(
                 valueOrExisting(form.getLessonRemindersEnabled(), profile.isLessonRemindersEnabled()),
@@ -47,9 +52,18 @@ public class ProfileService {
     @Transactional
     public ParentProfileResponse updateParentProfile(String email, ParentProfileForm form) {
         ParentProfile profile = findParent(email);
-        profile.getUser().updateProfile(form.getFullName(), form.getPhone());
-        profile.updatePhone(form.getPhone());
+        updateUser(profile.getUser(), form.getFullName(), form.getPhone());
         return toParentResponse(profile);
+    }
+
+    /** Нормализует номер и заранее сообщает понятный конфликт; flush оставляет БД защитой от гонок. */
+    private void updateUser(AppUser user, String fullName, String rawPhone) {
+        String phone = phoneNormalizer.normalize(rawPhone);
+        if (phone != null && users.existsByPhoneAndIdNot(phone, user.getId())) {
+            throw new DuplicatePhoneException();
+        }
+        user.updateProfile(fullName, phone);
+        users.saveAndFlush(user);
     }
 
     private StudentProfile findStudent(String email) {

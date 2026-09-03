@@ -11,4 +11,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findByWebAuthnUserHandle(byte[] webAuthnUserHandle);
 
     boolean existsByEmailIgnoreCase(String email);
+
+    boolean existsByPhone(String phone);
+
+    boolean existsByPhoneAndIdNot(String phone, Long id);
 }

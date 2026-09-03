@@ -17,9 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ParentLinkApiController {
 
     private final ParentLinkService parentLinkService;
+    private final ParentLinkInvitationService invitationService;
 
-    public ParentLinkApiController(ParentLinkService parentLinkService) {
+    public ParentLinkApiController(
+            ParentLinkService parentLinkService,
+            ParentLinkInvitationService invitationService
+    ) {
         this.parentLinkService = parentLinkService;
+        this.invitationService = invitationService;
     }
 
     @GetMapping("/api/parent/children")
@@ -31,6 +36,26 @@ public class ParentLinkApiController {
     @ResponseStatus(HttpStatus.CREATED)
     ChildResponse createChild(Principal principal, @Valid @RequestBody CreateChildForm form) {
         return parentLinkService.createChild(principal.getName(), form);
+    }
+
+    /** Всегда возвращает одинаковый ответ и не выдаёт данные найденного ученика. */
+    @PostMapping("/api/parent/child-invitations")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    ParentLinkInvitationResponse inviteByEmail(
+            Principal principal,
+            @Valid @RequestBody InviteChildByEmailForm form
+    ) {
+        invitationService.request(principal.getName(), form.getEmail());
+        return ParentLinkInvitationResponse.accepted();
+    }
+
+    @PostMapping("/api/student/parent-link-invitations/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void confirmInvitation(
+            Principal principal,
+            @Valid @RequestBody ConfirmParentLinkInvitationRequest request
+    ) {
+        invitationService.confirm(principal.getName(), request.token());
     }
 
     @GetMapping("/api/parent/children/{studentId}")

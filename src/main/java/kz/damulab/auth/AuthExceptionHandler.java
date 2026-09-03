@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import kz.damulab.users.DuplicatePhoneException;
+import kz.damulab.users.InvalidPhoneException;
+
 @RestControllerAdvice
 public class AuthExceptionHandler {
 
@@ -16,6 +19,18 @@ public class AuthExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     Map<String, String> duplicateEmail(DuplicateEmailException exception) {
         return Map.of("error", "duplicate_email", "message", exception.getMessage());
+    }
+
+    @ExceptionHandler(DuplicatePhoneException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    Map<String, String> duplicatePhone() {
+        return Map.of("error", "duplicate_phone", "message", "Phone is already registered");
+    }
+
+    @ExceptionHandler(InvalidPhoneException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    Map<String, String> invalidPhone() {
+        return Map.of("error", "invalid_phone", "message", "Phone must use a valid international format");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
