@@ -33,7 +33,10 @@
                 <a class="lecture-subject-card"
                    th:each="subject : ${lectureSubjects}"
                    th:href="@{/student/lectures/subjects/{id}(id=${subject.id})}">
-                    <span class="lecture-subject-placeholder" aria-hidden="true">
+                    <!-- Настроенная в админке иконка заменяет стандартную заглушку. -->
+                    <img class="lecture-subject-placeholder lecture-subject-icon"
+                         th:if="${subject.iconUrl() != null}" th:src="${subject.iconUrl()}" alt="">
+                    <span class="lecture-subject-placeholder" th:if="${subject.iconUrl() == null}" aria-hidden="true">
                         <svg class="lucide-icon"><use th:href="@{/icons/lucide-sprite.svg#book-open-check}"></use></svg>
                     </span>
                     <span class="lecture-subject-copy">

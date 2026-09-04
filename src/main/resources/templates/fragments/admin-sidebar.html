@@ -13,6 +13,7 @@
     </div>
     <nav class="admin-nav" th:aria-label="#{admin.sidebar.sections.aria}" aria-label="Разделы админ-панели">
         <a th:classappend="${activeAdminNav == 'dashboard'} ? 'active'" th:href="@{/admin}" th:text="#{admin.nav.dashboard}">Обзор</a>
+        <a th:classappend="${activeAdminNav == 'subjects'} ? 'active'" th:href="@{/admin/subjects}" th:text="#{admin.nav.subjects}">Предметы</a>
         <a th:classappend="${activeAdminNav == 'topics'} ? 'active'" th:href="@{/admin/topics}" th:text="#{admin.nav.topics}">Темы</a>
         <a th:classappend="${activeAdminNav == 'questions'} ? 'active'" th:href="@{/admin/questions}" th:text="#{admin.nav.questions}">Вопросы</a>
         <a th:classappend="${activeAdminNav == 'question-ai'} ? 'active'" th:href="@{/admin/questions/ai-generate}" th:text="#{admin.nav.questionAi}">AI генерация</a>

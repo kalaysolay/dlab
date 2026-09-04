@@ -6,6 +6,14 @@ public record LectureSubjectView(
         String code,
         String titleRu,
         String titleKk,
+        String iconStorageKey,
         long lectureCount
 ) {
+    /** Возвращает публичный путь к иконке или {@code null}, если она не задана. */
+    public String iconUrl() {
+        if (iconStorageKey == null || iconStorageKey.isBlank()) {
+            return null;
+        }
+        return "/files/subject-icons/" + iconStorageKey;
+    }
 }

@@ -8161,6 +8161,75 @@ h2 {
     height: 26px;
 }
 
+/* Иконка предмета сохраняет одинаковый размер с заглушкой в ученическом каталоге. */
+.lecture-subject-icon {
+    object-fit: contain;
+    padding: 7px;
+}
+
+/* Административная форма предмета разделяет две локализации без лишней вложенности. */
+.subject-language-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.subject-language-grid .subpanel {
+    display: grid;
+    gap: 16px;
+}
+
+.subject-admin-icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    object-fit: contain;
+    padding: 5px;
+}
+
+.subject-admin-icon-placeholder {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.subject-admin-icon-large {
+    width: 88px;
+    height: 88px;
+}
+
+.subject-icon-editor {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) auto minmax(240px, 1fr);
+    gap: 16px;
+    align-items: center;
+}
+
+.subject-remove-icon {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    grid-column: 3;
+}
+
+.subject-row-actions {
+    min-width: 190px;
+}
+
+@media (max-width: 800px) {
+    .subject-language-grid,
+    .subject-icon-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .subject-remove-icon {
+        grid-column: auto;
+    }
+}
+
 .student-lessons-link-copy,
 .lecture-subject-copy {
     display: grid;

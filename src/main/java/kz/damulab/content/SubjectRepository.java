@@ -23,14 +23,15 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
      */
     @Query("""
             select new kz.damulab.lectures.LectureSubjectView(
-                subject.id, subject.code, subject.titleRu, subject.titleKk, count(lecture.id)
+                subject.id, subject.code, subject.titleRu, subject.titleKk,
+                subject.iconStorageKey, count(lecture.id)
             )
             from Lecture lecture
             join lecture.currentVersion version
             join version.topic topic
             join topic.subject subject
             where lecture.status = kz.damulab.lectures.LectureStatus.PUBLISHED
-            group by subject.id, subject.code, subject.titleRu, subject.titleKk
+            group by subject.id, subject.code, subject.titleRu, subject.titleKk, subject.iconStorageKey
             order by subject.titleRu asc
             """)
     List<LectureSubjectView> findWithPublishedLectures();

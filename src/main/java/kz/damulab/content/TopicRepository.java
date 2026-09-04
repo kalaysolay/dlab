@@ -13,6 +13,12 @@ import org.springframework.data.repository.query.Param;
  */
 public interface TopicRepository extends JpaRepository<Topic, Long> {
 
+    /** Проверяет наличие любых тем предмета, включая скрытые через soft-delete. */
+    boolean existsBySubject_Id(Long subjectId);
+
+    /** Считает все темы предмета для административного списка. */
+    long countBySubject_Id(Long subjectId);
+
     List<Topic> findBySubject_IdAndDeletedAtIsNullOrderByTitleRuAsc(Long subjectId);
 
     List<Topic> findBySubjectIdAndGradeIdAndDeletedAtIsNullOrderByTitleRuAsc(Long subjectId, Long gradeId);

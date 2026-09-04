@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${editing ? 'Редактирование предмета' : 'Новый предмет'}">Предмет</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+        <section class="panel subject-form-page">
+            <div class="page-head">
+                <div>
+                    <h1 class="page-title" th:text="${editing ? 'Редактирование предмета' : 'Новый предмет'}">Предмет</h1>
+                    <p class="lede">Заполните данные на русском и казахском языках.</p>
+                </div>
+                <a class="button" th:href="@{/admin/subjects}">К списку</a>
+            </div>
+
+            <!-- Форма принимает файл, поэтому multipart обязателен и для создания, и для изменения. -->
+            <form class="form wide-form subject-form" method="post" enctype="multipart/form-data"
+                  th:object="${subjectForm}"
+                  th:action="${editing} ? @{/admin/subjects/{id}(id=${subjectId})} : @{/admin/subjects}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <div class="alert danger" th:if="${#fields.hasGlobalErrors()}"
+                     th:each="error : ${#fields.globalErrors()}" th:text="${error}">Ошибка</div>
+
+                <div class="subject-language-grid">
+                    <section class="subpanel">
+                        <h2>Русский</h2>
+                        <label class="field">
+                            <span>Название</span>
+                            <input type="text" maxlength="255" th:field="*{titleRu}" required>
+                            <small class="field-error" th:if="${#fields.hasErrors('titleRu')}"
+                                   th:errors="*{titleRu}">Укажите название</small>
+                        </label>
+                        <label class="field">
+                            <span>Описание</span>
+                            <textarea maxlength="2000" rows="6" th:field="*{descriptionRu}" required></textarea>
+                            <small class="field-error" th:if="${#fields.hasErrors('descriptionRu')}"
+                                   th:errors="*{descriptionRu}">Укажите описание</small>
+                        </label>
+                    </section>
+
+                    <section class="subpanel">
+                        <h2>Қазақша</h2>
+                        <label class="field">
+                            <span>Атауы</span>
+                            <input type="text" maxlength="255" th:field="*{titleKk}" required>
+                            <small class="field-error" th:if="${#fields.hasErrors('titleKk')}"
+                                   th:errors="*{titleKk}">Атауын енгізіңіз</small>
+                        </label>
+                        <label class="field">
+                            <span>Сипаттамасы</span>
+                            <textarea maxlength="2000" rows="6" th:field="*{descriptionKk}" required></textarea>
+                            <small class="field-error" th:if="${#fields.hasErrors('descriptionKk')}"
+                                   th:errors="*{descriptionKk}">Сипаттамасын енгізіңіз</small>
+                        </label>
+                    </section>
+                </div>
+
+                <section class="subpanel subject-icon-editor">
+                    <div>
+                        <h2>Иконка</h2>
+                        <p class="muted-line">Только PNG, размер до 2 МБ.</p>
+                    </div>
+                    <img class="subject-admin-icon subject-admin-icon-large"
+                         th:if="${currentIconUrl != null}" th:src="${currentIconUrl}" alt="Текущая иконка">
+                    <label class="field">
+                        <span th:text="${currentIconUrl != null ? 'Заменить иконку' : 'Добавить иконку'}">Добавить иконку</span>
+                        <input type="file" name="icon" accept="image/png,.png">
+                    </label>
+                    <label class="subject-remove-icon" th:if="${currentIconUrl != null}">
+                        <input type="checkbox" th:field="*{removeIcon}">
+                        <span>Удалить текущую иконку</span>
+                    </label>
+                </section>
+
+                <div class="actions">
+                    <button class="button primary" type="submit"
+                            th:text="${editing ? 'Сохранить изменения' : 'Создать предмет'}">Сохранить</button>
+                    <a class="button" th:href="@{/admin/subjects}">Отмена</a>
+                </div>
+            </form>
+        </section>
+    </main>
+</div>
+</body>
+</html>

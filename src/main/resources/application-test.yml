@@ -19,3 +19,7 @@ damulab:
     min-published-per-subject-grade: 1
   quiz:
     timeout-worker-enabled: false
+  subjects:
+    icons:
+      # Тестовые загрузки не смешиваются с локальными файлами разработчика.
+      storage-dir: build/test-subject-icons
