@@ -44,7 +44,17 @@ public class ProfilePageController {
             model.addAttribute("profile", profileService.getStudentProfile(principal.getName()));
             return "student/profile";
         }
-        profileService.updateStudentProfile(principal.getName(), form);
+        try {
+            profileService.updateStudentProfile(principal.getName(), form);
+        } catch (DuplicatePhoneException ex) {
+            bindingResult.rejectValue("phone", "duplicate", "Телефон уже используется");
+            model.addAttribute("profile", profileService.getStudentProfile(principal.getName()));
+            return "student/profile";
+        } catch (InvalidPhoneException ex) {
+            bindingResult.rejectValue("phone", "invalid", "Введите корректный номер телефона");
+            model.addAttribute("profile", profileService.getStudentProfile(principal.getName()));
+            return "student/profile";
+        }
         redirectAttributes.addAttribute("saved", "true");
         return "redirect:/student/profile";
     }
@@ -81,7 +91,17 @@ public class ProfilePageController {
             model.addAttribute("profile", profileService.getParentProfile(principal.getName()));
             return "parent/profile";
         }
-        profileService.updateParentProfile(principal.getName(), form);
+        try {
+            profileService.updateParentProfile(principal.getName(), form);
+        } catch (DuplicatePhoneException ex) {
+            bindingResult.rejectValue("phone", "duplicate", "Телефон уже используется");
+            model.addAttribute("profile", profileService.getParentProfile(principal.getName()));
+            return "parent/profile";
+        } catch (InvalidPhoneException ex) {
+            bindingResult.rejectValue("phone", "invalid", "Введите корректный номер телефона");
+            model.addAttribute("profile", profileService.getParentProfile(principal.getName()));
+            return "parent/profile";
+        }
         redirectAttributes.addAttribute("saved", "true");
         return "redirect:/parent/profile";
     }

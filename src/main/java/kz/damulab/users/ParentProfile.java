@@ -24,18 +24,14 @@ public class ParentProfile {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private AppUser user;
 
-    @Column(length = 64)
-    private String phone;
-
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
     protected ParentProfile() {
     }
 
-    public ParentProfile(AppUser user, String phone) {
+    public ParentProfile(AppUser user) {
         this.user = user;
-        this.phone = phone;
     }
 
     public Long getId() {
@@ -46,11 +42,4 @@ public class ParentProfile {
         return user;
     }
 
-    public String getPhone() {
-        return phone;
-    }
-
-    public void updatePhone(String phone) {
-        this.phone = phone == null || phone.isBlank() ? null : phone.trim();
-    }
 }

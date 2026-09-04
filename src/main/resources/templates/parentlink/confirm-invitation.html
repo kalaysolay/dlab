@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Подтверждение связи с родителем</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/header :: header}"></header>
+    <main class="page auth-grid auth-page">
+        <section class="panel auth-panel">
+            <h1 class="page-title">Связь с родителем</h1>
+
+            <div class="notice success" th:if="${param.confirmed}">
+                Связь подтверждена. Родитель теперь может видеть ваш учебный прогресс.
+            </div>
+            <div class="notice error" th:if="${param.invalid}">
+                Приглашение недействительно, уже использовано или истекло.
+            </div>
+            <div class="notice error" th:if="${param.wrongAccount}">
+                Это приглашение предназначено другому ученическому аккаунту.
+            </div>
+
+            <div th:if="${state.name() == 'LOGIN_REQUIRED'}">
+                <p>Чтобы проверить приглашение, войдите в ученический аккаунт, на email которого пришло письмо.</p>
+                <a class="button primary" th:href="@{/login}">Войти</a>
+            </div>
+
+            <div th:if="${state.name() == 'READY'}">
+                <p>Подтвердите, что разрешаете связать ваш ученический профиль с запросившим родителем.</p>
+                <p class="muted-line">На этой странице намеренно не отображаются персональные данные.</p>
+                <form th:action="@{/student/parent-link-invitations/confirm}" method="post">
+                    <button class="button primary" type="submit">Подтвердить связь</button>
+                </form>
+            </div>
+
+            <div th:if="${state.name() == 'WRONG_ACCOUNT'}">
+                <p>Вы вошли не в тот ученический аккаунт. Выйдите и войдите под адресом, на который пришло письмо.</p>
+            </div>
+
+            <div th:if="${state.name() == 'INVALID' and param.confirmed == null}">
+                <p>Приглашение недействительно, уже использовано или истекло.</p>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import kz.damulab.users.AppUser;
+import kz.damulab.users.DuplicatePhoneException;
+import kz.damulab.users.InvalidPhoneException;
 import kz.damulab.users.RoleCode;
 
 @Controller
@@ -58,6 +60,12 @@ public class AuthPageController {
             registration = registrationService.registerWithResult(form);
         } catch (DuplicateEmailException ex) {
             bindingResult.rejectValue("email", "duplicate", "Email уже зарегистрирован");
+            return "auth/register";
+        } catch (DuplicatePhoneException ex) {
+            bindingResult.rejectValue("phone", "duplicate", "Телефон уже зарегистрирован");
+            return "auth/register";
+        } catch (InvalidPhoneException ex) {
+            bindingResult.rejectValue("phone", "invalid", "Введите корректный номер телефона");
             return "auth/register";
         } catch (IllegalArgumentException ex) {
             bindingResult.rejectValue("role", "invalid", ex.getMessage());

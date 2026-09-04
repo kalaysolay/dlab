@@ -106,6 +106,41 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
+    void apiCanonicalizesPhoneAndRejectsSameNumberInAnotherFormat() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "phone-first-%s@example.com",
+                                  "password": "password123",
+                                  "fullName": "First Phone",
+                                  "phone": "8 (702) 123-45-67",
+                                  "role": "PARENT"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated());
+
+        org.assertj.core.api.Assertions.assertThat(
+                users.findByEmailIgnoreCase("phone-first-" + suffix + "@example.com").orElseThrow().getPhone()
+        ).isEqualTo("+77021234567");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "phone-second-%s@example.com",
+                                  "password": "password123",
+                                  "fullName": "Second Phone",
+                                  "phone": "+77021234567",
+                                  "role": "STUDENT"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("duplicate_phone"));
+    }
+
+    @Test
     void apiLoginCreatesSessionForMeEndpoint() throws Exception {
         MvcResult login = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

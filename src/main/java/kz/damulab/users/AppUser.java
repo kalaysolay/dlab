@@ -33,7 +33,7 @@ public class AppUser {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(length = 64)
+    @Column(unique = true, length = 16)
     private String phone;
 
     @Column(nullable = false)
@@ -84,7 +84,7 @@ public class AppUser {
 
     public void updateProfile(String fullName, String phone) {
         this.fullName = fullName.trim();
-        this.phone = phone == null || phone.isBlank() ? null : phone.trim();
+        this.phone = phone;
     }
 
     public String getPhone() {

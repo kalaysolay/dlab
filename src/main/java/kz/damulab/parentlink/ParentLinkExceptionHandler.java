@@ -15,7 +15,8 @@ public class ParentLinkExceptionHandler {
     ResponseEntity<Map<String, String>> parentLinkError(ParentLinkException exception) {
         HttpStatus status = switch (exception.getMessage()) {
             case "student_not_found", "child_not_linked_to_parent", "link_code_not_found" -> HttpStatus.NOT_FOUND;
-            case "link_code_not_available", "child_email_exists" -> HttpStatus.CONFLICT;
+            case "link_code_not_available", "child_email_exists", "invitation_not_available" -> HttpStatus.CONFLICT;
+            case "invitation_student_mismatch" -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status).body(Map.of("error", exception.getMessage()));

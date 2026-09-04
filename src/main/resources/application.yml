@@ -51,6 +51,11 @@ damulab:
     api-key: ${EMAIL_API_KEY:}
     from: ${EMAIL_FROM:}
     sender-name: ${EMAIL_SENDER_NAME:Damulab}
+  # Email-приглашение не раскрывает родителю наличие аккаунта ребёнка. Токен одноразовый,
+  # хранится в БД только как SHA-256 и после открытия переносится из URL в серверную сессию.
+  parent-link-invitations:
+    token-ttl: ${PARENT_LINK_INVITATION_TOKEN_TTL:24h}
+    resend-cooldown: ${PARENT_LINK_INVITATION_RESEND_COOLDOWN:1m}
   testing:
     default-question-count: 12
     max-question-count: 20

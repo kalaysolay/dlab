@@ -30,10 +30,13 @@
             <div class="notice success" th:if="${param.childAttached}">
                 Ребенок привязан по коду.
             </div>
+            <div class="notice success" th:if="${param.invitationAccepted}">
+                Если ученический аккаунт с таким email существует, приглашение отправлено.
+            </div>
 
             <div class="empty-state" th:if="${#lists.isEmpty(children)}">
                 <strong>Детей пока нет</strong>
-                <span>Добавьте demo-ребенка через форму или используйте одноразовый код ученика.</span>
+                <span>Добавьте ребёнка, отправьте приглашение по email или используйте одноразовый код ученика.</span>
             </div>
 
             <div class="section-head" th:if="${!#lists.isEmpty(children)}">
@@ -134,6 +137,20 @@
                     <small class="field-error" th:if="${#fields.hasErrors('preferredLanguage')}" th:errors="*{preferredLanguage}"></small>
                 </div>
                 <button class="button primary" type="submit">Добавить</button>
+            </form>
+
+            <hr class="divider">
+
+            <h2 class="section-title">Пригласить по email</h2>
+            <form class="form" th:action="@{/parent/child-invitations}" th:object="${inviteChildByEmailForm}" method="post">
+                <div class="field">
+                    <label for="childEmail">Email ребёнка</label>
+                    <input id="childEmail" type="email" th:field="*{email}" autocomplete="off" maxlength="320"
+                           placeholder="student@example.com" required>
+                    <small class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></small>
+                </div>
+                <p class="muted-line">Мы не показываем данные аккаунта. Ребёнок сам подтвердит связь из письма.</p>
+                <button class="button" type="submit">Отправить приглашение</button>
             </form>
 
             <hr class="divider">

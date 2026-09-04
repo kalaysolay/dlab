@@ -18,10 +18,14 @@ import kz.damulab.analytics.AnalyticsService;
 public class ParentLinkPageController {
 
     private final ParentLinkService parentLinkService;
+    private final ParentLinkInvitationService invitationService;
     private final AnalyticsService analyticsService;
 
-    public ParentLinkPageController(ParentLinkService parentLinkService, AnalyticsService analyticsService) {
+    public ParentLinkPageController(ParentLinkService parentLinkService,
+                                    ParentLinkInvitationService invitationService,
+                                    AnalyticsService analyticsService) {
         this.parentLinkService = parentLinkService;
+        this.invitationService = invitationService;
         this.analyticsService = analyticsService;
     }
 
@@ -77,6 +81,24 @@ public class ParentLinkPageController {
         }
     }
 
+    /** При любом результате поиска адреса показывает одну и ту же нейтральную квитанцию. */
+    @PostMapping("/parent/child-invitations")
+    String inviteChildByEmail(
+            Principal principal,
+            @Valid @ModelAttribute("inviteChildByEmailForm") InviteChildByEmailForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes
+    ) {
+        if (bindingResult.hasErrors()) {
+            populateDashboard(principal, model);
+            return "parent/dashboard";
+        }
+        invitationService.request(principal.getName(), form.getEmail());
+        redirectAttributes.addAttribute("invitationAccepted", "true");
+        return "redirect:/parent";
+    }
+
     @GetMapping("/parent/children/{studentId}")
     String childDetails(Principal principal, @PathVariable Long studentId, Model model) {
         model.addAttribute("child", parentLinkService.getChild(principal.getName(), studentId));
@@ -102,6 +124,9 @@ public class ParentLinkPageController {
         }
         if (!model.containsAttribute("attachChildForm")) {
             model.addAttribute("attachChildForm", new AttachChildForm());
+        }
+        if (!model.containsAttribute("inviteChildByEmailForm")) {
+            model.addAttribute("inviteChildByEmailForm", new InviteChildByEmailForm());
         }
     }
 }

@@ -46,6 +46,7 @@
                     <div class="field">
                         <label for="phone" th:text="#{register.label.phone}">Телефон</label>
                         <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel">
+                        <span class="alert error" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></span>
                     </div>
                     <div class="field">
                         <label for="role" th:text="#{register.label.role}">Роль</label>
