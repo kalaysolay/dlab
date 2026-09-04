@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,12 +9,22 @@
 </head>
 <body>
 <div class="app-shell">
+    <!-- Лекция использует тот же хедер, что и остальные страницы ученика. -->
     <header th:replace="~{fragments/student-header :: studentHeader}"></header>
     <main class="page lecture-reader-page">
         <section class="panel lecture-reader">
             <div class="lecture-reader-top">
-                <a class="button" th:href="${adminPreview} ? @{/admin/lectures} : @{/student/lectures}">Назад</a>
+                <a class="button"
+                   th:href="${adminPreview} ? @{/admin/lectures} : @{/student/lectures/subjects/{id}(id=${reader.subjectId})}"
+                   th:text="#{student.lecture.back}">Назад</a>
                 <span class="badge" th:if="${adminPreview}">admin preview</span>
+                <!-- Статус показывается только ученику; в admin preview личного прогресса нет. -->
+                <span class="badge"
+                      th:if="${!adminPreview}"
+                      th:classappend="${reader.progressStatus == 'done'} ? 'success' : 'warning'"
+                      th:text="${reader.progressStatus == 'done'} ? #{student.lecture.status.done} : #{student.lecture.status.in_progress}">
+                    В процессе
+                </span>
             </div>
 
             <div class="lecture-hero">
@@ -58,7 +68,8 @@
                 </div>
             </section>
 
-            <section class="lecture-checkpoints" th:if="${!lecture.checkpoints.isEmpty()}">
+            <!-- В режиме предпросмотра администратор видит только состав контрольного блока. -->
+            <section class="lecture-checkpoints" th:if="${adminPreview && !lecture.checkpoints.isEmpty()}">
                 <h2 class="section-title">Проверь себя</h2>
                 <div class="checkpoint-list">
                     <article class="checkpoint-card" th:each="checkpoint, stat : ${lecture.checkpoints}">
@@ -72,10 +83,113 @@
                     </article>
                 </div>
             </section>
+
+            <!-- Ученик получает интерактивную форму, а правильные ответы остаются на сервере. -->
+            <section class="lecture-checkpoints" th:if="${!adminPreview && !reader.questions.isEmpty()}">
+                <h2 class="section-title" th:text="#{student.lecture.checkpoints.title}">Проверь себя</h2>
+                <p class="lede" th:text="#{student.lecture.checkpoints.lede}">Ответьте правильно на все вопросы.</p>
+
+                <div class="notice success" th:if="${reader.checkpointPassed && checkpointResult == null}">
+                    <strong th:text="#{student.lecture.checkpoints.passed.title}">Тест сдан</strong>
+                    <span th:text="#{student.lecture.checkpoints.passed.body}">Теперь можно завершить изучение.</span>
+                </div>
+                <div class="notice success" th:if="${checkpointResult != null && checkpointResult.passed}">
+                    <strong th:text="#{student.lecture.checkpoints.passed.title}">Тест сдан</strong>
+                    <span th:text="#{student.lecture.checkpoints.result(${checkpointResult.correctCount}, ${checkpointResult.totalCount})}">Верно 2 из 2</span>
+                </div>
+                <div class="notice danger" th:if="${checkpointResult != null && !checkpointResult.passed}">
+                    <strong th:text="#{student.lecture.checkpoints.retry.title}">Попробуйте ещё раз</strong>
+                    <span th:text="#{student.lecture.checkpoints.result(${checkpointResult.correctCount}, ${checkpointResult.totalCount})}">Верно 1 из 2</span>
+                </div>
+
+                <!-- После успешной попытки повторная отправка не нужна; число попыток до успеха не ограничено. -->
+                <form class="lecture-checkpoint-form"
+                      th:if="${!reader.checkpointPassed}"
+                      th:action="@{/student/lectures/{id}/checkpoints(id=${lecture.id})}"
+                      method="post"
+                      data-checkpoint-form>
+                    <div class="checkpoint-list">
+                        <article class="checkpoint-card"
+                                 th:each="question : ${reader.questions}"
+                                 th:attr="data-checkpoint-question=${question.type}">
+                            <span class="badge" th:text="#{student.lecture.question(${question.orderNo}, ${reader.questions.size()})}">Вопрос 1 из 2</span>
+                            <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(question.body)}">Вопрос</div>
+
+                            <!-- Один вариант ответа. -->
+                            <div class="answer-block" th:if="${question.type == 'SCQ'}">
+                                <label class="answer-option" th:each="option : ${question.options}">
+                                    <input type="radio" th:name="${'answer_' + question.id}" th:value="${option.label}">
+                                    <span><strong th:text="${option.label}">A</strong><span th:text="${option.text}">Ответ</span></span>
+                                </label>
+                            </div>
+
+                            <!-- Несколько вариантов ответа; клиент проверяет, что выбран хотя бы один. -->
+                            <div class="answer-block" th:if="${question.type == 'MCQ'}">
+                                <label class="answer-option" th:each="option : ${question.options}">
+                                    <input type="checkbox" th:name="${'answer_' + question.id}" th:value="${option.label}">
+                                    <span><strong th:text="${option.label}">A</strong><span th:text="${option.text}">Ответ</span></span>
+                                </label>
+                            </div>
+
+                            <!-- Простые select-поля устойчивы на мобильных устройствах и не требуют сложного JS. -->
+                            <div class="lecture-matching-list" th:if="${question.type == 'MATCHING'}">
+                                <label class="field" th:each="left, leftStat : ${question.matchingLeft}">
+                                    <span th:text="${left.text}">Условие</span>
+                                    <select th:name="${'match_' + question.id + '_' + leftStat.index}">
+                                        <option value="" th:text="#{student.lecture.matching.placeholder}">Выберите ответ</option>
+                                        <option th:each="right : ${question.matchingRight}"
+                                                th:value="${right.value}"
+                                                th:text="${right.text}">Ответ</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <!-- FILL_IN оставляет обозначения [[N]] в тексте и даёт отдельные подписанные поля. -->
+                            <div class="lecture-fill-list" th:if="${question.type == 'FILL_IN'}">
+                                <label class="field" th:each="placeholder, fillStat : ${question.fillPlaceholders}">
+                                    <span th:text="${placeholder}">[[1]]</span>
+                                    <input type="text"
+                                           th:name="${'fill_' + question.id + '_' + fillStat.index}"
+                                           autocomplete="off">
+                                </label>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="notice danger lecture-checkpoint-client-error" hidden data-checkpoint-error>
+                        <strong th:text="#{student.lecture.checkpoints.incomplete.title}">Ответьте на все вопросы</strong>
+                        <span th:text="#{student.lecture.checkpoints.incomplete.body}">После этого тест можно проверить.</span>
+                    </div>
+                    <button class="button primary" type="submit" th:text="#{student.lecture.checkpoints.submit}">Проверить ответы</button>
+                </form>
+            </section>
+
+            <!-- Завершение всегда находится в конце материала и дополнительно проверяется сервисом. -->
+            <section class="lecture-completion" th:if="${!adminPreview}">
+                <div class="notice success" th:if="${lectureCompleted == true || reader.progressStatus == 'done'}">
+                    <strong th:text="#{student.lecture.completed.title}">Изучение завершено</strong>
+                    <span th:text="#{student.lecture.completed.body}">Урок отмечен как завершённый.</span>
+                </div>
+                <div class="notice danger" th:if="${lectureCompletionBlocked == true}">
+                    <strong th:text="#{student.lecture.complete.blocked.title}">Сначала сдайте тест</strong>
+                    <span th:text="#{student.lecture.complete.blocked.body}">Нужно правильно ответить на все вопросы.</span>
+                </div>
+                <form th:if="${reader.progressStatus != 'done'}"
+                      th:action="@{/student/lectures/{id}/complete(id=${lecture.id})}"
+                      method="post">
+                    <button class="button success"
+                            type="submit"
+                            th:disabled="${!reader.canComplete}"
+                            th:text="#{student.lecture.complete}">Завершить изучение</button>
+                    <p class="muted-line"
+                       th:if="${!reader.canComplete}"
+                       th:text="#{student.lecture.complete.hint}">Кнопка станет доступна после сдачи теста.</p>
+                </form>
+            </section>
         </section>
     </main>
 </div>
 <script>
+    // Переключение языка меняет только видимую версию текста лекции.
     const readerTabs = Array.from(document.querySelectorAll('[data-reader-tab]'));
     const readerPanels = Array.from(document.querySelectorAll('[data-reader-panel]'));
     const lectureHeroTitle = document.querySelector('.lecture-hero h1')?.textContent || '';
@@ -155,6 +269,36 @@
             readerPanels.forEach((panel) => panel.classList.toggle('active', panel.dataset.readerPanel === tab.dataset.readerTab));
         });
     });
+
+    // Перед отправкой проверяем заполненность каждого вопроса. Сервер всё равно
+    // повторно проверяет ответы и не доверяет этому клиентскому ограничению.
+    const checkpointForm = document.querySelector('[data-checkpoint-form]');
+    if (checkpointForm) {
+        checkpointForm.addEventListener('submit', (event) => {
+            const questionCards = Array.from(checkpointForm.querySelectorAll('[data-checkpoint-question]'));
+            let allAnswered = true;
+            questionCards.forEach((card) => {
+                const questionType = card.dataset.checkpointQuestion;
+                if (questionType === 'SCQ' || questionType === 'MCQ') {
+                    allAnswered = allAnswered && card.querySelector('input:checked') !== null;
+                } else if (questionType === 'MATCHING') {
+                    const selects = Array.from(card.querySelectorAll('select'));
+                    allAnswered = allAnswered && selects.length > 0 && selects.every((select) => select.value !== '');
+                } else if (questionType === 'FILL_IN') {
+                    const inputs = Array.from(card.querySelectorAll('input[type="text"]'));
+                    allAnswered = allAnswered && inputs.length > 0 && inputs.every((input) => input.value.trim() !== '');
+                }
+            });
+            if (!allAnswered) {
+                event.preventDefault();
+                const error = checkpointForm.querySelector('[data-checkpoint-error]');
+                if (error) {
+                    error.hidden = false;
+                    error.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>

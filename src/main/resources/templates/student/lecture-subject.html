@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${#locale.language == 'kk' ? subjectPage.subjectTitleKk : subjectPage.subjectTitleRu}">Предмет</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <!-- Единый хедер сохраняет одинаковую навигацию в каталоге и внутри предмета. -->
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page student-lecture-subject-page">
+        <section class="panel">
+            <div class="page-head">
+                <div>
+                    <p class="section-kicker" th:text="#{student.lecture.subject.kicker}">Уроки по предмету</p>
+                    <h1 class="page-title"
+                        th:text="${#locale.language == 'kk' ? subjectPage.subjectTitleKk : subjectPage.subjectTitleRu}">Математика</h1>
+                    <p class="lede" th:text="#{student.lecture.subject.lede}">Новые уроки находятся в начале списка.</p>
+                </div>
+                <a class="button" th:href="@{/student/lectures}" th:text="#{student.lecture.subject.back}">Все предметы</a>
+            </div>
+
+            <!-- Обычно список не пуст, но состояние защищает страницу при изменении публикаций. -->
+            <div class="empty-state" th:if="${#lists.isEmpty(subjectPage.lectures)}">
+                <strong th:text="#{student.lecture.subject.empty.title}">Нет доступных уроков</strong>
+                <span th:text="#{student.lecture.subject.empty.body}">Опубликованные материалы появятся здесь.</span>
+            </div>
+
+            <div class="lecture-list" th:if="${!#lists.isEmpty(subjectPage.lectures)}">
+                <article class="lecture-card student-lecture-row" th:each="lecture : ${subjectPage.lectures}">
+                    <div>
+                        <span class="badge success"
+                              th:text="${#locale.language == 'kk' ? lecture.topicTitleKk : lecture.topicTitleRu}">Тема</span>
+                        <h2 th:text="${#locale.language == 'kk' ? lecture.titleKk : lecture.titleRu}">Название урока</h2>
+                        <p th:text="#{student.lecture.added(${#temporals.format(lecture.createdAt, 'dd.MM.yyyy')})}">Добавлено 01.01.2026</p>
+                    </div>
+                    <div class="lecture-card-meta">
+                        <!-- Цвет и текст статуса вычисляются из стабильного строкового кода. -->
+                        <span class="badge"
+                              th:classappend="${lecture.progressStatus == 'done'} ? 'success' : (${lecture.progressStatus == 'in_progress'} ? 'warning' : '')"
+                              th:text="${lecture.progressStatus == 'done'} ? #{student.lecture.status.done} : (${lecture.progressStatus == 'in_progress'} ? #{student.lecture.status.in_progress} : #{student.lecture.status.not_started})">
+                            Не начата
+                        </span>
+                        <a class="button primary"
+                           th:href="@{/student/lectures/{id}(id=${lecture.id})}"
+                           th:text="#{student.lecture.open}">Открыть</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

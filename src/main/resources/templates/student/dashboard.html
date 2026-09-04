@@ -48,6 +48,18 @@
             </article>
         </section>
 
+        <!-- Отдельная точка входа делает уроки заметными сразу после миссии дня. -->
+        <a class="student-lessons-link" th:href="@{/student/lectures}">
+            <span class="student-lessons-link-icon" aria-hidden="true">
+                <svg class="lucide-icon"><use th:href="@{/icons/lucide-sprite.svg#book-open-check}"></use></svg>
+            </span>
+            <span class="student-lessons-link-copy">
+                <strong th:text="#{student.dashboard.lessons.title}">Уроки</strong>
+                <small th:text="#{student.dashboard.lessons.body}">Читайте материалы и закрепляйте знания.</small>
+            </span>
+            <span class="chev" aria-hidden="true">›</span>
+        </a>
+
         <section class="student-home-grid">
             <article class="panel student-last-card">
                 <div class="card-title-row">
@@ -115,7 +127,7 @@
                 <svg class="card-icon lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#route}"></use></svg>
                 <h2 th:text="#{student.dashboard.route.title}">Траектория развития</h2>
             </div>
-            <div class="student-route-grid">
+            <div class="student-route-grid student-route-grid-two">
                 <a class="student-route-card" th:href="@{/student/tests}">
                     <strong th:text="#{student.dashboard.route.tests.title}">Тесты</strong>
                     <span th:text="#{student.dashboard.route.tests.body}">Закрой слабую тему коротким срезом.</span>
@@ -125,11 +137,6 @@
                     <strong th:text="#{student.dashboard.route.analytics.title}">Аналитика</strong>
                     <span th:text="#{student.dashboard.route.analytics.body}">Посмотри, где знания уже устойчивые.</span>
                     <i class="route-progress primary" aria-hidden="true"><b style="width: 68%"></b></i>
-                </a>
-                <a class="student-route-card" th:href="@{/student/lectures}">
-                    <strong th:text="#{student.dashboard.route.lectures.title}">Лекции</strong>
-                    <span th:text="#{student.dashboard.route.lectures.body}">Повтори материал перед следующим тестом.</span>
-                    <i class="route-progress success" aria-hidden="true"><b style="width: 80%"></b></i>
                 </a>
             </div>
         </section>

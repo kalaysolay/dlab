@@ -43,6 +43,11 @@ class NavigationModelAdvice {
         if (path.startsWith("/student/analytics")) {
             return "analytics";
         }
+        // Уроки открываются из отдельного блока главной страницы, но получают свой
+        // стабильный navigation state для возможного расширения меню.
+        if (path.startsWith("/student/lectures")) {
+            return "lectures";
+        }
         if (path.startsWith("/student/quiz")) {
             return "quiz";
         }

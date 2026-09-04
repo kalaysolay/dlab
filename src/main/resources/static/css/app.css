@@ -8122,3 +8122,144 @@ h2 {
 .home-v2-platform {
     padding-bottom: 76px;
 }
+
+/* Уроки ученика: заметная ссылка на главной и трёхколоночный каталог предметов. */
+.student-lessons-link {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    border: 1px solid #c7d2fe;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #eef2ff 0%, #ecfeff 100%);
+    color: var(--text);
+    text-decoration: none;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.student-lessons-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 36px rgba(79, 70, 229, 0.12);
+}
+
+.student-lessons-link-icon,
+.lecture-subject-placeholder {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: #ffffff;
+    color: var(--primary);
+    box-shadow: 0 8px 22px rgba(79, 70, 229, 0.12);
+}
+
+.student-lessons-link-icon .lucide-icon,
+.lecture-subject-placeholder .lucide-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.student-lessons-link-copy,
+.lecture-subject-copy {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 4px;
+}
+
+.student-lessons-link-copy strong,
+.lecture-subject-copy strong {
+    font-size: 1.05rem;
+}
+
+.student-lessons-link-copy small,
+.lecture-subject-copy small {
+    color: var(--muted);
+}
+
+.student-lessons-link .chev,
+.lecture-subject-card .chev {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.student-route-grid-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lecture-subject-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 22px;
+}
+
+.lecture-subject-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.lecture-subject-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+}
+
+/* Форма теста остаётся линейной: каждый вопрос и действие хорошо видны на мобильном. */
+.lecture-checkpoint-form,
+.lecture-completion {
+    display: grid;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.lecture-matching-list,
+.lecture-fill-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.lecture-checkpoint-client-error {
+    margin: 0;
+}
+
+.lecture-completion {
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+}
+
+.lecture-completion form {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+}
+
+@media (max-width: 980px) {
+    /* На среднем экране две плитки сохраняют удобную ширину текста. */
+    .lecture-subject-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    /* На телефоне все элементы каталога располагаются в одну колонку. */
+    .lecture-subject-grid,
+    .student-route-grid-two {
+        grid-template-columns: 1fr;
+    }
+
+    .student-lessons-link,
+    .lecture-subject-card {
+        padding: 16px;
+    }
+}
