@@ -160,6 +160,22 @@
         return 'badge warning';
     }
 
+    /** Отрисовать формулы из сохранённого HTML мини-лекции после его вставки в DOM. */
+    function renderMath(container) {
+        if (!container || typeof window.renderMathInElement !== 'function') {
+            return;
+        }
+        window.renderMathInElement(container, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '\\(', right: '\\)', display: false }
+            ],
+            throwOnError: false
+        });
+    }
+
     function currentStatusFilter() {
         var filters = readFiltersFromForm();
         return filters.status || '';
@@ -531,6 +547,8 @@
         var kk = root.querySelector('[data-preview-lecture-kk]');
         ru.innerHTML = preview.miniLectureRuHtml || '';
         kk.innerHTML = preview.miniLectureKkHtml || '';
+        renderMath(ru);
+        renderMath(kk);
         var hasLecture = Boolean(preview.miniLectureRuHtml || preview.miniLectureKkHtml);
         root.querySelector('[data-preview-lecture-empty]').hidden = hasLecture;
         root.querySelector('.question-preview-lecture-tabs').hidden = !hasLecture;
@@ -694,6 +712,9 @@
         if (!questionId || !action) {
             return;
         }
+        // Действия из модалки не вложены в строку таблицы. Находим строку по ID,
+        // чтобы тот же API-ответ сразу обновлял статус и доступные действия в списке.
+        row = row || rowByQuestionId(questionId);
 
         var headers = apiHeaders(action === 'flag');
         var body = undefined;
@@ -832,6 +853,15 @@
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape' && activePreviewId) {
                 closePreview();
+            }
+        });
+
+        // При возврате со страницы редактирования браузер может восстановить список из
+        // back/forward cache вместе со старым DOM. Запрашиваем страницу заново, чтобы
+        // статус и набор действий соответствовали уже сохранённому состоянию вопроса.
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload();
             }
         });
 

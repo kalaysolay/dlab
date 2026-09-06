@@ -436,6 +436,8 @@ class QuestionBankIntegrationTest {
                 .andExpect(view().name("admin/questions"))
                 .andExpect(content().string(containsString("Банк вопросов")))
                 .andExpect(content().string(containsString("admin-questions.js")))
+                .andExpect(content().string(containsString("/webjars/katex/")))
+                .andExpect(content().string(containsString("auto-render.min.js")))
                 .andExpect(content().string(containsString("question-preview-modal")));
 
         mockMvc.perform(get("/admin/questions")
@@ -531,7 +533,7 @@ class QuestionBankIntegrationTest {
                         .param("bodyRu", "Обновленный текст")
                         .param("bodyKk", "Жаңартылған мәтін")
                         .param("source", "Ручной ввод")
-                        .param("status", "DRAFT")
+                        .param("status", "NEEDS_REVIEW")
                         .param("options[0].label", "A")
                         .param("options[0].textRu", "60")
                         .param("options[0].textKk", "60")
@@ -561,7 +563,8 @@ class QuestionBankIntegrationTest {
         mockMvc.perform(get("/api/admin/questions/{id}", questionId)
                         .with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.bodyRu").value("Обновленный текст"));
+                .andExpect(jsonPath("$.bodyRu").value("Обновленный текст"))
+                .andExpect(jsonPath("$.status").value("needs_review"));
     }
 
     @Test

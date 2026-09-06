@@ -9,5 +9,7 @@ public interface TestSessionQuestionRepository extends JpaRepository<TestSession
 
     List<TestSessionQuestion> findBySessionIdOrderByOrderNoAsc(Long sessionId);
 
+    List<TestSessionQuestion> findBySessionIdIn(List<Long> sessionIds);
+
     Optional<TestSessionQuestion> findByIdAndSessionId(Long id, Long sessionId);
 }

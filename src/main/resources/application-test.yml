@@ -17,6 +17,10 @@ damulab:
     default-question-count: 12
     max-question-count: 20
     min-published-per-subject-grade: 1
+    selection-strategy: adaptive
+    recent-session-window: 3
+    max-topic-share-percent: 40
+    mastery-stale-after-days: 30
   quiz:
     timeout-worker-enabled: false
   subjects:

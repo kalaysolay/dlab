@@ -5644,6 +5644,49 @@ h2 {
     white-space: nowrap;
 }
 
+/* Google OAuth остаётся визуально вторичным рядом с основной синей CTA. */
+.google-auth-block {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 16px;
+}
+
+.google-auth-button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    gap: 10px;
+    color: #172033;
+    background: #fff;
+    border: 1px solid #cfd7e6;
+}
+
+.google-auth-button:hover {
+    background: #f8faff;
+    border-color: #aebbd0;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted, #667085);
+    font-size: 0.82rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: #e0e6f0;
+}
+
+.google-account-email {
+    margin: 0 0 16px;
+    overflow-wrap: anywhere;
+}
+
 .lecture-hidden-input {
     display: none;
 }
@@ -6207,16 +6250,6 @@ body.question-preview-open {
 .auth-page .button.primary {
     width: 100%;
     justify-content: center;
-}
-
-.auth-register-passkey {
-    grid-column: 1 / -1;
-    align-items: flex-start;
-    min-height: auto;
-    padding: 12px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: #fbfdff;
 }
 
 .auth-page .muted-line {

@@ -16,4 +16,7 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> 
      * Все активные подписки указанного провайдера — используются WebPushProvider при рассылке.
      */
     List<DeviceToken> findByProviderAndEnabledTrue(String provider);
+
+    /** Активные устройства конкретного ученика — для персональных уведомлений. */
+    List<DeviceToken> findByUserIdAndProviderAndEnabledTrue(Long userId, String provider);
 }

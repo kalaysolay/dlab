@@ -45,6 +45,13 @@ public class AppUser {
     @Column(name = "email_verified_at")
     private OffsetDateTime emailVerifiedAt;
 
+    /**
+     * Стабильный идентификатор аккаунта Google из OIDC claim {@code sub}.
+     * Email не используется как постоянный внешний идентификатор: Google разрешает его изменение.
+     */
+    @Column(name = "google_subject", unique = true, length = 255)
+    private String googleSubject;
+
     @Column(name = "webauthn_user_handle", unique = true)
     private byte[] webAuthnUserHandle;
 
@@ -111,6 +118,21 @@ public class AppUser {
 
     public OffsetDateTime getEmailVerifiedAt() {
         return emailVerifiedAt;
+    }
+
+    public String getGoogleSubject() {
+        return googleSubject;
+    }
+
+    /** Привязывает локальный аккаунт к единственному Google identity. */
+    public void linkGoogleSubject(String subject) {
+        if (subject == null || subject.isBlank()) {
+            throw new IllegalArgumentException("Google subject must not be blank");
+        }
+        if (googleSubject != null && !googleSubject.equals(subject)) {
+            throw new IllegalStateException("Account is already linked to another Google identity");
+        }
+        googleSubject = subject;
     }
 
     public Set<Role> getRoles() {

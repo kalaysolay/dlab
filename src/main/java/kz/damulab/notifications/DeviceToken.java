@@ -115,9 +115,19 @@ public class DeviceToken {
      */
     public void updateSubscription(String subscriptionJson, String timezone) {
         this.subscriptionJson = subscriptionJson;
+        this.enabled = true;
         if (timezone != null && !timezone.isBlank()) {
             this.timezone = timezone;
         }
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    /**
+     * Подписка больше не должна участвовать в рассылках. Сам JSON сохраняем для
+     * диагностики; следующая успешная subscribe-запись снова включит устройство.
+     */
+    public void disable() {
+        this.enabled = false;
         this.updatedAt = OffsetDateTime.now();
     }
 
@@ -129,5 +139,9 @@ public class DeviceToken {
 
     public String getTimezone() {
         return timezone;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 }

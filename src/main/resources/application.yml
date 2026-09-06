@@ -35,6 +35,13 @@ logging:
     kz.damulab.questions.QuestionBankService: INFO
 
 damulab:
+  auth:
+    google:
+      # Включается только при наличии OAuth client в Google Cloud Console.
+      # Callback для production: https://damulab.kz/login/oauth2/code/google
+      enabled: ${GOOGLE_OAUTH_ENABLED:false}
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
   questions:
     images:
       # Иллюстрации внутри HTML вопроса не смешиваются с файлами лекций.
@@ -60,6 +67,11 @@ damulab:
     default-question-count: 12
     max-question-count: 20
     min-published-per-subject-grade: 1
+    # SUBJECT — учебный тест: слабые навыки получают больший вес, но сильные периодически повторяются.
+    selection-strategy: adaptive
+    recent-session-window: 3
+    max-topic-share-percent: 40
+    mastery-stale-after-days: 30
   ui:
     server-time-zone: Asia/Almaty
   # Web Push / VAPID: при пустых ключах активируется StubPushProvider (без реальных уведомлений).

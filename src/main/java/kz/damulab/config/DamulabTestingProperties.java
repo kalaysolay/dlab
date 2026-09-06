@@ -22,6 +22,21 @@ public class DamulabTestingProperties {
      */
     private int minPublishedPerSubjectGrade = 1;
 
+    /**
+     * Стратегия подбора для учебного предметного теста. ADAPTIVE использует mastery и историю
+     * ученика; RANDOM оставлен как безопасный переключатель для отката поведения.
+     */
+    private QuestionSelectionStrategy selectionStrategy = QuestionSelectionStrategy.ADAPTIVE;
+
+    /** Количество последних сессий, вопросы из которых получают штраф за повтор. */
+    private int recentSessionWindow = 3;
+
+    /** Мягкий максимум доли одной темы в тесте; ослабляется, если иначе тест не заполнить. */
+    private int maxTopicSharePercent = 40;
+
+    /** Через сколько дней освоенный навык снова получает повышенный приоритет для проверки. */
+    private int masteryStaleAfterDays = 30;
+
     public int getDefaultQuestionCount() {
         return defaultQuestionCount;
     }
@@ -44,5 +59,37 @@ public class DamulabTestingProperties {
 
     public void setMinPublishedPerSubjectGrade(int minPublishedPerSubjectGrade) {
         this.minPublishedPerSubjectGrade = minPublishedPerSubjectGrade;
+    }
+
+    public QuestionSelectionStrategy getSelectionStrategy() {
+        return selectionStrategy;
+    }
+
+    public void setSelectionStrategy(QuestionSelectionStrategy selectionStrategy) {
+        this.selectionStrategy = selectionStrategy == null ? QuestionSelectionStrategy.ADAPTIVE : selectionStrategy;
+    }
+
+    public int getRecentSessionWindow() {
+        return recentSessionWindow;
+    }
+
+    public void setRecentSessionWindow(int recentSessionWindow) {
+        this.recentSessionWindow = recentSessionWindow;
+    }
+
+    public int getMaxTopicSharePercent() {
+        return maxTopicSharePercent;
+    }
+
+    public void setMaxTopicSharePercent(int maxTopicSharePercent) {
+        this.maxTopicSharePercent = maxTopicSharePercent;
+    }
+
+    public int getMasteryStaleAfterDays() {
+        return masteryStaleAfterDays;
+    }
+
+    public void setMasteryStaleAfterDays(int masteryStaleAfterDays) {
+        this.masteryStaleAfterDays = masteryStaleAfterDays;
     }
 }

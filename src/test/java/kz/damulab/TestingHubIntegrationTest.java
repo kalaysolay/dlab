@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.SubjectRepository;
 import kz.damulab.testing.TestResultRepository;
+import kz.damulab.testing.TestSessionRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,6 +43,9 @@ class TestingHubIntegrationTest {
 
     @Autowired
     private TestResultRepository results;
+
+    @Autowired
+    private TestSessionRepository sessions;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -110,6 +114,23 @@ class TestingHubIntegrationTest {
         mockMvc.perform(get("/api/test-sessions/1")
                         .with(user("parent@damulab.kz").roles("PARENT")))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void startedSubjectSessionRecordsAdaptiveSelectionDiagnostics() throws Exception {
+        JsonNode response = startSession();
+
+        String settingsJson = sessions.findById(response.path("id").asLong()).orElseThrow().getSettingsJson();
+        JsonNode settings = objectMapper.readTree(settingsJson);
+        int classifiedQuestions = settings.path("weakQuestions").asInt()
+                + settings.path("watchQuestions").asInt()
+                + settings.path("unseenQuestions").asInt()
+                + settings.path("strongQuestions").asInt();
+
+        org.assertj.core.api.Assertions.assertThat(settings.path("selectionStrategy").asText()).isEqualTo("ADAPTIVE");
+        org.assertj.core.api.Assertions.assertThat(settings.path("questionCount").asInt())
+                .isEqualTo(response.path("questions").size());
+        org.assertj.core.api.Assertions.assertThat(classifiedQuestions).isEqualTo(response.path("questions").size());
     }
 
     @Test

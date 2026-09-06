@@ -15,20 +15,30 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import kz.damulab.parentlink.ParentLinkInvitationPageController;
 
+import kz.damulab.auth.GoogleOAuthAvailability;
+import kz.damulab.auth.GoogleOAuthSuccessHandler;
+
 @Configuration
 public class SecurityConfig {
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            GoogleOAuthAvailability googleOAuth,
+            GoogleOAuthSuccessHandler googleSuccessHandler
+    ) throws Exception {
+        http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/parent-link-invitations/confirm").permitAll()
                         .requestMatchers(
                                 "/",
                                 "/login",
                                 "/register",
+                                "/register/google",
+                                "/oauth2/authorization/google",
+                                "/login/oauth2/code/google",
                                 "/activate-account",
                                 "/verify-email",
                                 "/verify-email/resend",
@@ -46,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/verification-email/resend").permitAll()
                         .requestMatchers("/api/passkeys/login/options", "/api/passkeys/login").permitAll()
                         // Web Push: сохранение подписки браузера; только аутентифицированный STUDENT
-                        .requestMatchers("/api/push/subscribe").hasRole("STUDENT")
+                        .requestMatchers("/api/push/subscribe", "/api/push/unsubscribe").hasRole("STUDENT")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/analytics/**").hasAnyRole("STUDENT", "PARENT")
                         .requestMatchers("/api/quiz/**").hasRole("STUDENT")
@@ -75,8 +85,18 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/")
                         .permitAll()
                 )
-                .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler()))
-                .build();
+                .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler()));
+
+        // oauth2Login требует ClientRegistrationRepository. Не включаем фильтры и не показываем
+        // кнопку, пока GOOGLE_CLIENT_ID/SECRET не создали registrationId=google.
+        if (googleOAuth.isEnabled()) {
+            http.oauth2Login(oauth -> oauth
+                    .loginPage("/login")
+                    .successHandler(googleSuccessHandler)
+                    .failureUrl("/login?oauthError")
+            );
+        }
+        return http.build();
     }
 
     @Bean

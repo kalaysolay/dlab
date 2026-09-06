@@ -85,6 +85,24 @@ public class PushSubscriptionApiController {
                 );
     }
 
+    /**
+     * Отключает push только для текущего пользователя и только на этом устройстве.
+     * Операция идемпотентна: устаревший endpoint не считается ошибкой.
+     */
+    @PostMapping("/unsubscribe")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void unsubscribe(@RequestBody @Valid PushUnsubscribeRequest request,
+                            Authentication auth) throws NoSuchAlgorithmException {
+        AppUser user = users.findByEmailIgnoreCase(auth.getName())
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + auth.getName()));
+        String tokenHash = sha256Hex(request.endpoint());
+
+        deviceTokens.findByProviderAndTokenHash("webpush", tokenHash)
+                .filter(token -> token.getUser().getId().equals(user.getId()))
+                .ifPresent(DeviceToken::disable);
+    }
+
     private static String sha256Hex(String input) throws NoSuchAlgorithmException {
         byte[] hash = MessageDigest.getInstance("SHA-256")
                 .digest(input.getBytes(StandardCharsets.UTF_8));

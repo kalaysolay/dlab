@@ -187,9 +187,15 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void formRegistrationCanRequestPasskeySetupAfterAccountCreation() throws Exception {
+    void webRegistrationDoesNotOfferOrStartPasskeySetup() throws Exception {
+        mockMvc.perform(get("/register"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(not(containsString("passkeySetupRequested"))));
+
         String email = "passkey.setup." + System.nanoTime() + "@example.com";
 
+        // Даже вручную переданный параметр не должен включать мобильный сценарий в веб-контроллере.
         mockMvc.perform(post("/register")
                         .param("email", email)
                         .param("password", "password123")
@@ -199,7 +205,7 @@ class AuthFlowIntegrationTest {
                         .param("passkeySetupRequested", "true")
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/student/profile?passkeySetup=true"));
+                .andExpect(redirectedUrl("/login?registered=true"));
     }
 
     @Test
