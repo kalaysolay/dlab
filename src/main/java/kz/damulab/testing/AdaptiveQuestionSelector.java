@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.random.RandomGenerator;
 
@@ -41,7 +42,7 @@ public class AdaptiveQuestionSelector {
 
     @Autowired
     public AdaptiveQuestionSelector(DamulabTestingProperties properties, Clock clock) {
-        this(properties, clock, RandomGenerator.getDefault());
+        this(properties, clock, new Random());
     }
 
     AdaptiveQuestionSelector(DamulabTestingProperties properties, Clock clock, RandomGenerator random) {

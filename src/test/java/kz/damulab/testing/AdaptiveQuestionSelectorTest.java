@@ -30,6 +30,11 @@ class AdaptiveQuestionSelectorTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-09-01T00:00:00Z"), ZoneOffset.UTC);
 
     @Test
+    void createsSelectorWithRuntimeCompatibleDefaultRandomGenerator() {
+        assertThat(new AdaptiveQuestionSelector(properties(40), CLOCK)).isNotNull();
+    }
+
+    @Test
     void adaptiveSelectionPrefersWeakSkillsButKeepsStrongQuestionsPossible() {
         DamulabTestingProperties properties = properties(100);
         AdaptiveQuestionSelector selector = new AdaptiveQuestionSelector(properties, CLOCK, new Random(42));
