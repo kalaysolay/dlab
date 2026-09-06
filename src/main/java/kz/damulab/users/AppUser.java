@@ -33,7 +33,7 @@ public class AppUser {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(unique = true, length = 16)
+    @Column(length = 16)
     private String phone;
 
     @Column(nullable = false)

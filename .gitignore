@@ -55,6 +55,7 @@ AGENTS.md
 !/docs/DEPLOY_VPS.md
 !/docs/LESSON_IMPORT_FORMAT.md
 !/docs/lesson-import-example.json
+!/docs/QUESTION_GENERATION_AGENT_RULES.md
 
 # Local audit files (not for repo)
 GAME_AUDIT.md

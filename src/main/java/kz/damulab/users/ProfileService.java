@@ -56,7 +56,7 @@ public class ProfileService {
         return toParentResponse(profile);
     }
 
-    /** Нормализует номер и заранее сообщает понятный конфликт; flush оставляет БД защитой от гонок. */
+    /** Нормализует номер и заранее сообщает понятный конфликт. */
     private void updateUser(AppUser user, String fullName, String rawPhone) {
         String phone = phoneNormalizer.normalize(rawPhone);
         if (phone != null && users.existsByPhoneAndIdNot(phone, user.getId())) {
