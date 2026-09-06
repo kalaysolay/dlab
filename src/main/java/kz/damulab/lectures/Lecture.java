@@ -35,6 +35,10 @@ public class Lecture {
     @Column(nullable = false, length = 32)
     private LectureStatus status = LectureStatus.DRAFT;
 
+    /** Стабильный идентификатор агентского импорта; у вручную созданных лекций остаётся null. */
+    @Column(name = "external_id", unique = true, length = 128)
+    private String externalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private AppUser createdBy;
@@ -51,6 +55,11 @@ public class Lecture {
     public Lecture(LectureStatus status, AppUser createdBy) {
         this.status = status;
         this.createdBy = createdBy;
+    }
+
+    /** Назначает идентификатор один раз при создании импортированной лекции. */
+    void setExternalId(String externalId) {
+        this.externalId = externalId;
     }
 
     @PrePersist
@@ -77,6 +86,10 @@ public class Lecture {
 
     public LectureStatus getStatus() {
         return status;
+    }
+
+    public String getExternalId() {
+        return externalId;
     }
 
     public AppUser getCreatedBy() {

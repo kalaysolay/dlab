@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 /** Репозиторий лекций для административных и ученических сценариев. */
 public interface LectureRepository extends JpaRepository<Lecture, Long>, JpaSpecificationExecutor<Lecture> {
 
+    /** Не позволяет повторному агентскому импорту молча создать вторую лекцию. */
+    boolean existsByExternalIdIgnoreCase(String externalId);
+
     /** Возвращает лекции для существующего административного списка. */
     List<Lecture> findByStatusOrderByUpdatedAtDesc(LectureStatus status);
 

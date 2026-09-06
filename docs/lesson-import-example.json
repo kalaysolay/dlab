@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "damulab.lesson-import",
+  "lessons": [
+    {
+      "externalId": "math-4-finding-percent-001",
+      "metadata": {
+        "subject": {
+          "code": "math",
+          "title": {
+            "ru": "Математика",
+            "kk": "Математика"
+          }
+        },
+        "grade": {
+          "number": 4
+        },
+        "topic": {
+          "path": [
+            "percent-basics",
+            "finding-percent-of-number"
+          ],
+          "title": {
+            "ru": "Нахождение процента от числа",
+            "kk": "Санның пайызын табу"
+          }
+        },
+        "title": {
+          "ru": "Как найти процент от числа",
+          "kk": "Санның пайызын қалай табуға болады"
+        },
+        "primaryLanguage": "kk",
+        "source": "Авторский учебный материал, подготовленный для Damulab"
+      },
+      "assets": [
+        {
+          "id": "one-percent-cell",
+          "kind": "image",
+          "mimeType": "image/png",
+          "source": {
+            "type": "base64",
+            "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4qUAAAAASUVORK5CYII="
+          },
+          "credit": "Самодостаточный демонстрационный PNG для проверки импорта"
+        }
+      ],
+      "content": {
+        "ruHtml": "<h2>Что означает процент</h2><p>Процент — это <strong>одна сотая часть</strong> целого. Поэтому 25% означают 25 частей из 100.</p><img src=\"asset://one-percent-cell\" alt=\"Однотонная клетка, обозначающая одну сотую часть целого\" title=\"Один процент\"><p><em>Одна такая клетка из ста обозначает 1%.</em></p><h2>Как найти процент от числа</h2><p>Если <strong>a</strong> — часть, а <strong>b</strong> — целое, долю в процентах находим по формуле:</p><p><span class=\"ql-formula\" data-value=\"p=\\frac{a}{b}\\cdot 100\\%\" contenteditable=\"false\"></span></p><ol><li>Разделить число процентов на 100.</li><li>Умножить исходное число на полученную дробь.</li></ol><h3>Пример</h3><p>Найдём 25% от 80: <span class=\"ql-formula\" data-value=\"80\\cdot\\frac{25}{100}=20\" contenteditable=\"false\"></span>. Значит, 25% от 80 равны 20.</p><blockquote>50% — это половина числа, поэтому 50% от 80 равны 40.</blockquote>",
+        "kkHtml": "<h2>Пайыз нені білдіреді</h2><p>Пайыз — бүтіннің <strong>жүзден бір бөлігі</strong>. Сондықтан 25% дегеніміз — 100 бөліктің 25 бөлігі.</p><img src=\"asset://one-percent-cell\" alt=\"Бүтіннің жүзден бір бөлігін білдіретін бір түсті ұяшық\" title=\"Бір пайыз\"><p><em>Осындай жүз ұяшықтың біреуі 1%-ды білдіреді.</em></p><h2>Санның пайызын қалай табамыз</h2><p>Мұндағы <strong>a</strong> — бөлік, ал <strong>b</strong> — бүтін сан. Пайыздық үлесті мына формуламен табамыз:</p><p><span class=\"ql-formula\" data-value=\"p=\\frac{a}{b}\\cdot 100\\%\" contenteditable=\"false\"></span></p><ol><li>Пайыз санын 100-ге бөлу.</li><li>Бастапқы санды шыққан бөлшекке көбейту.</li></ol><h3>Мысал</h3><p>80 санының 25%-ын табайық: <span class=\"ql-formula\" data-value=\"80\\cdot\\frac{25}{100}=20\" contenteditable=\"false\"></span>. Демек, 80 санының 25%-ы 20-ға тең.</p><blockquote>50% — санның жартысы, сондықтан 80 санының 50%-ы 40-қа тең.</blockquote>"
+      },
+      "attachments": [],
+      "completionControl": {
+        "mode": "AUTO",
+        "questionCount": 3
+      }
+    }
+  ]
+}

@@ -5,7 +5,17 @@ function loadPlaywright() {
   try {
     return require("playwright");
   } catch (error) {
-    return require(path.resolve(__dirname, "../../.run-logs/stage13-visual-pass/node_modules/playwright"));
+    const candidates = [
+      process.env.PLAYWRIGHT_PATH,
+      process.env.USERPROFILE && path.join(
+        process.env.USERPROFILE,
+        ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright"
+      ),
+      path.resolve(__dirname, "../../.run-logs/stage13-visual-pass/node_modules/playwright")
+    ].filter(Boolean);
+    const available = candidates.find((candidate) => fs.existsSync(candidate));
+    if (!available) throw error;
+    return require(available);
   }
 }
 
@@ -93,10 +103,77 @@ async function insertFormula(page, lang, latex) {
   const host = page.locator(`#lecture-editor-${lang}`);
   await host.locator(".ql-editor").click();
   await host.locator("xpath=preceding-sibling::*[1]").locator(".ql-formula").click();
-  const formulaInput = host.locator(".ql-tooltip:not(.ql-hidden) input[data-formula]");
-  await formulaInput.waitFor({ state: "visible", timeout: 5000 });
+  const dialog = page.locator("#lecture-formula-dialog");
+  const formulaInput = page.locator("#lecture-formula-input");
+  await dialog.waitFor({ state: "visible", timeout: 5000 });
+  const bounds = await dialog.boundingBox();
+  const viewport = page.viewportSize();
+  assert(bounds && viewport, "formula dialog bounds are unavailable");
+  assert(bounds.x >= 0 && bounds.y >= 0, "formula dialog starts outside the viewport");
+  assert(bounds.x + bounds.width <= viewport.width, "formula dialog overflows viewport width");
+  assert(bounds.y + bounds.height <= viewport.height, "formula dialog overflows viewport height");
   await formulaInput.fill(latex);
-  await formulaInput.press("Enter");
+  await page.locator("#lecture-formula-preview .katex").waitFor({ state: "visible", timeout: 5000 });
+  if (viewport.width <= 390) {
+    await snap(page, "01-formula-dialog-mobile");
+  }
+  await page.click("#lecture-formula-insert");
+  await dialog.waitFor({ state: "hidden", timeout: 5000 });
+}
+
+async function pasteScreenshot(page, lang) {
+  const editor = page.locator(`#lecture-editor-${lang} .ql-editor`);
+  await editor.click();
+  await editor.evaluate((target) => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([png], "clipboard-smoke.png", { type: "image/png" }));
+    target.dispatchEvent(new ClipboardEvent("paste", {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: transfer
+    }));
+  });
+  await page.locator("#lecture-image-upload-status").filter({ hasText: "Изображение добавлено" })
+    .waitFor({ state: "visible", timeout: 10000 });
+  await page.locator(`#lecture-editor-${lang} img[src^="/files/lecture-images/"]`)
+    .waitFor({ state: "visible", timeout: 5000 });
+}
+
+async function createCheckpointQuestion(page, marker, refs) {
+  const token = await csrf(page);
+  return page.evaluate(async ({ token, marker, refs }) => {
+    const createdResponse = await fetch("/api/admin/questions", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": token },
+      body: JSON.stringify({
+        subjectId: Number(refs.subjectId),
+        topicIds: [Number(refs.topicId)],
+        gradeIds: [Number(refs.gradeId)],
+        type: "SCQ",
+        difficulty: 2,
+        bodyRu: `Smoke checkpoint ${marker}: 2 + 2?`,
+        bodyKk: `Smoke checkpoint ${marker}: 2 + 2?`,
+        source: `lecture-rich-smoke-${marker}`,
+        options: [
+          { label: "A", textRu: "3", textKk: "3", correct: false },
+          { label: "B", textRu: "4", textKk: "4", correct: true }
+        ]
+      })
+    });
+    if (!createdResponse.ok) throw new Error(`question_create_failed:${createdResponse.status}`);
+    const created = await createdResponse.json();
+    for (const action of ["approve", "publish"]) {
+      const response = await fetch(`/api/admin/questions/${created.id}/${action}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "X-CSRF-TOKEN": token }
+      });
+      if (!response.ok) throw new Error(`question_${action}_failed:${response.status}`);
+    }
+    return String(created.currentVersionId);
+  }, { token, marker, refs });
 }
 
 async function fillLectureEditor(page, marker, refs) {
@@ -109,13 +186,16 @@ async function fillLectureEditor(page, marker, refs) {
   const ruEditor = page.locator("#lecture-editor-ru .ql-editor");
   await ruEditor.click();
   await page.keyboard.type(`Lecture marker ${marker}. Inline formula: `);
-  await insertFormula(page, "ru", "P=\\\\frac{a}{b}\\\\cdot 100\\\\%");
+  await page.setViewportSize({ width: 360, height: 800 });
+  await insertFormula(page, "ru", "P=\\frac{a}{b}\\cdot 100\\%");
+  await page.setViewportSize({ width: 1366, height: 900 });
   await page.keyboard.type(" Block formula below.");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
-  await insertFormula(page, "ru", "\\\\displaystyle x^2 + y^2 = z^2");
+  await insertFormula(page, "ru", "\\displaystyle x^2 + y^2 = z^2");
   await page.keyboard.press("Enter");
   await page.keyboard.type("End of RU block.");
+  await pasteScreenshot(page, "ru");
 
   await page.click('[data-lecture-tab="kk"]');
   const kkEditor = page.locator("#lecture-editor-kk .ql-editor");
@@ -145,7 +225,7 @@ async function openRowAndParseLectureId(page, marker) {
   return { row, lectureId: Number(match[1]) };
 }
 
-async function verifyReopenAndEdit(page, lectureId, marker) {
+async function verifyReopenAndEdit(page, lectureId, marker, checkpointVersionId) {
   await page.goto(`${baseUrl}/admin/lectures/${lectureId}/edit`, { waitUntil: "networkidle" });
   const formulaCount = await page.locator("#lecture-editor-ru .ql-editor .ql-formula").count();
   assert(formulaCount >= 2, `expected at least 2 formulas after reopen, got ${formulaCount}`);
@@ -157,6 +237,15 @@ async function verifyReopenAndEdit(page, lectureId, marker) {
   await ruEditor.click();
   await page.keyboard.press("End");
   await page.keyboard.type(` UI save marker ${marker}`);
+  await page.selectOption("#lecture-control-mode", "MANUAL");
+  await page.click("#manual-checkpoint-load");
+  const checkpointButton = page.locator(`[data-checkpoint-id="${checkpointVersionId}"]`);
+  await checkpointButton.waitFor({ state: "visible", timeout: 10000 });
+  await checkpointButton.click();
+  assert(
+    await page.locator(`input[name="checkpointQuestionVersionIds"][value="${checkpointVersionId}"]`).count() === 1,
+    "manual checkpoint hidden input was not created"
+  );
 
   await submitLectureForm(page, "draft");
   const afterDraftUrl = page.url();
@@ -173,6 +262,15 @@ async function verifyReopenAndEdit(page, lectureId, marker) {
   );
   const formulaCountAfter = await page.locator("#lecture-editor-ru .ql-editor .ql-formula").count();
   assert(formulaCountAfter >= 2, `expected at least 2 formulas after ui save, got ${formulaCountAfter}`);
+  assert(await page.inputValue("#lecture-control-mode") === "MANUAL", "manual control mode was not restored");
+  assert(
+    await page.locator(`input[name="checkpointQuestionVersionIds"][value="${checkpointVersionId}"]`).count() === 1,
+    "selected checkpoint was not restored"
+  );
+  assert(
+    await page.locator('#lecture-editor-ru img[src^="/files/lecture-images/"]').count() === 1,
+    "pasted lecture image was not restored"
+  );
   const ruHtml = await page.locator("#lecture-content-ru").inputValue();
   assert(ruHtml.includes("ql-formula"), "saved RU content lost formula markup");
   assert(ruHtml.includes(`Lecture marker ${marker}`), "saved RU content lost marker text");
@@ -214,6 +312,10 @@ async function verifyStudentVisibility(browser, marker) {
   assert(pageText.includes(`Lecture marker ${marker}`), "student lecture page does not contain lecture marker");
   const formulaCount = await page.locator(".lecture-content .ql-formula, .lecture-content .katex").count();
   assert(formulaCount > 0, "student lecture page does not show formula content");
+  assert(await page.locator('.lecture-content img[src^="/files/lecture-images/"]').count() === 1,
+    "student lecture page does not show pasted image");
+  assert(await page.locator("[data-checkpoint-form]").count() === 1,
+    "student lecture page does not show manual checkpoint");
   await snap(page, "04-student-lecture-visible");
   await context.close();
 }
@@ -247,11 +349,14 @@ async function run() {
     const refs = await ensureTopic(adminPage, marker);
     step("topic-created", "ok", `topicId=${refs.topicId}`);
 
+    const checkpointVersionId = await createCheckpointQuestion(adminPage, marker, refs);
+    step("checkpoint-question-created", "ok", `versionId=${checkpointVersionId}`);
+
     await fillLectureEditor(adminPage, marker, refs);
     const { lectureId } = await openRowAndParseLectureId(adminPage, marker);
     step("lecture-created-draft", "ok", `lectureId=${lectureId}`);
 
-    await verifyReopenAndEdit(adminPage, lectureId, marker);
+    await verifyReopenAndEdit(adminPage, lectureId, marker, checkpointVersionId);
     step("lecture-reopened-edited", "ok");
 
     await publishLecture(adminPage, marker);

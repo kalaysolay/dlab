@@ -32,6 +32,13 @@ import kz.damulab.questions.QuestionVersionRepository;
 import kz.damulab.users.AppUser;
 import kz.damulab.users.AppUserRepository;
 
+/**
+ * Управляет версиями лекций, вложениями и контрольными вопросами.
+ *
+ * <p>{@link Lecture#getCurrentVersion()} всегда указывает на версию, доступную ученику.
+ * У опубликованной лекции административный черновик хранится как более новая версия и
+ * становится текущим только после успешной серверной проверки и публикации.</p>
+ */
 @Service
 public class LectureService {
 
@@ -41,16 +48,19 @@ public class LectureService {
     private static final String SAFE_BASE_URI = "https://damulab.local/";
     private static final Pattern UNSAFE_FORMULA_PATTERN = Pattern.compile(
             "(?i)\\\\(?:htmlClass|htmlId|htmlStyle|htmlData|href|url|includegraphics)\\b");
+    private static final Pattern LECTURE_IMAGE_URL = Pattern.compile(
+            "^/files/lecture-images/[a-f0-9-]+\\.(?:png|jpg|gif|webp)$");
     private static final Set<String> ALLOWED_ATTACHMENT_TYPES = Set.of("link", "pdf", "video", "image");
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg");
     private static final Set<String> VIDEO_EXTENSIONS = Set.of(".mp4", ".webm", ".ogg", ".mov");
     private static final Safelist LECTURE_SAFE_HTML = Safelist.none()
             .addTags("p", "br", "strong", "b", "em", "i", "u", "s", "blockquote", "pre", "code", "ul", "ol", "li",
                     "h1", "h2", "h3", "h4", "h5", "h6", "a", "span", "div", "sub", "sup", "hr",
-                    "table", "thead", "tbody", "tr", "th", "td")
+                    "table", "thead", "tbody", "tr", "th", "td", "img")
             .addAttributes(":all", "class")
             .addAttributes("a", "href", "target", "rel")
             .addAttributes("span", "data-value", "contenteditable")
+            .addAttributes("img", "src", "alt", "title")
             .addAttributes("th", "colspan", "rowspan")
             .addAttributes("td", "colspan", "rowspan")
             .addProtocols("a", "href", "http", "https", "mailto")
@@ -105,7 +115,8 @@ public class LectureService {
 
     @Transactional(readOnly = true)
     public LectureResponse getLecture(Long id) {
-        return toResponse(findLecture(id));
+        Lecture lecture = findLecture(id);
+        return toResponse(lecture, latestVersion(lecture));
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +130,7 @@ public class LectureService {
 
     @Transactional(readOnly = true)
     public LectureForm toEditForm(Long id) {
-        LectureVersion version = requireCurrentVersion(findLecture(id));
+        LectureVersion version = latestVersion(findLecture(id));
         LectureForm form = new LectureForm();
         form.setTopicId(version.getTopic() == null ? null : version.getTopic().getId());
         form.setTitleRu(version.getTitleRu());
@@ -153,10 +164,28 @@ public class LectureService {
 
     @Transactional
     public LectureResponse createLecture(LectureForm form, List<MultipartFile> attachmentFiles) {
+        return createLecture(form, attachmentFiles, null);
+    }
+
+    /**
+     * Создаёт импортированную лекцию как обычный черновик и закрепляет внешний ID.
+     * Публикация остаётся отдельным осознанным действием методиста.
+     */
+    @Transactional
+    public LectureResponse createImportedLecture(LectureForm form, String externalId) {
+        return createLecture(form, List.of(), externalId);
+    }
+
+    private LectureResponse createLecture(
+            LectureForm form,
+            List<MultipartFile> attachmentFiles,
+            String externalId
+    ) {
         List<PreparedAttachment> preparedAttachments = prepareAttachments(form.getAttachments(), attachmentFiles);
         try {
             validateDraft(form, preparedAttachments);
             Lecture lecture = lectures.save(new Lecture(LectureStatus.DRAFT, currentUser()));
+            lecture.setExternalId(trimToNull(externalId));
             LectureVersion version = versions.save(buildVersion(lecture, 1, form));
             lecture.setCurrentVersion(version);
             replaceAttachments(version, preparedAttachments);
@@ -186,8 +215,16 @@ public class LectureService {
             LectureVersion current = requireCurrentVersion(lecture);
             LectureVersion target;
             if (lecture.getStatus() == LectureStatus.PUBLISHED) {
-                int nextVersionNo = versions.findMaxVersionNoByLectureId(lecture.getId()) + 1;
-                target = versions.save(buildVersion(lecture, nextVersionNo, form));
+                LectureVersion latest = latestVersion(lecture);
+                if (latest != current && latest.getPublishedAt() == null) {
+                    // Повторное сохранение должно обновлять один административный черновик,
+                    // иначе каждое нажатие «Сохранить» создаёт новую невидимую версию.
+                    latest.replaceContent(buildVersion(lecture, latest.getVersionNo(), form));
+                    target = latest;
+                } else {
+                    int nextVersionNo = versions.findMaxVersionNoByLectureId(lecture.getId()) + 1;
+                    target = versions.save(buildVersion(lecture, nextVersionNo, form));
+                }
             } else {
                 LectureVersion replacement = buildVersion(lecture, current.getVersionNo(), form);
                 current.replaceContent(replacement);
@@ -197,7 +234,7 @@ public class LectureService {
             replaceAttachments(target, preparedAttachments);
             replaceCheckpoints(target, form);
             audit.record("lecture_updated", "Lecture", lecture.getId(), safeTitle(target));
-            return toResponse(lecture);
+            return toResponse(lecture, target);
         } catch (RuntimeException ex) {
             cleanupNewUploads(preparedAttachments);
             throw ex;
@@ -210,7 +247,7 @@ public class LectureService {
         if (lecture.getStatus() == LectureStatus.ARCHIVED) {
             throw new LectureException("lecture_archived");
         }
-        LectureVersion version = requireCurrentVersion(lecture);
+        LectureVersion version = latestVersion(lecture);
         requirePublishable(version);
         if (version.getControlMode() == LectureControlMode.AUTO
                 && checkpoints.countByLectureVersionId(version.getId()) == 0) {
@@ -224,6 +261,9 @@ public class LectureService {
                 && checkpoints.countByLectureVersionId(version.getId()) == 0) {
             throw new LectureException("lecture_auto_checkpoints_not_found");
         }
+        // Переключаем учеников на проверенную версию только после успешной подготовки
+        // AUTO/MANUAL checkpoints. До этой строки текущая опубликованная версия неизменна.
+        lecture.setCurrentVersion(version);
         lecture.changeStatus(LectureStatus.PUBLISHED);
         version.markPublished();
         audit.record("lecture_published", "Lecture", lecture.getId(), safeTitle(version));
@@ -486,7 +526,10 @@ public class LectureService {
     }
 
     private LectureResponse toResponse(Lecture lecture) {
-        LectureVersion version = lecture.getCurrentVersion();
+        return toResponse(lecture, lecture.getCurrentVersion());
+    }
+
+    private LectureResponse toResponse(Lecture lecture, LectureVersion version) {
         List<LectureAttachmentResponse> attachmentResponses = version == null
                 ? List.of()
                 : attachments.findByLectureVersionIdOrderBySortOrderAscIdAsc(version.getId()).stream()
@@ -550,6 +593,15 @@ public class LectureService {
         return lecture.getCurrentVersion();
     }
 
+    /**
+     * Для административного редактирования выбирает последнюю версию, тогда как
+     * ученические методы продолжают читать только {@code currentVersion}.
+     */
+    private LectureVersion latestVersion(Lecture lecture) {
+        return versions.findFirstByLecture_IdOrderByVersionNoDesc(lecture.getId())
+                .orElseGet(() -> requireCurrentVersion(lecture));
+    }
+
     private Topic findTopic(Long id) {
         Topic topic = topics.findById(id).orElseThrow(() -> new LectureException("topic_not_found"));
         if (topic.isDeleted()) {
@@ -583,9 +635,18 @@ public class LectureService {
         }
         Document doc = Jsoup.parseBodyFragment(safe, SAFE_BASE_URI);
         normalizeLectureLinks(doc);
+        normalizeLectureImages(doc);
         normalizeFormulaSpans(doc);
         String normalizedSafeHtml = doc.body().html().trim();
         return normalizedSafeHtml.isBlank() ? null : normalizedSafeHtml;
+    }
+
+    /**
+     * Даёт импортёру применить ровно ту же очистку, что и ручному редактору.
+     * Метод package-private: внешний API не должен принимать уже «доверенный» HTML.
+     */
+    String sanitizeImportedRichText(String value) {
+        return sanitizeRichText(value);
     }
 
     private void normalizeLectureLinks(Document doc) {
@@ -615,6 +676,26 @@ public class LectureService {
                 link.removeAttr("target");
                 link.removeAttr("rel");
             }
+        }
+    }
+
+    /**
+     * Оставляет только изображения, загруженные через контролируемое хранилище лекций.
+     * Это не позволяет сохранить в HTML внешние трекеры и объёмные {@code data:} URL.
+     */
+    private void normalizeLectureImages(Document doc) {
+        for (Element image : doc.select("img")) {
+            String src = trimToNull(image.attr("src"));
+            if (src == null || !LECTURE_IMAGE_URL.matcher(src).matches()) {
+                image.remove();
+                continue;
+            }
+            String alt = trimToNull(image.attr("alt"));
+            String title = trimToNull(image.attr("title"));
+            image.clearAttributes();
+            image.attr("src", src);
+            if (alt != null) image.attr("alt", alt);
+            if (title != null) image.attr("title", title);
         }
     }
 

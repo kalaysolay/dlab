@@ -191,7 +191,7 @@ class LectureIntegrationTest {
                         .content(lectureBody(tf.topicId(), "NONE", 0, false)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("published"))
-                .andExpect(jsonPath("$.versionNo").value(1));
+                .andExpect(jsonPath("$.versionNo").value(2));
 
         mockMvc.perform(get("/student/lectures/{id}", lectureId)
                         .with(user("student@damulab.kz").roles("STUDENT")))
@@ -380,6 +380,101 @@ class LectureIntegrationTest {
                 .andExpect(jsonPath("$[0].controlMode").value("manual"))
                 .andExpect(jsonPath("$[0].checkpointCount").value(1))
                 .andExpect(jsonPath("$[0].checkpoints[0].questionVersionId").value(checkpointVersionId));
+    }
+
+    @Test
+    void publishingManualCheckpointsPromotesEditedPublishedLectureVersion() throws Exception {
+        TopicFixture tf = createTopic("lecture-manual-republish-topic-");
+        Long checkpointVersionId = createPublishedQuestionVersion(tf);
+        Long lectureId = createAndPublishLectureWithoutControl(tf, "manual-republish-");
+
+        mockMvc.perform(multipart("/admin/lectures/{id}", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .param("topicId", String.valueOf(tf.topicId()))
+                        .param("titleRu", "Обновлённая ручная лекция")
+                        .param("titleKk", "Жаңартылған қолмен дәріс")
+                        .param("contentRu", "Контент с ручной проверкой")
+                        .param("contentKk", "Қолмен тексеру мазмұны")
+                        .param("source", "manual-republish")
+                        .param("controlMode", "MANUAL")
+                        .param("autoCheckpointCount", "0")
+                        .param("checkpointQuestionVersionIds", String.valueOf(checkpointVersionId))
+                        .param("action", "publish"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "/admin/lectures"));
+
+        mockMvc.perform(get("/api/admin/lectures/{id}", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionNo").value(2))
+                .andExpect(jsonPath("$.controlMode").value("manual"))
+                .andExpect(jsonPath("$.checkpointCount").value(1))
+                .andExpect(jsonPath("$.checkpoints[0].questionVersionId").value(checkpointVersionId));
+
+        mockMvc.perform(get("/admin/lectures/{id}/edit", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"MANUAL\" selected=\"selected\"")))
+                .andExpect(content().string(containsString("name=\"checkpointQuestionVersionIds\"")));
+
+        mockMvc.perform(get("/student/lectures/{id}", lectureId)
+                        .with(user("student@damulab.kz").roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-checkpoint-form")));
+    }
+
+    @Test
+    void publishingAutoCheckpointsPromotesEditedPublishedLectureVersion() throws Exception {
+        TopicFixture tf = createTopic("lecture-auto-republish-topic-");
+        createPublishedQuestion(tf);
+        Long lectureId = createAndPublishLectureWithoutControl(tf, "auto-republish-");
+
+        mockMvc.perform(multipart("/admin/lectures/{id}", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .param("topicId", String.valueOf(tf.topicId()))
+                        .param("titleRu", "Обновлённая автоматическая лекция")
+                        .param("titleKk", "Жаңартылған автоматты дәріс")
+                        .param("contentRu", "Контент с автоматической проверкой")
+                        .param("contentKk", "Автоматты тексеру мазмұны")
+                        .param("source", "auto-republish")
+                        .param("controlMode", "AUTO")
+                        .param("autoCheckpointCount", "1")
+                        .param("action", "publish"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/api/admin/lectures/{id}", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionNo").value(2))
+                .andExpect(jsonPath("$.controlMode").value("auto"))
+                .andExpect(jsonPath("$.autoCheckpointCount").value(1))
+                .andExpect(jsonPath("$.checkpointCount").value(1));
+    }
+
+    @Test
+    void lectureSanitizerKeepsOnlyStoredLectureImages() throws Exception {
+        TopicFixture tf = createTopic("lecture-inline-image-topic-");
+        String storedImage = "/files/lecture-images/123e4567-e89b-12d3-a456-426614174000.png";
+
+        mockMvc.perform(post("/api/admin/lectures")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "titleRu": "Изображения в лекции",
+                                  "contentRu": "<p>Текст</p><img src=\\\"%s\\\" alt=\\\"Схема\\\"><img src=\\\"https://tracker.example/pixel.png\\\"><img src=\\\"data:image/png;base64,AAAA\\\">",
+                                  "controlMode": "NONE"
+                                }
+                                """.formatted(tf.topicId(), storedImage)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.contentRu").value(containsString(storedImage)))
+                .andExpect(jsonPath("$.contentRu").value(containsString("alt=\"Схема\"")))
+                .andExpect(jsonPath("$.contentRu").value(org.hamcrest.Matchers.not(containsString("tracker.example"))))
+                .andExpect(jsonPath("$.contentRu").value(org.hamcrest.Matchers.not(containsString("data:image"))));
     }
 
     @Test
@@ -587,6 +682,25 @@ class LectureIntegrationTest {
                         .with(csrf()))
                 .andExpect(status().isOk());
         return versionId;
+    }
+
+    /** Создаёт и публикует базовую лекцию без контроля, которую затем можно версионировать. */
+    private Long createAndPublishLectureWithoutControl(TopicFixture tf, String sourcePrefix) throws Exception {
+        Long lectureId = idFrom(mockMvc.perform(post("/api/admin/lectures")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(lectureBody(tf.topicId(), "NONE", 0, false).replace(
+                                "Ручной ввод", sourcePrefix + UUID.randomUUID().toString().substring(0, 8))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+        mockMvc.perform(post("/api/admin/lectures/{id}/publish", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk());
+        return lectureId;
     }
 
     private String lectureBody(Long topicId, String controlMode, int autoCount, boolean attachment) {

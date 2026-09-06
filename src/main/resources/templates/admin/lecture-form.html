@@ -123,6 +123,7 @@
                         <strong>Локальные ассеты редактора</strong>
                         <span>Quill и KaTeX загружаются из WebJars приложения без внешних CDN.</span>
                     </div>
+                    <div id="lecture-image-upload-status" class="muted-line" aria-live="polite"></div>
                 </section>
 
                 <section class="split-layout lecture-details-grid">
@@ -227,6 +228,43 @@
     </main>
 </div>
 
+<dialog id="lecture-formula-dialog" class="lecture-formula-dialog" aria-labelledby="lecture-formula-title">
+    <form method="dialog" class="lecture-formula-form">
+        <div class="page-head compact-head">
+            <div>
+                <h2 id="lecture-formula-title" class="section-title">Добавить формулу</h2>
+                <p class="muted-line">Введите формулу в формате LaTeX или начните с готовой заготовки.</p>
+            </div>
+            <button class="button" type="button" data-formula-close aria-label="Закрыть">Закрыть</button>
+        </div>
+        <label class="field">
+            <span>Формула</span>
+            <textarea id="lecture-formula-input"
+                      rows="3"
+                      spellcheck="false"
+                      placeholder="Например: P=\frac{a}{b}\cdot 100\%"></textarea>
+            <small class="muted-line">Команды начинаются с обратной косой черты: <code>\frac</code>, <code>\sqrt</code>.</small>
+        </label>
+        <div class="formula-template-grid" aria-label="Заготовки формул">
+            <button class="button" type="button" data-formula-template="\frac{a}{b}">Дробь</button>
+            <button class="button" type="button" data-formula-template="x^{2}">Степень</button>
+            <button class="button" type="button" data-formula-template="\sqrt{x}">Корень</button>
+            <button class="button" type="button" data-formula-template="P=\frac{a}{b}\cdot 100\%">Процент</button>
+            <button class="button" type="button" data-formula-template="x_{1}+x_{2}=0">Индекс</button>
+            <button class="button" type="button" data-formula-template="ax+b=c">Уравнение</button>
+        </div>
+        <div class="formula-preview-shell">
+            <strong>Предварительный просмотр</strong>
+            <div id="lecture-formula-preview" class="formula-preview" aria-live="polite"></div>
+            <p id="lecture-formula-error" class="field-error" hidden></p>
+        </div>
+        <div class="actions lecture-formula-actions">
+            <button class="button" type="button" data-formula-close>Отмена</button>
+            <button class="button primary" type="button" id="lecture-formula-insert">Вставить формулу</button>
+        </div>
+    </form>
+</dialog>
+
 <script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
 <script th:src="@{/webjars/quill/dist/quill.js}"></script>
 <script>
@@ -248,6 +286,12 @@
     const attachmentRows = Array.from(document.querySelectorAll('[data-attachment-row]'));
     const clientAttachmentError = document.getElementById('lecture-attachments-error');
     const autoCheckpointCountInput = document.getElementById('lecture-auto-checkpoint-count');
+    const imageUploadStatus = document.getElementById('lecture-image-upload-status');
+    const formulaDialog = document.getElementById('lecture-formula-dialog');
+    const formulaInput = document.getElementById('lecture-formula-input');
+    const formulaPreview = document.getElementById('lecture-formula-preview');
+    const formulaError = document.getElementById('lecture-formula-error');
+    const formulaInsert = document.getElementById('lecture-formula-insert');
     const selectedCheckpointIds = new Set(
         Array.from(manualCheckpointHidden?.querySelectorAll('input[name="checkpointQuestionVersionIds"]') ?? [])
             .map((input) => String(input.value).trim())
@@ -490,6 +534,9 @@
         { inputId: 'lecture-content-kk', editorId: 'lecture-editor-kk' }
     ];
     const lectureEditors = [];
+    let activeFormulaEditor = null;
+    let activeFormulaRange = null;
+    let pendingImageUploads = 0;
 
     function editorToolbarConfig(withFormula) {
         const base = [
@@ -498,12 +545,141 @@
             [{ list: 'ordered' }, { list: 'bullet' }],
             [{ align: [] }],
             ['blockquote', 'code-block'],
-            ['link', 'clean']
+            ['link', 'image', 'clean']
         ];
         if (withFormula) {
             base.splice(5, 0, ['formula']);
         }
         return base;
+    }
+
+    function renderFormulaPreview() {
+        const value = (formulaInput?.value || '').trim();
+        if (!formulaPreview || !formulaError) {
+            return false;
+        }
+        formulaPreview.innerHTML = '';
+        formulaError.hidden = true;
+        formulaError.textContent = '';
+        if (!value) {
+            formulaPreview.textContent = 'Здесь появится формула.';
+            return false;
+        }
+        try {
+            window.katex.render(value, formulaPreview, {
+                displayMode: true,
+                throwOnError: true,
+                strict: 'warn',
+                trust: false
+            });
+            return true;
+        } catch (error) {
+            formulaPreview.textContent = value;
+            formulaError.textContent = 'Проверьте синтаксис формулы: ' + error.message;
+            formulaError.hidden = false;
+            return false;
+        }
+    }
+
+    function openFormulaDialog(quill) {
+        if (!formulaDialog || !formulaInput || typeof window.katex === 'undefined') {
+            return;
+        }
+        activeFormulaEditor = quill;
+        activeFormulaRange = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        formulaInput.value = '';
+        renderFormulaPreview();
+        formulaDialog.showModal();
+        window.requestAnimationFrame(() => formulaInput.focus());
+    }
+
+    formulaInput?.addEventListener('input', renderFormulaPreview);
+    formulaInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            formulaInsert?.click();
+        }
+    });
+    document.querySelectorAll('[data-formula-template]').forEach((button) => {
+        button.addEventListener('click', () => {
+            formulaInput.value = button.dataset.formulaTemplate || '';
+            renderFormulaPreview();
+            formulaInput.focus();
+        });
+    });
+    document.querySelectorAll('[data-formula-close]').forEach((button) => {
+        button.addEventListener('click', () => formulaDialog?.close());
+    });
+    formulaInsert?.addEventListener('click', () => {
+        if (!activeFormulaEditor || !activeFormulaRange || !renderFormulaPreview()) {
+            return;
+        }
+        const value = formulaInput.value.trim();
+        activeFormulaEditor.deleteText(activeFormulaRange.index, activeFormulaRange.length, 'user');
+        activeFormulaEditor.insertEmbed(activeFormulaRange.index, 'formula', value, 'user');
+        activeFormulaEditor.setSelection(activeFormulaRange.index + 1, 0, 'silent');
+        formulaDialog.close();
+        activeFormulaEditor.focus();
+    });
+
+    function setImageUploadStatus(message, isError) {
+        if (!imageUploadStatus) {
+            return;
+        }
+        imageUploadStatus.textContent = message;
+        imageUploadStatus.classList.toggle('field-error', !!isError);
+    }
+
+    function setImageUploadPending(delta) {
+        pendingImageUploads = Math.max(0, pendingImageUploads + delta);
+        document.querySelectorAll('#lecture-form button[type="submit"], button[form="lecture-form"][type="submit"]')
+            .forEach((button) => button.disabled = pendingImageUploads > 0);
+    }
+
+    async function uploadLectureImage(file) {
+        const data = new FormData();
+        data.append('file', file);
+        const csrfInput = lectureForm?.querySelector('input[name="_csrf"]');
+        if (csrfInput) {
+            data.append(csrfInput.name, csrfInput.value);
+        }
+        const response = await fetch('/api/admin/lecture-images', { method: 'POST', body: data });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.url) {
+            const messages = {
+                lecture_image_too_large: 'Файл больше 10 МБ.',
+                lecture_image_type_not_allowed: 'Поддерживаются PNG, JPEG, GIF и WebP.'
+            };
+            throw new Error(messages[payload.error] || 'Не удалось загрузить изображение.');
+        }
+        return payload.url;
+    }
+
+    async function insertLectureImage(quill, file) {
+        if (!file || !file.type.startsWith('image/')) {
+            return;
+        }
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        setImageUploadPending(1);
+        setImageUploadStatus('Загружаем изображение…', false);
+        try {
+            const url = await uploadLectureImage(file);
+            quill.insertEmbed(range.index, 'image', url, 'user');
+            quill.setSelection(range.index + 1, 0, 'silent');
+            setImageUploadStatus('Изображение добавлено и будет сохранено вместе с лекцией.', false);
+        } catch (error) {
+            setImageUploadStatus(error.message, true);
+        } finally {
+            setImageUploadPending(-1);
+        }
+    }
+
+    function selectLectureImage(quill) {
+        const picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = 'image/png,image/jpeg,image/gif,image/webp';
+        picker.addEventListener('change', () => insertLectureImage(quill, picker.files?.[0]), { once: true });
+        picker.click();
     }
 
     lectureEditorConfigs.forEach((config) => {
@@ -540,6 +716,22 @@
             input.value = quill.root.innerHTML;
         };
         quill.on('text-change', syncInput);
+        quill.getModule('toolbar').addHandler('image', () => selectLectureImage(quill));
+        if (hasKatex) {
+            quill.getModule('toolbar').addHandler('formula', () => openFormulaDialog(quill));
+        }
+        quill.root.addEventListener('paste', (event) => {
+            const imageItem = Array.from(event.clipboardData?.items || [])
+                .find((item) => item.kind === 'file' && item.type.startsWith('image/'));
+            if (!imageItem) {
+                return;
+            }
+            // Quill по умолчанию превращает screenshot в data: URL. Загружаем файл раньше,
+            // чтобы в сохраняемый HTML попала короткая контролируемая ссылка.
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            insertLectureImage(quill, imageItem.getAsFile());
+        }, true);
         syncInput();
         lectureEditors.push(syncInput);
     });
@@ -756,6 +948,11 @@
 
     if (lectureForm) {
         lectureForm.addEventListener('submit', (event) => {
+            if (pendingImageUploads > 0) {
+                event.preventDefault();
+                setImageUploadStatus('Дождитесь завершения загрузки изображения.', true);
+                return;
+            }
             lectureEditors.forEach((sync) => sync());
             renderManualCheckpointHiddenInputs();
             if (!validateAttachments()) {

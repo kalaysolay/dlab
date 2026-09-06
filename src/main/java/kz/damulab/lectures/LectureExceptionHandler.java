@@ -16,7 +16,8 @@ public class LectureExceptionHandler {
         HttpStatus status = switch (ex.getCode()) {
             case "lecture_not_found", "topic_not_found", "question_version_not_found", "lecture_attachment_file_not_found" ->
                     HttpStatus.NOT_FOUND;
-            case "lecture_archived", "checkpoint_question_not_published", "lecture_already_archived" -> HttpStatus.CONFLICT;
+            case "lecture_archived", "checkpoint_question_not_published", "lecture_already_archived",
+                    "lecture_import_external_id_duplicate" -> HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status).body(Map.of("error", ex.getCode()));

@@ -20,9 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminLectureApiController {
 
     private final LectureService lectureService;
+    private final LectureImportService lectureImportService;
 
-    public AdminLectureApiController(LectureService lectureService) {
+    public AdminLectureApiController(LectureService lectureService, LectureImportService lectureImportService) {
         this.lectureService = lectureService;
+        this.lectureImportService = lectureImportService;
     }
 
     @GetMapping
@@ -43,6 +45,13 @@ public class AdminLectureApiController {
     ResponseEntity<LectureResponse> createLecture(@Valid @RequestBody LectureForm form) {
         LectureResponse created = lectureService.createLecture(form);
         return ResponseEntity.created(URI.create("/api/admin/lectures/" + created.id())).body(created);
+    }
+
+    /** Импортирует агентский batch и всегда создаёт лекции в статусе draft. */
+    @PostMapping("/import")
+    ResponseEntity<LectureImportResponse> importLectures(@Valid @RequestBody LectureImportRequest request) {
+        LectureImportResponse imported = lectureImportService.importLessons(request);
+        return ResponseEntity.status(201).body(imported);
     }
 
     @PatchMapping("/{id}")

@@ -1,5 +1,7 @@
 package kz.damulab.lectures;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,4 +16,10 @@ public interface LectureVersionRepository extends JpaRepository<LectureVersion, 
             where v.lecture.id = :lectureId
             """)
     int findMaxVersionNoByLectureId(@Param("lectureId") Long lectureId);
+
+    /**
+     * Возвращает последнюю административную версию, включая ещё не опубликованный
+     * черновик поверх опубликованной лекции.
+     */
+    Optional<LectureVersion> findFirstByLecture_IdOrderByVersionNoDesc(Long lectureId);
 }
