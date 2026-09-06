@@ -48,6 +48,7 @@ services:
       WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Damulab.kz}
       WEBAUTHN_ALLOWED_ORIGINS: ${WEBAUTHN_ALLOWED_ORIGINS:-https://damulab.kz}
       DAMULAB_LECTURES_ATTACHMENTS_STORAGE_DIR: /data/lecture-attachments
+      DAMULAB_LECTURES_IMAGES_STORAGE_DIR: /data/lecture-images
       QUESTION_IMAGES_STORAGE_DIR: /data/question-images
       SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 25MB
       SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 30MB
@@ -55,6 +56,7 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - lecture-attachments:/data/lecture-attachments
+      - lecture-images:/data/lecture-images
       - question-images:/data/question-images
     networks:
       - backend
@@ -62,6 +64,7 @@ services:
 volumes:
   postgres-data:
   lecture-attachments:
+  lecture-images:
   question-images:
 
 networks:

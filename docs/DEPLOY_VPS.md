@@ -399,9 +399,10 @@ free -h
 | OpenAI не отвечает | проверить `OPENAI_API_KEY`, логи приложения и исходящий HTTPS с VPS |
 | Passkey отклоняется | `WEBAUTHN_RP_ID=damulab.kz`, origin строго `https://damulab.kz` |
 | вложения исчезли | не подключён volume `lecture-attachments` или был удалён volume |
+| изображения внутри лекций исчезли | не подключён volume `lecture-images` или был удалён volume |
 
-Не запускайте `docker compose down -v`: ключ `-v` удаляет данные PostgreSQL и
-вложения. Обычный `docker compose down` volumes не удаляет.
+Не запускайте `docker compose down -v`: ключ `-v` удаляет данные PostgreSQL,
+вложения и изображения лекций. Обычный `docker compose down` volumes не удаляет.
 
 ## Источники по системным пакетам
 
