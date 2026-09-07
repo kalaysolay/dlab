@@ -38,29 +38,20 @@ public record LectureImportRequest(
     ) {
     }
 
-    /** Метаданные разрешаются в существующий учебный граф, но не создают его узлы. */
+    /**
+     * Метаданные ссылаются на существующий учебный граф напрямую по первичным ключам.
+     *
+     * <p>Все три ID передаются намеренно, хотя {@code topicId} уже косвенно определяет
+     * предмет и класс. Это делает JSON самодокументируемым, а сервис может проверить,
+     * что агент не смешал тему с предметом или классом из другого контекста.</p>
+     */
     public record Metadata(
-            @Valid @NotNull SubjectRef subject,
-            @Valid @NotNull GradeRef grade,
-            @Valid @NotNull TopicRef topic,
+            @NotNull @Min(1) Long subjectId,
+            @NotNull @Min(1) Long gradeId,
+            @NotNull @Min(1) Long topicId,
             @Valid @NotNull LocalizedText title,
             @NotBlank @Pattern(regexp = "kk|ru") String primaryLanguage,
             @NotBlank @Size(max = 512) String source
-    ) {
-    }
-
-    public record SubjectRef(
-            @NotBlank @Size(max = 64) String code,
-            @Valid @NotNull LocalizedText title
-    ) {
-    }
-
-    public record GradeRef(@NotNull @Min(1) @Max(12) Integer number) {
-    }
-
-    public record TopicRef(
-            @NotEmpty @Size(max = 32) List<@NotBlank @Size(max = 128) String> path,
-            @Valid @NotNull LocalizedText title
     ) {
     }
 

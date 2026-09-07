@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -169,6 +170,43 @@ class LectureImportIntegrationTest {
     }
 
     @Test
+    void importRejectsUnknownAndInconsistentGraphIds() throws Exception {
+        TopicPathFixture fixture = createTopicPath("lecture-import-graph-ids-");
+        String payload = importPayload(
+                fixture, "graph-ids-" + suffix(), "AUTO", "image/png",
+                safeRuHtml(), safeKkHtml(), true
+        );
+
+        // Каждый внешний ключ проверяется отдельно: понятная ошибка полезнее общего
+        // constraint violation уже во время сохранения лекции.
+        assertImportError(
+                withMetadataId(payload, "subjectId", Long.MAX_VALUE),
+                "lecture_import_subject_not_found"
+        );
+        assertImportError(
+                withMetadataId(payload, "gradeId", Long.MAX_VALUE),
+                "lecture_import_grade_not_found"
+        );
+        assertImportError(
+                withMetadataId(payload, "topicId", Long.MAX_VALUE),
+                "lecture_import_topic_not_found"
+        );
+
+        // Существующий ID тоже недостаточен: topic должен относиться именно к
+        // заявленным subjectId и gradeId.
+        long anotherSubjectId = subjects.findByCodeIgnoreCase("kazakh_language").orElseThrow().getId();
+        assertImportError(
+                withMetadataId(payload, "subjectId", anotherSubjectId),
+                "lecture_import_topic_scope_mismatch"
+        );
+        long anotherGradeId = grades.findByGradeNo(3).orElseThrow().getId();
+        assertImportError(
+                withMetadataId(payload, "gradeId", anotherGradeId),
+                "lecture_import_topic_scope_mismatch"
+        );
+    }
+
+    @Test
     void importRejectsManualControlExternalImagesAndUnsafeFormula() throws Exception {
         TopicPathFixture fixture = createTopicPath("lecture-import-invalid-");
 
@@ -261,15 +299,9 @@ class LectureImportIntegrationTest {
         Map<String, Object> lesson = Map.of(
                 "externalId", externalId,
                 "metadata", Map.of(
-                        "subject", Map.of(
-                                "code", fixture.subject().getCode(),
-                                "title", localized(fixture.subject().getTitleRu(), fixture.subject().getTitleKk())
-                        ),
-                        "grade", Map.of("number", fixture.grade().getGradeNo()),
-                        "topic", Map.of(
-                                "path", List.of(fixture.rootCode(), fixture.childCode()),
-                                "title", localized(fixture.childTitleRu(), fixture.childTitleKk())
-                        ),
+                        "subjectId", fixture.subject().getId(),
+                        "gradeId", fixture.grade().getId(),
+                        "topicId", fixture.childTopicId(),
                         "title", localized("Проценты и дроби", "Пайыздар мен бөлшектер"),
                         "primaryLanguage", "kk",
                         "source", "Интеграционный тест импорта"
@@ -306,6 +338,14 @@ class LectureImportIntegrationTest {
         return Map.of("ru", ru, "kk", kk);
     }
 
+    /** Возвращает независимую копию JSON с одним изменённым ID учебного графа. */
+    private String withMetadataId(String payload, String field, long value) throws Exception {
+        ObjectNode root = (ObjectNode) objectMapper.readTree(payload);
+        ObjectNode metadata = (ObjectNode) root.path("lessons").get(0).path("metadata");
+        metadata.put(field, value);
+        return objectMapper.writeValueAsString(root);
+    }
+
     private String safeRuHtml() {
         return """
                 <h2>Rich HTML</h2>
@@ -339,7 +379,7 @@ class LectureImportIntegrationTest {
         }
     }
 
-    /** Создаёт двухуровневый путь, чтобы тест проверял не только поиск темы по ID. */
+    /** Создаёт активную тему и возвращает реальные ID всех трёх узлов учебного графа. */
     private TopicPathFixture createTopicPath(String prefix) throws Exception {
         Subject subject = subjects.findByCodeIgnoreCase("math").orElseThrow();
         Grade grade = grades.findByGradeNo(4).orElseThrow();
@@ -350,7 +390,7 @@ class LectureImportIntegrationTest {
         String childRu = "Импортируемая тема " + marker;
         String childKk = "Импортталатын тақырып " + marker;
         long childId = createTopic(subject.getId(), grade.getId(), rootId, childCode, childRu, childKk);
-        return new TopicPathFixture(subject, grade, childId, rootCode, childCode, childRu, childKk);
+        return new TopicPathFixture(subject, grade, childId);
     }
 
     private long createTopic(
@@ -427,11 +467,7 @@ class LectureImportIntegrationTest {
     private record TopicPathFixture(
             Subject subject,
             Grade grade,
-            long childTopicId,
-            String rootCode,
-            String childCode,
-            String childTitleRu,
-            String childTitleKk
+            long childTopicId
     ) {
     }
 }

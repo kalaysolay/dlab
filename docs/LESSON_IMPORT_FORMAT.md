@@ -67,25 +67,16 @@ ROLE_ADMIN + CSRF
 
 - `schemaVersion` и `kind` имеют точные значения выше.
 - `lessons` содержит от 1 до 100 лекций.
-- `externalId` стабилен между запусками агента, содержит строчные латинские буквы, цифры и дефисы, максимум 128 символов. Повторный ID возвращает `409 Conflict`.
+- `externalId` — не ID лекции в БД, а ключ идемпотентности, который назначает агент или вызывающая система. Он стабилен между повторными запусками, содержит строчные латинские буквы, цифры и дефисы, максимум 128 символов. Повторный `externalId` возвращает `409 Conflict`, а созданный сервером `lectureId` приходит в ответе.
 
 ## Метаданные
 
 ```json
 {
   "metadata": {
-    "subject": {
-      "code": "math",
-      "title": { "ru": "Математика", "kk": "Математика" }
-    },
-    "grade": { "number": 4 },
-    "topic": {
-      "path": ["percent-basics", "finding-percent-of-number"],
-      "title": {
-        "ru": "Нахождение процента от числа",
-        "kk": "Санның пайызын табу"
-      }
-    },
+    "subjectId": 1,
+    "gradeId": 4,
+    "topicId": 2,
     "title": {
       "ru": "Как найти процент от числа",
       "kk": "Санның пайызын қалай табуға болады"
@@ -96,10 +87,10 @@ ROLE_ADMIN + CSRF
 }
 ```
 
-- Предмет разрешается по `subject.code`, класс — по `grade.number`.
-- Тема разрешается по полному `topic.path` от корня до целевой темы. Поиск только по названию или последнему коду запрещён.
-- RU/KK названия предмета и целевой темы сверяются со справочником.
-- Предмет, класс и тема должны существовать; импорт не меняет учебный граф.
+- `subjectId`, `gradeId`, `topicId` — числовые первичные ключи существующих записей в той же БД Damulab. Это именно ID, а не код, номер класса или позиция в дереве.
+- Все три ID обязательны. Хотя тема уже связана с предметом и классом, импортёр отдельно проверяет, что `topicId` принадлежит указанным `subjectId` и `gradeId`. Несогласованный набор отклоняется.
+- ID нужно получать из API/БД окружения, в которое выполняется импорт. Значения `1`, `4`, `2` выше — рабочие значения начального набора данных и одновременно пример структуры, но агент не должен переносить их в другую БД вслепую.
+- Предмет, класс и активная тема должны существовать; импорт не создаёт и не меняет учебный граф.
 - `title.ru`, `title.kk` и `source` обязательны. `source` — максимум 512 символов, без выдуманных источников.
 - `primaryLanguage` — `kk` или `ru`; для нового контента по умолчанию использовать `kk`.
 
@@ -217,7 +208,7 @@ HTTP API версии `1.0` принимает только Base64:
 
 1. Вывести только JSON без code fence.
 2. Проверить `schemaVersion`, `kind` и уникальный `externalId`.
-3. Указать существующие предмет, класс и полный путь темы.
+3. Указать существующие `subjectId`, `gradeId`, `topicId` и проверить, что тема принадлежит этому предмету и классу.
 4. Заполнить RU и KK заголовки и HTML.
 5. Не использовать Markdown или generated KaTeX HTML.
 6. Представить формулы как `span.ql-formula` и экранировать LaTeX для JSON.
@@ -229,7 +220,7 @@ HTTP API версии `1.0` принимает только Base64:
 
 - envelope: `lecture_import_schema_version_invalid`, `lecture_import_kind_invalid`;
 - идентификатор: `lecture_import_external_id_duplicate` (`409`);
-- граф: `lecture_import_subject_not_found`, `lecture_import_grade_not_found`, `lecture_import_topic_not_found`, `lecture_import_subject_title_mismatch`, `lecture_import_topic_title_mismatch`;
+- граф: `lecture_import_subject_not_found`, `lecture_import_grade_not_found`, `lecture_import_topic_not_found`, `lecture_import_topic_scope_mismatch`;
 - assets: `lecture_import_asset_duplicate`, `lecture_import_asset_source_invalid`, `lecture_import_asset_base64_invalid`, `lecture_import_asset_mime_mismatch`, `lecture_import_asset_sha256_mismatch`, `lecture_import_asset_not_found`, `lecture_import_unused_asset`;
 - HTML: `lecture_import_image_source_invalid`, `lecture_import_image_alt_required`, `lecture_import_formula_invalid`, `lecture_import_content_empty`;
 - контроль: `lecture_import_control_mode_invalid`;

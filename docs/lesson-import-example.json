@@ -5,26 +5,9 @@
     {
       "externalId": "math-4-finding-percent-001",
       "metadata": {
-        "subject": {
-          "code": "math",
-          "title": {
-            "ru": "Математика",
-            "kk": "Математика"
-          }
-        },
-        "grade": {
-          "number": 4
-        },
-        "topic": {
-          "path": [
-            "percent-basics",
-            "finding-percent-of-number"
-          ],
-          "title": {
-            "ru": "Нахождение процента от числа",
-            "kk": "Санның пайызын табу"
-          }
-        },
+        "subjectId": 1,
+        "gradeId": 4,
+        "topicId": 2,
         "title": {
           "ru": "Как найти процент от числа",
           "kk": "Санның пайызын қалай табуға болады"

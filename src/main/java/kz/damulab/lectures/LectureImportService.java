@@ -119,28 +119,28 @@ public class LectureImportService {
         }
     }
 
-    /** Разрешает полный путь темы внутри строго выбранных предмета и класса. */
+    /**
+     * Загружает предмет, класс и тему по ID и проверяет их как единую связку.
+     *
+     * <p>Проверка связей важна даже при корректных внешних ключах в БД: каждый ID
+     * по отдельности может существовать, но агент способен случайно взять тему у
+     * другого предмета или класса. Такая ошибка должна остановить импорт, а не
+     * создать формально валидную лекцию в неверном разделе.</p>
+     */
     private Topic resolveTopic(LectureImportRequest.Metadata metadata) {
-        Subject subject = subjects.findByCodeIgnoreCase(metadata.subject().code())
+        Subject subject = subjects.findById(metadata.subjectId())
                 .orElseThrow(() -> new LectureException("lecture_import_subject_not_found"));
-        if (!same(subject.getTitleRu(), metadata.subject().title().ru())
-                || !same(subject.getTitleKk(), metadata.subject().title().kk())) {
-            throw new LectureException("lecture_import_subject_title_mismatch");
-        }
-        Grade grade = grades.findByGradeNo(metadata.grade().number())
+        Grade grade = grades.findById(metadata.gradeId())
                 .orElseThrow(() -> new LectureException("lecture_import_grade_not_found"));
+        Topic topic = topics.findById(metadata.topicId())
+                .filter(candidate -> !candidate.isDeleted())
+                .orElseThrow(() -> new LectureException("lecture_import_topic_not_found"));
 
-        Topic current = null;
-        for (String code : metadata.topic().path()) {
-            Long parentId = current == null ? null : current.getId();
-            current = topics.findByScopeAndCode(subject.getId(), grade.getId(), parentId, code)
-                    .orElseThrow(() -> new LectureException("lecture_import_topic_not_found"));
+        if (!topic.getSubject().getId().equals(subject.getId())
+                || !topic.getGrade().getId().equals(grade.getId())) {
+            throw new LectureException("lecture_import_topic_scope_mismatch");
         }
-        if (!same(current.getTitleRu(), metadata.topic().title().ru())
-                || !same(current.getTitleKk(), metadata.topic().title().kk())) {
-            throw new LectureException("lecture_import_topic_title_mismatch");
-        }
-        return current;
+        return topic;
     }
 
     /** Декодирует, проверяет и сохраняет каждый asset ровно один раз на лекцию. */
@@ -266,10 +266,6 @@ public class LectureImportService {
         form.setAutoCheckpointCount(lesson.completionControl().questionCount());
         form.setAttachments(lesson.attachments());
         return form;
-    }
-
-    private boolean same(String left, String right) {
-        return left != null && right != null && left.trim().equals(right.trim());
     }
 
     private record StoredAsset(String storageKey, String url) {
