@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import kz.damulab.content.Grade;
+import kz.damulab.content.GradeRepository;
 import kz.damulab.content.Subject;
 import kz.damulab.content.SubjectRepository;
 import kz.damulab.content.Topic;
@@ -33,6 +35,7 @@ public class StudentLectureService {
     private final StudentLectureProgressRepository progressRepository;
     private final StudentProfileRepository students;
     private final SubjectRepository subjects;
+    private final GradeRepository grades;
     private final LectureService lectureService;
     private final AnswerChecker answerChecker;
     private final ObjectMapper objectMapper;
@@ -43,6 +46,7 @@ public class StudentLectureService {
             StudentLectureProgressRepository progressRepository,
             StudentProfileRepository students,
             SubjectRepository subjects,
+            GradeRepository grades,
             LectureService lectureService,
             AnswerChecker answerChecker,
             ObjectMapper objectMapper
@@ -52,27 +56,37 @@ public class StudentLectureService {
         this.progressRepository = progressRepository;
         this.students = students;
         this.subjects = subjects;
+        this.grades = grades;
         this.lectureService = lectureService;
         this.answerChecker = answerChecker;
         this.objectMapper = objectMapper;
     }
 
-    /** Возвращает плитки только тех предметов, где есть опубликованные лекции. */
+    /** Возвращает плитки только тех пар «предмет + класс», где есть опубликованные лекции. */
     @Transactional(readOnly = true)
-    public List<LectureSubjectView> listSubjects() {
-        return subjects.findWithPublishedLectures();
+    public List<LectureSubjectGradeView> listSubjectGrades() {
+        return subjects.findSubjectGradesWithPublishedLectures();
     }
 
     /**
-     * Возвращает лекции выбранного предмета с личными статусами ученика.
-     * Отсутствующая запись прогресса отображается как NOT_STARTED.
+     * Возвращает лекции выбранных предмета и класса с личными статусами ученика.
+     * Отсутствующая запись прогресса отображается как NOT_STARTED. Предмет и класс
+     * загружаются отдельно, чтобы заголовок оставался корректным даже по старой ссылке,
+     * когда последнюю опубликованную лекцию уже сняли с публикации.
      */
     @Transactional(readOnly = true)
-    public StudentLectureSubjectPageView subjectPage(String studentEmail, Long subjectId) {
+    public StudentLectureSubjectPageView subjectGradePage(
+            String studentEmail,
+            Long subjectId,
+            Long gradeId
+    ) {
         StudentProfile student = findStudent(studentEmail);
         Subject subject = subjects.findById(subjectId)
                 .orElseThrow(() -> new LectureException("subject_not_found"));
-        List<Lecture> publishedLectures = lectures.findPublishedBySubjectIdOrderByCreatedAtDesc(subjectId);
+        Grade grade = grades.findById(gradeId)
+                .orElseThrow(() -> new LectureException("grade_not_found"));
+        List<Lecture> publishedLectures = lectures
+                .findPublishedBySubjectIdAndGradeIdOrderByCreatedAtDesc(subjectId, gradeId);
 
         List<Long> lectureIds = publishedLectures.stream().map(Lecture::getId).toList();
         Map<Long, StudentLectureProgress> progressByLecture = loadProgress(student.getId(), lectureIds);
@@ -84,6 +98,9 @@ public class StudentLectureService {
                 subject.getId(),
                 subject.getTitleRu(),
                 subject.getTitleKk(),
+                grade.getId(),
+                grade.getTitleRu(),
+                grade.getTitleKk(),
                 items
         );
     }
@@ -182,6 +199,7 @@ public class StudentLectureService {
                 subject.getId(),
                 subject.getTitleRu(),
                 subject.getTitleKk(),
+                topic.getGrade().getId(),
                 progress.getStatus().apiValue(),
                 checkpointPassed,
                 canComplete,

@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="${#locale.language == 'kk' ? subjectPage.subjectTitleKk : subjectPage.subjectTitleRu}">Предмет</title>
+    <title th:text="${(#locale.language == 'kk' ? subjectPage.subjectTitleKk : subjectPage.subjectTitleRu)
+            + ' · ' + (#locale.language == 'kk' ? subjectPage.gradeTitleKk : subjectPage.gradeTitleRu)}">Предмет и класс</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
@@ -17,7 +18,8 @@
                 <div>
                     <p class="section-kicker" th:text="#{student.lecture.subject.kicker}">Уроки по предмету</p>
                     <h1 class="page-title"
-                        th:text="${#locale.language == 'kk' ? subjectPage.subjectTitleKk : subjectPage.subjectTitleRu}">Математика</h1>
+                        th:text="${(#locale.language == 'kk' ? subjectPage.subjectTitleKk : subjectPage.subjectTitleRu)
+                                + ' · ' + (#locale.language == 'kk' ? subjectPage.gradeTitleKk : subjectPage.gradeTitleRu)}">Математика · 4 класс</h1>
                     <p class="lede" th:text="#{student.lecture.subject.lede}">Новые уроки находятся в начале списка.</p>
                 </div>
                 <a class="button" th:href="@{/student/lectures}" th:text="#{student.lecture.subject.back}">Все предметы</a>

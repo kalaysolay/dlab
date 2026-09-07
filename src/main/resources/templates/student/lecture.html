@@ -15,7 +15,7 @@
         <section class="panel lecture-reader">
             <div class="lecture-reader-top">
                 <a class="button"
-                   th:href="${adminPreview} ? @{/admin/lectures} : @{/student/lectures/subjects/{id}(id=${reader.subjectId})}"
+                   th:href="${adminPreview} ? @{/admin/lectures} : @{/student/lectures/subjects/{subjectId}/grades/{gradeId}(subjectId=${reader.subjectId},gradeId=${reader.gradeId})}"
                    th:text="#{student.lecture.back}">Назад</a>
                 <span class="badge" th:if="${adminPreview}">admin preview</span>
                 <!-- Статус показывается только ученику; в admin preview личного прогресса нет. -->

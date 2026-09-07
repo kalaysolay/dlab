@@ -24,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import kz.damulab.content.GradeRepository;
+import kz.damulab.content.Subject;
 import kz.damulab.content.SubjectRepository;
 import kz.damulab.lectures.StudentLectureProgress;
 import kz.damulab.lectures.StudentLectureProgressRepository;
@@ -87,7 +88,7 @@ class StudentLectureLearningIntegrationTest {
         assertThat(lessonsPosition).isLessThan(lastLessonPosition);
     }
 
-    /** Проверяет двухуровневый каталог, сортировку и начальный статус лекции. */
+    /** Проверяет каталог по предмету и классу, сортировку и начальный статус лекции. */
     @Test
     void catalogShowsSubjectTilesAndNewestLectureFirst() throws Exception {
         TopicFixture fixture = createTopic("student-catalog-");
@@ -102,7 +103,11 @@ class StudentLectureLearningIntegrationTest {
                 .andExpect(content().string(containsString("lecture-subject-grid")))
                 .andExpect(content().string(containsString("Математика")));
 
-        String subjectPage = mockMvc.perform(get("/student/lectures/subjects/{id}", fixture.subjectId())
+        String subjectPage = mockMvc.perform(get(
+                            "/student/lectures/subjects/{subjectId}/grades/{gradeId}",
+                            fixture.subjectId(),
+                            fixture.gradeId()
+                    )
                         .with(user(STUDENT_EMAIL).roles("STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("student/lecture-subject"))
@@ -116,6 +121,68 @@ class StudentLectureLearningIntegrationTest {
         assertThat(subjectPage.indexOf("Новый урок " + marker))
                 .isLessThan(subjectPage.indexOf("Старый урок " + marker));
         assertThat(olderLectureId).isNotEqualTo(newerLectureId);
+    }
+
+    /**
+     * Проверяет главное правило каталога понятным пользовательским сценарием:
+     * один предмет получает отдельные плитки для классов с опубликованными уроками,
+     * класс только с черновиком не показывается, а страницы классов не смешиваются.
+     */
+    @Test
+    void catalogSeparatesGradesAndHidesDraftOnlySection() throws Exception {
+        String marker = shortMarker();
+        String subjectTitle = "Предмет каталога " + marker;
+        Subject subject = subjects.save(new Subject(
+                "lecture-catalog-" + marker,
+                subjectTitle,
+                "Каталог пәні " + marker,
+                "Предмет для проверки каталога уроков",
+                "Сабақтар каталогын тексеруге арналған пән"
+        ));
+        TopicFixture gradeThree = createTopic("student-grade-three-", subject.getId(), 3);
+        TopicFixture gradeFour = createTopic("student-grade-four-", subject.getId(), 4);
+        TopicFixture gradeFiveDraft = createTopic("student-grade-five-", subject.getId(), 5);
+        String gradeThreeTitle = "Урок третьего класса " + marker;
+        String gradeFourTitle = "Урок четвёртого класса " + marker;
+
+        Long gradeThreeLectureId = createAndPublishLecture(gradeThree.topicId(), gradeThreeTitle, null);
+        createAndPublishLecture(gradeFour.topicId(), gradeFourTitle, null);
+        createLecture(gradeFiveDraft.topicId(), "Черновик пятого класса " + marker, null);
+
+        String catalog = mockMvc.perform(get("/student/lectures")
+                        .with(user(STUDENT_EMAIL).roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(catalog)
+                .contains(subjectTitle + " · 3 класс")
+                .contains(subjectTitle + " · 4 класс")
+                .doesNotContain(subjectTitle + " · 5 класс");
+
+        String gradeThreePage = mockMvc.perform(get(
+                            "/student/lectures/subjects/{subjectId}/grades/{gradeId}",
+                            subject.getId(),
+                            gradeThree.gradeId()
+                    )
+                        .with(user(STUDENT_EMAIL).roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        assertThat(gradeThreePage)
+                .contains(gradeThreeTitle)
+                .doesNotContain(gradeFourTitle);
+
+        // Из самого урока кнопка «Назад» должна вести в тот же класс, а не в общий предмет.
+        mockMvc.perform(get("/student/lectures/{id}", gradeThreeLectureId)
+                        .with(user(STUDENT_EMAIL).roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "/student/lectures/subjects/" + subject.getId()
+                                + "/grades/" + gradeThree.gradeId()
+                )));
     }
 
     /** Проверяет простой путь NOT_STARTED → IN_PROGRESS → DONE без теста. */
@@ -158,7 +225,11 @@ class StudentLectureLearningIntegrationTest {
 
         assertThat(progressRepository.findByStudentProfileIdAndLectureId(secondStudent.getId(), lectureId))
                 .isEmpty();
-        mockMvc.perform(get("/student/lectures/subjects/{id}", fixture.subjectId())
+        mockMvc.perform(get(
+                            "/student/lectures/subjects/{subjectId}/grades/{gradeId}",
+                            fixture.subjectId(),
+                            fixture.gradeId()
+                    )
                         .with(user(secondStudentEmail).roles("STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Не начата")));
@@ -219,8 +290,13 @@ class StudentLectureLearningIntegrationTest {
                 .findFirst()
                 .orElseThrow()
                 .getId();
+        return createTopic(prefix, subjectId, 4);
+    }
+
+    /** Создаёт тему указанного предмета и класса через тот же API, которым пользуется администратор. */
+    private TopicFixture createTopic(String prefix, long subjectId, int gradeNo) throws Exception {
         Long gradeId = grades.findAllByOrderByGradeNoAsc().stream()
-                .filter(grade -> Integer.valueOf(4).equals(grade.getGradeNo()))
+                .filter(grade -> Integer.valueOf(gradeNo).equals(grade.getGradeNo()))
                 .findFirst()
                 .orElseThrow()
                 .getId();
@@ -286,8 +362,8 @@ class StudentLectureLearningIntegrationTest {
         return versionId;
     }
 
-    /** Создаёт и публикует лекцию без теста либо с одним ручным checkpoint. */
-    private Long createAndPublishLecture(Long topicId, String title, Long questionVersionId) throws Exception {
+    /** Создаёт черновик лекции без теста либо с одним ручным checkpoint. */
+    private Long createLecture(Long topicId, String title, Long questionVersionId) throws Exception {
         String controlMode = questionVersionId == null ? "NONE" : "MANUAL";
         String checkpointJson = questionVersionId == null
                 ? ""
@@ -311,7 +387,12 @@ class StudentLectureLearningIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        Long lectureId = idFrom(response);
+        return idFrom(response);
+    }
+
+    /** Создаёт лекцию и отдельно публикует её, чтобы она стала видна ученикам. */
+    private Long createAndPublishLecture(Long topicId, String title, Long questionVersionId) throws Exception {
+        Long lectureId = createLecture(topicId, title, questionVersionId);
         mockMvc.perform(post("/api/admin/lectures/{id}/publish", lectureId)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))

@@ -8,6 +8,7 @@ public record StudentLectureReaderView(
         Long subjectId,
         String subjectTitleRu,
         String subjectTitleKk,
+        Long gradeId,
         String progressStatus,
         boolean checkpointPassed,
         boolean canComplete,

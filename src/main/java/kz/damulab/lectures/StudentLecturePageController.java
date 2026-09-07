@@ -37,22 +37,26 @@ public class StudentLecturePageController {
         this.objectMapper = objectMapper;
     }
 
-    /** Показывает каталог предметов, по которым опубликованы лекции. */
+    /** Показывает каталог пар «предмет + класс», по которым опубликованы лекции. */
     @GetMapping("/student/lectures")
     String lectures(Model model) {
-        model.addAttribute("lectureSubjects", studentLectureService.listSubjects());
+        model.addAttribute("lectureSubjectGrades", studentLectureService.listSubjectGrades());
         model.addAttribute("adminPreview", false);
         return "student/lectures";
     }
 
-    /** Показывает отсортированные лекции выбранного предмета и личные статусы. */
-    @GetMapping("/student/lectures/subjects/{subjectId}")
-    String subjectLectures(
+    /** Показывает отсортированные лекции выбранных предмета и класса с личными статусами. */
+    @GetMapping("/student/lectures/subjects/{subjectId}/grades/{gradeId}")
+    String subjectGradeLectures(
             Principal principal,
             @PathVariable Long subjectId,
+            @PathVariable Long gradeId,
             Model model
     ) {
-        model.addAttribute("subjectPage", studentLectureService.subjectPage(principal.getName(), subjectId));
+        model.addAttribute(
+                "subjectPage",
+                studentLectureService.subjectGradePage(principal.getName(), subjectId, gradeId)
+        );
         return "student/lecture-subject";
     }
 

@@ -22,26 +22,27 @@
                 <a class="button" th:href="@{/student}" th:text="#{student.lectures.back}">В кабинет</a>
             </div>
 
-            <!-- Предмет без опубликованных лекций не показывается, поэтому пустое состояние честное. -->
-            <div class="empty-state" th:if="${#lists.isEmpty(lectureSubjects)}">
+            <!-- Пара «предмет + класс» без опубликованных лекций не создаёт пустую плитку. -->
+            <div class="empty-state" th:if="${#lists.isEmpty(lectureSubjectGrades)}">
                 <strong th:text="#{student.lectures.empty.title}">Уроки пока не опубликованы</strong>
                 <span th:text="#{student.lectures.empty.body}">Методист готовит первые материалы.</span>
             </div>
 
-            <!-- На широком экране сетка содержит ровно три предмета в строке. -->
-            <div class="lecture-subject-grid" th:if="${!#lists.isEmpty(lectureSubjects)}">
+            <!-- На широком экране сетка содержит ровно три раздела «предмет + класс» в строке. -->
+            <div class="lecture-subject-grid" th:if="${!#lists.isEmpty(lectureSubjectGrades)}">
                 <a class="lecture-subject-card"
-                   th:each="subject : ${lectureSubjects}"
-                   th:href="@{/student/lectures/subjects/{id}(id=${subject.id})}">
+                   th:each="section : ${lectureSubjectGrades}"
+                   th:href="@{/student/lectures/subjects/{subjectId}/grades/{gradeId}(subjectId=${section.subjectId},gradeId=${section.gradeId})}">
                     <!-- Настроенная в админке иконка заменяет стандартную заглушку. -->
                     <img class="lecture-subject-placeholder lecture-subject-icon"
-                         th:if="${subject.iconUrl() != null}" th:src="${subject.iconUrl()}" alt="">
-                    <span class="lecture-subject-placeholder" th:if="${subject.iconUrl() == null}" aria-hidden="true">
+                         th:if="${section.iconUrl() != null}" th:src="${section.iconUrl()}" alt="">
+                    <span class="lecture-subject-placeholder" th:if="${section.iconUrl() == null}" aria-hidden="true">
                         <svg class="lucide-icon"><use th:href="@{/icons/lucide-sprite.svg#book-open-check}"></use></svg>
                     </span>
                     <span class="lecture-subject-copy">
-                        <strong th:text="${#locale.language == 'kk' ? subject.titleKk : subject.titleRu}">Математика</strong>
-                        <small th:text="#{student.lectures.count(${subject.lectureCount})}">1 урок</small>
+                        <strong th:text="${(#locale.language == 'kk' ? section.subjectTitleKk : section.subjectTitleRu)
+                                + ' · ' + (#locale.language == 'kk' ? section.gradeTitleKk : section.gradeTitleRu)}">Математика · 4 класс</strong>
+                        <small th:text="#{student.lectures.count(${section.lectureCount})}">1 урок</small>
                     </span>
                     <span class="chev" aria-hidden="true">›</span>
                 </a>
