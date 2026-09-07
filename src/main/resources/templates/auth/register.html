@@ -59,7 +59,7 @@
                     </div>
                     <div class="field">
                         <label for="gradeNo" th:text="#{register.label.gradeNo}">Класс ученика</label>
-                        <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="5">
+                        <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="12">
                         <span class="alert error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></span>
                     </div>
                 </div>

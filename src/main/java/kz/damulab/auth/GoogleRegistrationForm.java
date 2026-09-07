@@ -14,11 +14,14 @@ public class GoogleRegistrationForm {
     @Size(max = 255)
     private String fullName;
 
+    @Size(max = 64)
+    private String phone;
+
     @NotNull
     private RoleCode role = RoleCode.STUDENT;
 
     @Min(1)
-    @Max(5)
+    @Max(12)
     private Integer gradeNo;
 
     @Size(max = 8)
@@ -30,6 +33,14 @@ public class GoogleRegistrationForm {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public RoleCode getRole() {

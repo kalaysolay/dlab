@@ -10,8 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kz.damulab.users.AppUser;
 import kz.damulab.users.AppUserRepository;
+import kz.damulab.users.DuplicatePhoneException;
 import kz.damulab.users.ParentProfile;
 import kz.damulab.users.ParentProfileRepository;
+import kz.damulab.users.PhoneNormalizer;
 import kz.damulab.users.Role;
 import kz.damulab.users.RoleCode;
 import kz.damulab.users.RoleRepository;
@@ -31,19 +33,22 @@ public class GoogleAccountService {
     private final StudentProfileRepository studentProfiles;
     private final ParentProfileRepository parentProfiles;
     private final PasswordEncoder passwordEncoder;
+    private final PhoneNormalizer phoneNormalizer;
 
     public GoogleAccountService(
             AppUserRepository users,
             RoleRepository roles,
             StudentProfileRepository studentProfiles,
             ParentProfileRepository parentProfiles,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            PhoneNormalizer phoneNormalizer
     ) {
         this.users = users;
         this.roles = roles;
         this.studentProfiles = studentProfiles;
         this.parentProfiles = parentProfiles;
         this.passwordEncoder = passwordEncoder;
+        this.phoneNormalizer = phoneNormalizer;
     }
 
     /**
@@ -88,11 +93,15 @@ public class GoogleAccountService {
         }
         Role role = roles.findByCode(roleCode)
                 .orElseThrow(() -> new IllegalStateException("Missing role: " + roleCode));
+        String phone = phoneNormalizer.normalize(form.getPhone());
+        if (phone != null && users.existsByPhone(phone)) {
+            throw new DuplicatePhoneException();
+        }
 
         // У Google-only аккаунта нет известного пользователю локального пароля. Случайный BCrypt hash
         // сохраняет NOT NULL-инвариант таблицы и не открывает обход OAuth через форму пароля.
         String unreachablePassword = passwordEncoder.encode(UUID.randomUUID().toString());
-        AppUser user = new AppUser(identity.email(), unreachablePassword, form.getFullName().trim(), null);
+        AppUser user = new AppUser(identity.email(), unreachablePassword, form.getFullName().trim(), phone);
         user.linkGoogleSubject(identity.subject());
         user.confirmEmail(OffsetDateTime.now());
         user.addRole(role);

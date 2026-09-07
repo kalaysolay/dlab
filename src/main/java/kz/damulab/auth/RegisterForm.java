@@ -30,7 +30,7 @@ public class RegisterForm {
     private RoleCode role = RoleCode.STUDENT;
 
     @Min(1)
-    @Max(5)
+    @Max(12)
     private Integer gradeNo;
 
     @Size(max = 8)

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
 import kz.damulab.users.AppUser;
+import kz.damulab.users.DuplicatePhoneException;
+import kz.damulab.users.InvalidPhoneException;
 import kz.damulab.users.RoleCode;
 
 /** Завершает регистрацию нового Google-пользователя локальными данными профиля. */
@@ -71,6 +73,14 @@ public class GoogleOAuthController {
         try {
             AppUser user = accounts.register(identity, form);
             authentication = localAuthentication.authenticate(user, request);
+        } catch (DuplicatePhoneException ex) {
+            bindingResult.rejectValue("phone", "duplicate", "Телефон уже зарегистрирован");
+            model.addAttribute("googleEmail", identity.email());
+            return "auth/google-register";
+        } catch (InvalidPhoneException ex) {
+            bindingResult.rejectValue("phone", "invalid", "Введите корректный номер телефона");
+            model.addAttribute("googleEmail", identity.email());
+            return "auth/google-register";
         } catch (GoogleOAuthException ex) {
             request.getSession().removeAttribute(PENDING_IDENTITY_SESSION_KEY);
             localAuthentication.clear(request);

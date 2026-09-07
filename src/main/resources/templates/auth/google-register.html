@@ -34,6 +34,11 @@
                     <input id="fullName" th:field="*{fullName}" type="text" autocomplete="name" required>
                     <span class="alert error" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></span>
                 </div>
+                <div class="field">
+                    <label for="phone" th:text="#{register.label.phone}">Телефон</label>
+                    <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel">
+                    <span class="alert error" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></span>
+                </div>
                 <div class="form-grid two-col">
                     <div class="field">
                         <label for="role" th:text="#{register.label.role}">Роль</label>
@@ -45,7 +50,7 @@
                     </div>
                     <div class="field">
                         <label for="gradeNo" th:text="#{register.label.gradeNo}">Класс ученика</label>
-                        <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="5">
+                        <input id="gradeNo" th:field="*{gradeNo}" type="number" min="1" max="12">
                         <span class="alert error" th:if="${#fields.hasErrors('gradeNo')}" th:errors="*{gradeNo}"></span>
                     </div>
                 </div>

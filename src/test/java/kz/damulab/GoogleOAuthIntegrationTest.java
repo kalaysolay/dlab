@@ -13,7 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
+
+import kz.damulab.auth.GoogleIdentity;
 
 /** Проверяет условное включение Google client, UI и стандартный OIDC authorization redirect. */
 @SpringBootTest(properties = {
@@ -48,5 +51,19 @@ class GoogleOAuthIntegrationTest {
         mockMvc.perform(get("/register/google"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login?oauthExpired"));
+    }
+
+    @Test
+    void profileCompletionRequestsPhoneAndAllowsGradeTwelve() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(
+                "kz.damulab.auth.GoogleOAuthController.PENDING_IDENTITY",
+                new GoogleIdentity("google-sub-form", "student@example.com", "Student")
+        );
+
+        mockMvc.perform(get("/register/google").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"phone\"")))
+                .andExpect(content().string(containsString("max=\"12\"")));
     }
 }

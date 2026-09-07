@@ -16,7 +16,7 @@ public class StudentProfileForm {
     private String phone;
 
     @Min(1)
-    @Max(5)
+    @Max(12)
     private Integer gradeNo;
 
     @Pattern(regexp = "ru|kk")

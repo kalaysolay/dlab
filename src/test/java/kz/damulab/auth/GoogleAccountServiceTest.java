@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import kz.damulab.users.AppUser;
 import kz.damulab.users.AppUserRepository;
 import kz.damulab.users.ParentProfileRepository;
+import kz.damulab.users.PhoneNormalizer;
 import kz.damulab.users.Role;
 import kz.damulab.users.RoleCode;
 import kz.damulab.users.RoleRepository;
@@ -39,12 +40,16 @@ class GoogleAccountServiceTest {
     private ParentProfileRepository parentProfiles;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private PhoneNormalizer phoneNormalizer;
 
     private GoogleAccountService service;
 
     @BeforeEach
     void setUp() {
-        service = new GoogleAccountService(users, roles, studentProfiles, parentProfiles, passwordEncoder);
+        service = new GoogleAccountService(
+                users, roles, studentProfiles, parentProfiles, passwordEncoder, phoneNormalizer
+        );
     }
 
     @Test
@@ -70,11 +75,13 @@ class GoogleAccountServiceTest {
         form.setFullName("New User");
         form.setRole(RoleCode.STUDENT);
         form.setGradeNo(4);
+        form.setPhone("8 (701) 123-45-67");
         form.setPreferredLanguage("kk");
 
         when(users.findByGoogleSubject("google-sub-2")).thenReturn(Optional.empty());
         when(users.findByEmailIgnoreCase("new@example.com")).thenReturn(Optional.empty());
         when(roles.findByCode(RoleCode.STUDENT)).thenReturn(Optional.of(new Role(RoleCode.STUDENT)));
+        when(phoneNormalizer.normalize("8 (701) 123-45-67")).thenReturn("+77011234567");
         when(passwordEncoder.encode(any())).thenReturn("random-hash");
         when(users.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -82,6 +89,7 @@ class GoogleAccountServiceTest {
 
         assertThat(created.getEmail()).isEqualTo("new@example.com");
         assertThat(created.getGoogleSubject()).isEqualTo("google-sub-2");
+        assertThat(created.getPhone()).isEqualTo("+77011234567");
         assertThat(created.getRoles()).extracting(Role::getCode).containsExactly(RoleCode.STUDENT);
         assertThat(created.getEmailVerifiedAt()).isNotNull();
         verify(studentProfiles).save(any(StudentProfile.class));
