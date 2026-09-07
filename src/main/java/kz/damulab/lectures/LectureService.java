@@ -706,6 +706,11 @@ public class LectureService {
                 span.remove();
                 continue;
             }
+            // Quill сериализует вместе с data-value весь сгенерированный DOM KaTeX. Хранить его
+            // нельзя: sanitizer удаляет служебные MathML-теги и стили, после чего в reader попадают
+            // видимые обрывки вроде "ab\\frac{a}{b}ba". Каноническим источником остаётся LaTeX,
+            // а безопасный DOM заново строится KaTeX на странице просмотра.
+            span.empty();
             span.clearAttributes();
             span.attr("class", "ql-formula");
             span.attr("data-value", formula);

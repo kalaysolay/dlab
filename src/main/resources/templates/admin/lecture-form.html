@@ -122,6 +122,7 @@
                     <div class="notice">
                         <strong>Локальные ассеты редактора</strong>
                         <span>Quill и KaTeX загружаются из WebJars приложения без внешних CDN.</span>
+                        <span>При вставке из ChatGPT формулы в форматах $...$, $$...$$, \(...\) и \[...\] распознаются автоматически.</span>
                     </div>
                     <div id="lecture-image-upload-status" class="muted-line" aria-live="polite"></div>
                 </section>
@@ -553,6 +554,52 @@
         return base;
     }
 
+    /**
+     * Превращает LaTeX-разделители, которые ChatGPT кладёт в буфер обмена как обычный текст,
+     * в Quill formula embeds. Форматирование окружающего текста сохраняется через attributes;
+     * содержимое code/pre и уже готовых ql-formula намеренно не преобразуется.
+     */
+    function pastedLatexMatcher(node, delta) {
+        if (node.parentElement?.closest('code, pre, .ql-formula')) {
+            return delta;
+        }
+        const Delta = window.Quill.import('delta');
+        const converted = new Delta();
+        let changed = false;
+
+        delta.ops.forEach((operation) => {
+            if (typeof operation.insert !== 'string') {
+                converted.insert(operation.insert, operation.attributes);
+                return;
+            }
+
+            const text = operation.insert;
+            // Поддерживаем inline/block-разделители из ответов ChatGPT. Экранированный \$ не
+            // считается началом формулы, поэтому обычный текст и одиночные суммы не меняются.
+            const pattern = /(?<!\\)(?:\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$([^$\r\n]+?)\$)/g;
+            let cursor = 0;
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                if (match.index > cursor) {
+                    converted.insert(text.slice(cursor, match.index), operation.attributes);
+                }
+                const value = match.slice(1).find((part) => part !== undefined)?.trim();
+                if (value) {
+                    converted.insert({ formula: value });
+                    changed = true;
+                } else {
+                    converted.insert(match[0], operation.attributes);
+                }
+                cursor = pattern.lastIndex;
+            }
+            if (cursor < text.length) {
+                converted.insert(text.slice(cursor), operation.attributes);
+            }
+        });
+
+        return changed ? converted : delta;
+    }
+
     function renderFormulaPreview() {
         const value = (formulaInput?.value || '').trim();
         if (!formulaPreview || !formulaError) {
@@ -704,6 +751,9 @@
                 toolbar: editorToolbarConfig(hasKatex)
             }
         });
+        if (hasKatex) {
+            quill.clipboard.addMatcher(Node.TEXT_NODE, pastedLatexMatcher);
+        }
 
         const initial = (input.value || '').trim();
         if (initial) {

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:text="${lecture.titleRu ?: lecture.titleKk}">Лекция</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
@@ -188,6 +189,7 @@
         </section>
     </main>
 </div>
+<script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
 <script>
     // Переключение языка меняет только видимую версию текста лекции.
     const readerTabs = Array.from(document.querySelectorAll('[data-reader-tab]'));
@@ -201,6 +203,33 @@
         placeValuesUrl: '/img/lectures/rounding-decimals/place-values.svg',
         numberLineUrl: '/img/lectures/rounding-decimals/number-line.svg'
     };
+
+    /**
+     * В БД формула хранится как исходный LaTeX в data-value. Рендерим её здесь и тем самым
+     * одинаково обрабатываем новые канонические span и старые записи с вложенным DOM KaTeX.
+     */
+    function renderLectureFormulas() {
+        document.querySelectorAll('.lecture-content .ql-formula').forEach((formula) => {
+            const value = (formula.dataset.value || '').trim();
+            if (!value) {
+                return;
+            }
+            if (typeof window.katex === 'undefined') {
+                formula.textContent = value;
+                return;
+            }
+            try {
+                window.katex.render(value, formula, {
+                    throwOnError: false,
+                    strict: 'warn',
+                    trust: false
+                });
+            } catch (error) {
+                // При проблеме с одной формулой остальная лекция остаётся читаемой.
+                formula.textContent = value;
+            }
+        });
+    }
 
     function insertLectureIllustration(panel, headingPrefix, imageUrl, altText) {
         if (!panel || panel.querySelector(`img[src="${imageUrl}"]`)) {
@@ -261,6 +290,7 @@
         );
     }
 
+    renderLectureFormulas();
     hydrateRoundingLectureIllustrations();
 
     readerTabs.forEach((tab) => {

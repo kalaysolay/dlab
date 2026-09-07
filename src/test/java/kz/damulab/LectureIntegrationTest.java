@@ -490,7 +490,7 @@ class LectureIntegrationTest {
                                   "topicId": %d,
                                   "titleRu": "Sanitizer check",
                                   "titleKk": "Sanitizer check",
-                                  "contentRu": "<p>Word-like block</p><table><tr><td>15%%</td></tr></table><a href='https://example.org' target='_blank'>external</a><a href='/materials/handbook.pdf'>internal</a><span class='ql-formula' data-value='\\\\\\\\frac{a}{b}'></span><span class='ql-formula' data-value='\\\\\\\\href{javascript:alert(1)}{x}'></span><script>alert(1)</script>",
+                                  "contentRu": "<p>Word-like block</p><table><tr><td>15%%</td></tr></table><a href='https://example.org' target='_blank'>external</a><a href='/materials/handbook.pdf'>internal</a><span class='ql-formula' data-value='\\\\\\\\frac{a}{b}'><span class='katex'>legacy-rendered-dom</span></span><span class='ql-formula' data-value='\\\\\\\\href{javascript:alert(1)}{x}'></span><script>alert(1)</script>",
                                   "contentKk": "safe content",
                                   "controlMode": "NONE"
                                 }
@@ -503,6 +503,7 @@ class LectureIntegrationTest {
                 .andExpect(jsonPath("$.contentRu").value(containsString("rel=\"noopener noreferrer nofollow\"")))
                 .andExpect(jsonPath("$.contentRu").value(containsString("href=\"/materials/handbook.pdf\"")))
                 .andExpect(jsonPath("$.contentRu").value(containsString("class=\"ql-formula\"")))
+                .andExpect(jsonPath("$.contentRu").value(org.hamcrest.Matchers.not(containsString("legacy-rendered-dom"))))
                 .andExpect(jsonPath("$.contentRu").value(org.hamcrest.Matchers.not(containsString("\\\\href{javascript"))));
     }
 

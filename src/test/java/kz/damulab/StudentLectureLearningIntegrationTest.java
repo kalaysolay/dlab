@@ -195,6 +195,10 @@ class StudentLectureLearningIntegrationTest {
                         .with(user(STUDENT_EMAIL).roles("STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("student/lecture"))
+                .andExpect(content().string(containsString("/webjars/katex/")))
+                .andExpect(content().string(containsString("/dist/katex.min.css")))
+                .andExpect(content().string(containsString("/dist/katex.min.js")))
+                .andExpect(content().string(containsString("window.katex.render")))
                 .andExpect(content().string(containsString("Завершить изучение")));
 
         assertThat(progress(lectureId).getStatus()).isEqualTo(StudentLectureStatus.IN_PROGRESS);

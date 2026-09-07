@@ -1930,6 +1930,13 @@ textarea.lecture-textarea {
     overflow-wrap: anywhere;
 }
 
+/* Дроби и индексы визуально мельче обычного текста даже при равном font-size.
+   Небольшое увеличение действует только внутри лекций и не меняет тесты/викторины. */
+.lecture-content .ql-formula .katex,
+.lecture-rich-editor .ql-formula .katex {
+    font-size: 1.4em;
+}
+
 .lecture-content code,
 .lecture-content pre {
     white-space: pre-wrap;

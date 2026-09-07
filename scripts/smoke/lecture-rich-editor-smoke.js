@@ -121,6 +121,23 @@ async function insertFormula(page, lang, latex) {
   await dialog.waitFor({ state: "hidden", timeout: 5000 });
 }
 
+async function pasteChatGptFormula(page, lang, latex) {
+  const editor = page.locator(`#lecture-editor-${lang} .ql-editor`);
+  await editor.click();
+  await editor.evaluate((target, formula) => {
+    const transfer = new DataTransfer();
+    transfer.setData("text/plain", ` ChatGPT paste: $${formula}$`);
+    target.dispatchEvent(new ClipboardEvent("paste", {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: transfer
+    }));
+  }, latex);
+  await page.waitForFunction(({ lang, latex }) => Array.from(
+    document.querySelectorAll(`#lecture-editor-${lang} .ql-formula`)
+  ).some((formula) => formula.dataset.value === latex), { lang, latex });
+}
+
 async function pasteScreenshot(page, lang) {
   const editor = page.locator(`#lecture-editor-${lang} .ql-editor`);
   await editor.click();
@@ -195,6 +212,7 @@ async function fillLectureEditor(page, marker, refs) {
   await insertFormula(page, "ru", "\\displaystyle x^2 + y^2 = z^2");
   await page.keyboard.press("Enter");
   await page.keyboard.type("End of RU block.");
+  await pasteChatGptFormula(page, "ru", "\\frac{15}{10}=\\frac{3}{2}");
   await pasteScreenshot(page, "ru");
 
   await page.click('[data-lecture-tab="kk"]');
@@ -228,7 +246,7 @@ async function openRowAndParseLectureId(page, marker) {
 async function verifyReopenAndEdit(page, lectureId, marker, checkpointVersionId) {
   await page.goto(`${baseUrl}/admin/lectures/${lectureId}/edit`, { waitUntil: "networkidle" });
   const formulaCount = await page.locator("#lecture-editor-ru .ql-editor .ql-formula").count();
-  assert(formulaCount >= 2, `expected at least 2 formulas after reopen, got ${formulaCount}`);
+  assert(formulaCount >= 3, `expected at least 3 formulas after reopen, got ${formulaCount}`);
   await snap(page, "02-admin-editor-reopened");
 
   const editedSourceMarker = `lecture-rich-edited-${marker}`;
@@ -261,7 +279,7 @@ async function verifyReopenAndEdit(page, lectureId, marker, checkpointVersionId)
     `edited source marker was not saved; source=${sourceAfterEdit}`
   );
   const formulaCountAfter = await page.locator("#lecture-editor-ru .ql-editor .ql-formula").count();
-  assert(formulaCountAfter >= 2, `expected at least 2 formulas after ui save, got ${formulaCountAfter}`);
+  assert(formulaCountAfter >= 3, `expected at least 3 formulas after ui save, got ${formulaCountAfter}`);
   assert(await page.inputValue("#lecture-control-mode") === "MANUAL", "manual control mode was not restored");
   assert(
     await page.locator(`input[name="checkpointQuestionVersionIds"][value="${checkpointVersionId}"]`).count() === 1,
@@ -310,8 +328,8 @@ async function verifyStudentVisibility(browser, marker) {
   ]);
   const pageText = await page.locator("body").innerText();
   assert(pageText.includes(`Lecture marker ${marker}`), "student lecture page does not contain lecture marker");
-  const formulaCount = await page.locator(".lecture-content .ql-formula, .lecture-content .katex").count();
-  assert(formulaCount > 0, "student lecture page does not show formula content");
+  const formulaCount = await page.locator(".lecture-content .ql-formula > .katex").count();
+  assert(formulaCount > 0, "student lecture page did not render formula with KaTeX");
   assert(await page.locator('.lecture-content img[src^="/files/lecture-images/"]').count() === 1,
     "student lecture page does not show pasted image");
   assert(await page.locator("[data-checkpoint-form]").count() === 1,
