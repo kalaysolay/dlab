@@ -16,6 +16,10 @@ public class StartTestSessionRequest {
     @NotNull
     private Long gradeId;
 
+    /** null означает тест по всем темам выбранных предмета и класса. */
+    @Min(1)
+    private Long topicId;
+
     @Pattern(regexp = "ru|kk")
     private String language = "ru";
 
@@ -53,6 +57,14 @@ public class StartTestSessionRequest {
 
     public void setGradeId(Long gradeId) {
         this.gradeId = gradeId;
+    }
+
+    public Long getTopicId() {
+        return topicId;
+    }
+
+    public void setTopicId(Long topicId) {
+        this.topicId = topicId;
     }
 
     public String getLanguage() {

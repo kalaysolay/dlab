@@ -27,6 +27,8 @@ import kz.damulab.content.Grade;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.Subject;
 import kz.damulab.content.SubjectRepository;
+import kz.damulab.content.Topic;
+import kz.damulab.content.TopicRepository;
 import kz.damulab.gamification.AchievementUnlockPayload;
 import kz.damulab.gamification.StudentEngagementService;
 import kz.damulab.questions.QuestionVersion;
@@ -48,6 +50,7 @@ public class TestingHubService {
     private final QuestionVersionRepository questionVersions;
     private final SubjectRepository subjects;
     private final GradeRepository grades;
+    private final TopicRepository topics;
     private final StudentProfileRepository students;
     private final AnswerChecker answerChecker;
     private final AnalyticsService analyticsService;
@@ -68,6 +71,7 @@ public class TestingHubService {
             QuestionVersionRepository questionVersions,
             SubjectRepository subjects,
             GradeRepository grades,
+            TopicRepository topics,
             StudentProfileRepository students,
             AnswerChecker answerChecker,
             AnalyticsService analyticsService,
@@ -87,6 +91,7 @@ public class TestingHubService {
         this.questionVersions = questionVersions;
         this.subjects = subjects;
         this.grades = grades;
+        this.topics = topics;
         this.students = students;
         this.answerChecker = answerChecker;
         this.analyticsService = analyticsService;
@@ -105,6 +110,7 @@ public class TestingHubService {
                 .orElseThrow(() -> new TestingHubException("subject_not_found"));
         Grade grade = grades.findById(request.getGradeId())
                 .orElseThrow(() -> new TestingHubException("grade_not_found"));
+        Topic topic = resolveTopic(request.getTopicId(), subject, grade);
         if (!testStartAvailability.isPairAvailable(subject.getId(), grade.getId())) {
             throw new TestingHubException("published_questions_not_found");
         }
@@ -116,6 +122,7 @@ public class TestingHubService {
         List<QuestionVersion> pool = questionVersions.findPublishedForTest(
                 subject.getId(),
                 grade.getId(),
+                topic == null ? null : topic.getId(),
                 request.getDifficulty(),
                 Pageable.unpaged()
         );
@@ -150,7 +157,7 @@ public class TestingHubService {
                 language,
                 request.getDifficulty(),
                 timeLimit,
-                settingsJson(selection)
+                settingsJson(selection, topic)
         ));
         int orderNo = 1;
         for (QuestionVersion version : selection.questions()) {
@@ -487,15 +494,34 @@ public class TestingHubService {
         return new SelectionHistory(attemptedVersionIds, recentVersionIds, latestCorrectByVersion);
     }
 
-    private String settingsJson(QuestionSelectionResult selection) {
-        return toJson(Map.of(
-                "questionCount", selection.questions().size(),
-                "selectionStrategy", selection.strategy().name(),
-                "weakQuestions", selection.weakQuestions(),
-                "watchQuestions", selection.watchQuestions(),
-                "unseenQuestions", selection.unseenQuestions(),
-                "strongQuestions", selection.strongQuestions()
-        ));
+    /** Проверяет, что переданная тема активна и принадлежит выбранной паре предмет/класс. */
+    private Topic resolveTopic(Long topicId, Subject subject, Grade grade) {
+        if (topicId == null) {
+            return null;
+        }
+        Topic topic = topics.findById(topicId)
+                .filter(candidate -> !candidate.isDeleted())
+                .orElseThrow(() -> new TestingHubException("topic_not_found"));
+        if (!topic.getSubject().getId().equals(subject.getId()) || !topic.getGrade().getId().equals(grade.getId())) {
+            throw new TestingHubException("topic_scope_mismatch");
+        }
+        return topic;
+    }
+
+    /** Сохраняет выбранную тему вместе с диагностикой адаптивного подбора без изменения схемы сессий. */
+    private String settingsJson(QuestionSelectionResult selection, Topic topic) {
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("questionCount", selection.questions().size());
+        settings.put("selectionStrategy", selection.strategy().name());
+        settings.put("weakQuestions", selection.weakQuestions());
+        settings.put("watchQuestions", selection.watchQuestions());
+        settings.put("unseenQuestions", selection.unseenQuestions());
+        settings.put("strongQuestions", selection.strongQuestions());
+        if (topic != null) {
+            settings.put("topicId", topic.getId());
+            settings.put("topicTitleRu", topic.getTitleRu());
+        }
+        return toJson(settings);
     }
 
     private JsonNode objectNode(Object value) {

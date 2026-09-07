@@ -66,6 +66,11 @@
                 </article>
                 <article class="test-flow-step">
                     <span class="section-kicker">Шаг 3</span>
+                    <strong>Тема</strong>
+                    <span class="muted-line">Можно выбрать одну тему или весь материал.</span>
+                </article>
+                <article class="test-flow-step">
+                    <span class="section-kicker">Шаг 4</span>
                     <strong>Язык</strong>
                     <span class="muted-line">Язык формулировок вопроса.</span>
                 </article>
@@ -101,6 +106,19 @@
                             <option th:each="g : ${initialGrades}"
                                     th:value="${g.id}"
                                     th:text="${g.titleRu}">4 класс</option>
+                        </select>
+                    </label>
+                    <label class="field" id="topicField"
+                           th:with="selectedSubject=${testAvailability.?[id == #object.subjectId]},
+                                    initialGrades=${(selectedSubject != null and !selectedSubject.isEmpty()) ? selectedSubject[0].grades : testAvailability[0].grades},
+                                    selectedGrade=${initialGrades.?[id == #object.gradeId]},
+                                    initialTopics=${(selectedGrade != null and !selectedGrade.isEmpty()) ? selectedGrade[0].topics : initialGrades[0].topics}">
+                        <span>Тема</span>
+                        <select th:field="*{topicId}" id="wizardTopic">
+                            <option value="">Все темы</option>
+                            <option th:each="topic : ${initialTopics}"
+                                    th:value="${topic.id}"
+                                    th:text="${topic.titleRu}">Тема</option>
                         </select>
                     </label>
                     <label class="field">
@@ -161,7 +179,33 @@
     const selectBtn = document.getElementById("selectSubjectTest");
     const subjectSelect = document.getElementById("wizardSubject");
     const gradeSelect = document.getElementById("wizardGrade");
+    const topicSelect = document.getElementById("wizardTopic");
     const form = document.getElementById("startSubjectTestForm");
+
+    const selectedSubject = () => AVAILABILITY.find((subject) => String(subject.id) === String(subjectSelect?.value));
+    const selectedGrade = () => selectedSubject()?.grades?.find((grade) => String(grade.id) === String(gradeSelect?.value));
+
+    const syncTopics = () => {
+        if (!topicSelect) {
+            return;
+        }
+        const previousTopic = topicSelect.value;
+        const topics = selectedGrade()?.topics || [];
+        topicSelect.innerHTML = "";
+        const allTopics = document.createElement("option");
+        allTopics.value = "";
+        allTopics.textContent = "Все темы";
+        topicSelect.appendChild(allTopics);
+        topics.forEach((topic) => {
+            const option = document.createElement("option");
+            option.value = topic.id;
+            option.textContent = topic.titleRu;
+            topicSelect.appendChild(option);
+        });
+        if (topics.some((topic) => String(topic.id) === String(previousTopic))) {
+            topicSelect.value = previousTopic;
+        }
+    };
 
     const syncGrades = () => {
         if (!subjectSelect || !gradeSelect || !Array.isArray(AVAILABILITY)) {
@@ -172,6 +216,7 @@
         const previousGrade = gradeSelect.value;
         gradeSelect.innerHTML = "";
         if (!subject || !subject.grades || subject.grades.length === 0) {
+            syncTopics();
             return;
         }
         subject.grades.forEach((g) => {
@@ -184,10 +229,12 @@
         if (still) {
             gradeSelect.value = previousGrade;
         }
+        syncTopics();
     };
 
     if (subjectSelect && gradeSelect) {
         subjectSelect.addEventListener("change", syncGrades);
+        gradeSelect.addEventListener("change", syncTopics);
     }
 
     if (selectBtn && wizard) {
@@ -210,9 +257,11 @@
 
     if (form && subjectSelect && gradeSelect) {
         form.addEventListener("submit", (event) => {
-            const sid = subjectSelect.value;
-            const subject = AVAILABILITY.find((s) => String(s.id) === String(sid));
-            if (!subject || !subject.grades || subject.grades.length === 0) {
+            const subject = selectedSubject();
+            const grade = selectedGrade();
+            const topicExists = !topicSelect?.value
+                    || grade?.topics?.some((topic) => String(topic.id) === String(topicSelect.value));
+            if (!subject || !grade || !topicExists) {
                 event.preventDefault();
             }
         });

@@ -93,6 +93,8 @@ class TestingHubIntegrationTest {
                 .andExpect(view().name("student/tests"))
                 .andExpect(content().string(containsString("Testing Hub")))
                 .andExpect(content().string(containsString("4 класс")))
+                .andExpect(content().string(containsString("Все темы")))
+                .andExpect(content().string(containsString("id=\"wizardTopic\"")))
                 .andExpect(content().string(not(containsString("const AVAILABILITY = \"["))))
                 .andReturn()
                 .getResponse()
@@ -131,6 +133,60 @@ class TestingHubIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(settings.path("questionCount").asInt())
                 .isEqualTo(response.path("questions").size());
         org.assertj.core.api.Assertions.assertThat(classifiedQuestions).isEqualTo(response.path("questions").size());
+    }
+
+    @Test
+    void topicMustBelongToSelectedSubjectAndGrade() throws Exception {
+        Long subjectId = subjects.findAllByOrderByTitleRuAsc().stream()
+                .filter(subject -> "math".equals(subject.getCode()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        var orderedGrades = grades.findAllByOrderByGradeNoAsc();
+        var topicGrade = orderedGrades.stream()
+                .filter(grade -> Integer.valueOf(4).equals(grade.getGradeNo()))
+                .findFirst()
+                .orElseThrow();
+        var anotherGrade = orderedGrades.stream()
+                .filter(grade -> !grade.getId().equals(topicGrade.getId()))
+                .findFirst()
+                .orElseThrow();
+        String marker = "topic-scope-" + System.nanoTime();
+
+        String topicPayload = mockMvc.perform(post("/api/admin/topics")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "subjectId": %d,
+                                  "gradeId": %d,
+                                  "code": "%s",
+                                  "titleRu": "Scope topic %s",
+                                  "titleKk": "Scope topic %s"
+                                }
+                                """.formatted(subjectId, topicGrade.getId(), marker, marker, marker)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long topicId = objectMapper.readTree(topicPayload).path("id").asLong();
+
+        mockMvc.perform(post("/api/test-sessions")
+                        .with(user("student@damulab.kz").roles("STUDENT"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "testType": "SUBJECT",
+                                  "subjectId": %d,
+                                  "gradeId": %d,
+                                  "topicId": %d,
+                                  "language": "ru"
+                                }
+                                """.formatted(subjectId, anotherGrade.getId(), topicId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("topic_scope_mismatch"));
     }
 
     @Test
@@ -210,13 +266,15 @@ class TestingHubIntegrationTest {
                                   "testType": "SUBJECT",
                                   "subjectId": %d,
                                   "gradeId": %d,
+                                  "topicId": %d,
                                   "language": "ru",
                                   "difficulty": 5,
                                   "questionCount": 1
                                 }
-                                """.formatted(subjectId, gradeId)))
+                                """.formatted(subjectId, gradeId, topicId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.questions[0].type").value("FILL_IN"))
+                .andExpect(jsonPath("$.questions[0].topicId").value(topicId))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -224,6 +282,8 @@ class TestingHubIntegrationTest {
         JsonNode session = objectMapper.readTree(sessionResponse);
         Long sessionId = session.path("id").asLong();
         Long sessionQuestionId = session.path("questions").get(0).path("id").asLong();
+        JsonNode settings = objectMapper.readTree(sessions.findById(sessionId).orElseThrow().getSettingsJson());
+        org.assertj.core.api.Assertions.assertThat(settings.path("topicId").asLong()).isEqualTo(topicId);
 
         mockMvc.perform(patch("/api/test-sessions/{sessionId}/answers", sessionId)
                         .with(user("student@damulab.kz").roles("STUDENT"))

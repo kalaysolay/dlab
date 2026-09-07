@@ -30,15 +30,38 @@ public interface QuestionVersionRepository extends JpaRepository<QuestionVersion
               and (:gradeId is null or exists (
                   select 1 from QuestionVersionGrade g
                   where g.questionVersion = v and g.grade.id = :gradeId))
+              and (:topicId is null or exists (
+                  select 1 from QuestionVersionTopic t
+                  where t.questionVersion = v and t.topic.id = :topicId))
               and (:difficulty is null or v.difficulty = :difficulty)
             order by v.createdAt asc
             """)
     List<QuestionVersion> findPublishedForTest(
             @Param("subjectId") Long subjectId,
             @Param("gradeId") Long gradeId,
+            @Param("topicId") Long topicId,
             @Param("difficulty") Integer difficulty,
             Pageable pageable
     );
+
+    /**
+     * Возвращает только активные темы с опубликованными вопросами, пригодными для класса темы.
+     * Проекция нужна экрану старта и не загружает целиком граф вопросов.
+     */
+    @Query("""
+            select distinct topic.id, topic.subject.id, topic.grade.id, topic.titleRu
+            from Question question
+            join question.currentVersion version
+            join version.topicLinks topicLink
+            join topicLink.topic topic
+            where question.status = kz.damulab.questions.QuestionStatus.PUBLISHED
+              and topic.deletedAt is null
+              and exists (
+                  select 1 from QuestionVersionGrade gradeLink
+                  where gradeLink.questionVersion = version and gradeLink.grade.id = topic.grade.id)
+            order by topic.titleRu asc
+            """)
+    List<Object[]> findPublishedTopicsForTestAvailability();
 
     @Query("""
             select count(question.id)

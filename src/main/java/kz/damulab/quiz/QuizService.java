@@ -109,6 +109,7 @@ public class QuizService {
         List<QuestionVersion> selected = questionVersions.findPublishedForTest(
                 subject.getId(),
                 grade.getId(),
+                null,
                 request.getDifficulty(),
                 PageRequest.of(0, questionCount)
         );

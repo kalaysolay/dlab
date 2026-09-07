@@ -14,6 +14,7 @@ import kz.damulab.content.Subject;
 import kz.damulab.content.SubjectRepository;
 import kz.damulab.questions.QuestionVersionRepository;
 
+/** Формирует согласованный каскад предметов, классов и тем для экрана запуска теста. */
 @Service
 public class TestStartAvailabilityService {
 
@@ -34,6 +35,10 @@ public class TestStartAvailabilityService {
         this.testingProperties = testingProperties;
     }
 
+    /**
+     * Показывает только пары предмет/класс, прошедшие минимальный порог банка, и только темы
+     * с опубликованными вопросами. Пункт «Все темы» добавляется интерфейсом и имеет значение null.
+     */
     public List<AvailableSubjectOption> loadAvailability() {
         long min = testingProperties.getMinPublishedPerSubjectGrade();
         List<Object[]> rows = questionVersions.countPublishedGroupedBySubjectAndGrade(min);
@@ -42,6 +47,15 @@ public class TestStartAvailabilityService {
             Long subjectId = (Long) row[0];
             Long gradeId = (Long) row[1];
             subjectToGrades.computeIfAbsent(subjectId, key -> new ArrayList<>()).add(gradeId);
+        }
+        Map<SubjectGradeKey, List<AvailableTopicOption>> topicsBySubjectGrade = new LinkedHashMap<>();
+        for (Object[] row : questionVersions.findPublishedTopicsForTestAvailability()) {
+            Long topicId = ((Number) row[0]).longValue();
+            Long subjectId = ((Number) row[1]).longValue();
+            Long gradeId = ((Number) row[2]).longValue();
+            String titleRu = (String) row[3];
+            topicsBySubjectGrade.computeIfAbsent(new SubjectGradeKey(subjectId, gradeId), ignored -> new ArrayList<>())
+                    .add(new AvailableTopicOption(topicId, titleRu));
         }
         List<AvailableSubjectOption> result = new ArrayList<>();
         for (Subject subject : subjects.findAllByOrderByTitleRuAsc()) {
@@ -52,7 +66,15 @@ public class TestStartAvailabilityService {
             List<AvailableGradeOption> gradeOptions = new ArrayList<>();
             for (Long gradeId : gradeIds) {
                 grades.findById(gradeId).ifPresent(grade ->
-                        gradeOptions.add(new AvailableGradeOption(grade.getId(), grade.getTitleRu(), grade.getGradeNo()))
+                        gradeOptions.add(new AvailableGradeOption(
+                                grade.getId(),
+                                grade.getTitleRu(),
+                                grade.getGradeNo(),
+                                List.copyOf(topicsBySubjectGrade.getOrDefault(
+                                        new SubjectGradeKey(subject.getId(), grade.getId()),
+                                        List.of()
+                                ))
+                        ))
                 );
             }
             gradeOptions.sort(Comparator.comparingInt(AvailableGradeOption::gradeNo));
@@ -65,5 +87,8 @@ public class TestStartAvailabilityService {
         long min = testingProperties.getMinPublishedPerSubjectGrade();
         long count = questionVersions.countPublishedForSubjectAndGrade(subjectId, gradeId);
         return count >= min;
+    }
+
+    private record SubjectGradeKey(Long subjectId, Long gradeId) {
     }
 }
