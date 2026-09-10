@@ -124,6 +124,7 @@
                         <span>Quill и KaTeX загружаются из WebJars приложения без внешних CDN.</span>
                         <span>При вставке из ChatGPT формулы в форматах $...$, $$...$$, \(...\) и \[...\] распознаются автоматически.</span>
                     </div>
+                    <p class="muted-line">Чтобы вставить YouTube-видео, поставьте курсор в нужное место текста и нажмите кнопку видео на панели редактора.</p>
                     <div id="lecture-image-upload-status" class="muted-line" aria-live="polite"></div>
                 </section>
 
@@ -268,6 +269,7 @@
 
 <script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
 <script th:src="@{/webjars/quill/dist/quill.js}"></script>
+<script th:src="@{/js/lecture-youtube.js}"></script>
 <script>
     const lectureTabs = Array.from(document.querySelectorAll('[data-lecture-tab]'));
     const lecturePanels = Array.from(document.querySelectorAll('[data-lecture-panel]'));
@@ -546,7 +548,7 @@
             [{ list: 'ordered' }, { list: 'bullet' }],
             [{ align: [] }],
             ['blockquote', 'code-block'],
-            ['link', 'image', 'clean']
+            ['link', 'image', 'video', 'clean']
         ];
         if (withFormula) {
             base.splice(5, 0, ['formula']);
@@ -766,7 +768,32 @@
             input.value = quill.root.innerHTML;
         };
         quill.on('text-change', syncInput);
+        // Размер меняем через модель Quill, чтобы сохранить HTML и историю undo/redo.
+        const panel = document.createElement('div');
+        panel.className = 'lecture-image-size';
+        panel.hidden = true;
+        panel.innerHTML = '<label>Ширина изображения <input type="range" min="10" max="100" step="5"> <output></output></label>';
+        editorRoot.after(panel);
+        let selectedImage;
+        const slider = panel.querySelector('input');
+        const output = panel.querySelector('output');
+        quill.root.addEventListener('click', event => {
+            selectedImage = event.target.closest('img');
+            panel.hidden = !selectedImage;
+            if (!selectedImage) return;
+            const width = selectedImage.getAttribute('width') || '';
+            slider.value = width.endsWith('%') ? parseInt(width, 10) : Math.min(100,
+                Math.round(selectedImage.getBoundingClientRect().width / quill.root.clientWidth * 100));
+            output.value = slider.value + '%';
+        });
+        slider.addEventListener('input', () => {
+            if (!selectedImage || !quill.root.contains(selectedImage)) { panel.hidden = true; return; }
+            const blot = window.Quill.find(selectedImage);
+            quill.formatText(quill.getIndex(blot), 1, { width: slider.value + '%', height: false }, 'user');
+            output.value = slider.value + '%';
+        });
         quill.getModule('toolbar').addHandler('image', () => selectLectureImage(quill));
+        window.installLectureYouTube(quill);
         if (hasKatex) {
             quill.getModule('toolbar').addHandler('formula', () => openFormulaDialog(quill));
         }

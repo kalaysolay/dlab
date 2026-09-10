@@ -56,11 +56,12 @@ public class LectureService {
     private static final Safelist LECTURE_SAFE_HTML = Safelist.none()
             .addTags("p", "br", "strong", "b", "em", "i", "u", "s", "blockquote", "pre", "code", "ul", "ol", "li",
                     "h1", "h2", "h3", "h4", "h5", "h6", "a", "span", "div", "sub", "sup", "hr",
-                    "table", "thead", "tbody", "tr", "th", "td", "img")
+                    "table", "thead", "tbody", "tr", "th", "td", "img", "iframe")
             .addAttributes(":all", "class")
             .addAttributes("a", "href", "target", "rel")
             .addAttributes("span", "data-value", "contenteditable")
-            .addAttributes("img", "src", "alt", "title")
+            .addAttributes("iframe", "src")
+            .addAttributes("img", "src", "alt", "title", "width")
             .addAttributes("th", "colspan", "rowspan")
             .addAttributes("td", "colspan", "rowspan")
             .addProtocols("a", "href", "http", "https", "mailto")
@@ -636,6 +637,7 @@ public class LectureService {
         Document doc = Jsoup.parseBodyFragment(safe, SAFE_BASE_URI);
         normalizeLectureLinks(doc);
         normalizeLectureImages(doc);
+        normalizeLectureVideos(doc);
         normalizeFormulaSpans(doc);
         String normalizedSafeHtml = doc.body().html().trim();
         return normalizedSafeHtml.isBlank() ? null : normalizedSafeHtml;
@@ -690,12 +692,37 @@ public class LectureService {
                 image.remove();
                 continue;
             }
+            // Разрешаем ограниченную ширину, без произвольных CSS и фиксированной высоты.
+            String width = image.attr("width");
+            boolean validWidth = width.matches("(?:[1-9][0-9]?|100)%|[1-9][0-9]{0,3}");
             String alt = trimToNull(image.attr("alt"));
             String title = trimToNull(image.attr("title"));
             image.clearAttributes();
             image.attr("src", src);
+            if (validWidth) image.attr("width", width);
             if (alt != null) image.attr("alt", alt);
             if (title != null) image.attr("title", title);
+        }
+    }
+
+    /** Оставляет только YouTube embed: произвольные iframe, srcdoc и обработчики запрещены. */
+    private void normalizeLectureVideos(Document doc) {
+        for (Element frame : doc.select("iframe")) {
+            String src = frame.attr("src");
+            var match = Pattern.compile("^https://www[.]youtube(?:-nocookie)?[.]com/embed/([A-Za-z0-9_-]{11})$").matcher(src);
+            if (!match.matches()) {
+                frame.remove();
+                continue;
+            }
+            frame.clearAttributes();
+            frame.empty();
+            frame.attr("src", "https://www.youtube.com/embed/" + match.group(1));
+            frame.attr("class", "ql-video");
+            frame.attr("title", "YouTube video player");
+            frame.attr("allow", "encrypted-media; picture-in-picture; fullscreen");
+            frame.attr("allowfullscreen", "");
+            // YouTube требует Referer для идентификации сайта, в том числе на мобильных.
+            frame.attr("referrerpolicy", "strict-origin-when-cross-origin");
         }
     }
 
