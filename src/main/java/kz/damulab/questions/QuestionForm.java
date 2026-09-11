@@ -3,6 +3,8 @@ package kz.damulab.questions;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +17,10 @@ public class QuestionForm {
     private Long subjectId;
 
     @NotEmpty
+    // JSON-импорт исторически показывал одиночный topicId. Сохраняем этот короткий
+    // формат, одновременно оставляя topicIds каноническим полем для нескольких тем.
+    @JsonAlias("topicId")
+    @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
     private List<Long> topicIds = new ArrayList<>();
 
     @NotEmpty

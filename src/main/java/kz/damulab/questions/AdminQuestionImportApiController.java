@@ -2,8 +2,6 @@ package kz.damulab.questions;
 
 import java.net.URI;
 
-import jakarta.validation.Valid;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,7 +21,7 @@ public class AdminQuestionImportApiController {
     }
 
     @PostMapping
-    ResponseEntity<QuestionImportJobResponse> importQuestions(@Valid @RequestBody QuestionImportRequest request) {
+    ResponseEntity<QuestionImportJobResponse> importQuestions(@RequestBody QuestionImportRequest request) {
         QuestionImportJobResponse created = questionBank.importQuestions(request);
         return ResponseEntity.created(URI.create("/api/admin/question-imports/" + created.id())).body(created);
     }

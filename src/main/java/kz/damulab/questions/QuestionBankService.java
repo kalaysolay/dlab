@@ -311,6 +311,7 @@ public class QuestionBankService {
             QuestionForm row = rows.get(index);
             int rowNo = index + 1;
             try {
+                completeImportScope(row);
                 row.setStatus(QuestionStatus.NEEDS_REVIEW);
                 QuestionResponse created = createQuestion(row);
                 imported++;
@@ -329,6 +330,30 @@ public class QuestionBankService {
         job.complete(imported, errors.size());
         audit.record("question_import_completed", "QuestionImportJob", job.getId(), job.getStatus().name());
         return toImportResponse(job, errors);
+    }
+
+    /**
+     * Дополняет область JSON-импорта по выбранным темам. Короткому формату достаточно
+     * {@code topicId}: предмет и класс уже однозначно записаны в {@link Topic}.
+     * Явно переданные subjectId/gradeIds не перезаписываются, чтобы обычная валидация
+     * по-прежнему обнаруживала неверные или несовместимые ссылки.
+     */
+    private void completeImportScope(QuestionForm form) {
+        if (form.getTopicIds() == null || form.getTopicIds().isEmpty()) {
+            return;
+        }
+        List<Topic> selectedTopics = form.getTopicIds().stream()
+                .map(this::findTopic)
+                .toList();
+        if (form.getSubjectId() == null) {
+            form.setSubjectId(selectedTopics.get(0).getSubject().getId());
+        }
+        if (form.getGradeIds() == null || form.getGradeIds().isEmpty()) {
+            form.setGradeIds(selectedTopics.stream()
+                    .map(topic -> topic.getGrade().getId())
+                    .distinct()
+                    .toList());
+        }
     }
 
     @Transactional(readOnly = true)

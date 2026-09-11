@@ -64,7 +64,7 @@ class QuestionImportHealthIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(importBody(tf, marker, true)))
+                        .content(shortImportBody(tf.topicId(), marker)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("completed"))
                 .andExpect(jsonPath("$.importedRows").value(1))
@@ -208,6 +208,29 @@ class QuestionImportHealthIntegrationTest {
                   ]
                 }
                 """.formatted(tf.subjectId(), tf.topicId(), tf.gradeId(), source, correctA);
+    }
+
+    /** Проверяет короткий формат из подсказки UI: subjectId и gradeIds выводятся из topicId. */
+    private String shortImportBody(long topicId, String source) {
+        return """
+                {
+                  "questions": [
+                    {
+                      "topicId": %d,
+                      "type": "SCQ",
+                      "difficulty": 2,
+                      "bodyRu": "Что называют отношением двух чисел?",
+                      "bodyKk": "Екі санның қатынасы дегеніміз не?",
+                      "source": "%s",
+                      "status": "NEEDS_REVIEW",
+                      "options": [
+                        {"label":"A","textRu":"Сумма","textKk":"Қосынды","correct":false},
+                        {"label":"B","textRu":"Частное","textKk":"Бөлінді","correct":true}
+                      ]
+                    }
+                  ]
+                }
+                """.formatted(topicId, source);
     }
 
     private String scqBody(TopicFixture tf, String bodyRu) {

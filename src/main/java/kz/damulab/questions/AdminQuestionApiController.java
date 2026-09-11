@@ -139,7 +139,7 @@ public class AdminQuestionApiController {
     }
 
     @PostMapping("/imports")
-    ResponseEntity<QuestionImportJobResponse> importQuestions(@Valid @RequestBody QuestionImportRequest request) {
+    ResponseEntity<QuestionImportJobResponse> importQuestions(@RequestBody QuestionImportRequest request) {
         QuestionImportJobResponse created = questionBank.importQuestions(request);
         return ResponseEntity.created(URI.create("/api/admin/questions/imports/" + created.id())).body(created);
     }
