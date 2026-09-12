@@ -19,6 +19,7 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
     private static final String OP_QUESTIONS = "deepseek_question_drafts";
     private static final String OP_MINI_LECTURE = "deepseek_mini_lecture";
     private static final String ENDPOINT = "/chat/completions";
+    private static final int TRANSLATION_MAX_OUTPUT_TOKENS = 4096;
 
     private final AiProviderProperties properties;
     private final AiPromptBuilder promptBuilder;
@@ -167,16 +168,34 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
     /** Перевод через Chat Completions с актуальным промптом из БД. */
     public AiTextResult translate(AiTranslationRequest request, String model) {
         AiRenderedPrompt prompt = translationPrompts.renderTranslation(request);
-        return generateText("deepseek_translation", prompt.systemPrompt(), prompt.userPrompt(), model);
+        return generateText(
+                "deepseek_translation",
+                prompt.systemPrompt(),
+                prompt.userPrompt(),
+                model,
+                TRANSLATION_MAX_OUTPUT_TOKENS
+        );
     }
 
     /** Просит модель разобрать перевод по актуальному промпту из БД. */
     public AiTextResult explainTranslation(AiTranslationExplanationRequest request, String model) {
         AiRenderedPrompt prompt = translationPrompts.renderExplanation(request);
-        return generateText("deepseek_translation_explanation", prompt.systemPrompt(), prompt.userPrompt(), model);
+        return generateText(
+                "deepseek_translation_explanation",
+                prompt.systemPrompt(),
+                prompt.userPrompt(),
+                model,
+                request.explanationMode().maxOutputTokens()
+        );
     }
 
-    private AiTextResult generateText(String operation, String systemPrompt, String userPrompt, String model) {
+    private AiTextResult generateText(
+            String operation,
+            String systemPrompt,
+            String userPrompt,
+            String model,
+            int maxOutputTokens
+    ) {
         AiProviderProperties.Provider deepseek = properties.getDeepseek();
         requireConfigured(deepseek.getApiKey(), "deepseek_api_key_missing");
         // Не используем подробный AI-логгер: перевод может содержать личный текст ученика.
@@ -189,7 +208,7 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
                 ),
                 "thinking", Map.of("type", "disabled"),
                 "temperature", 0.1,
-                "max_tokens", 4096
+                "max_tokens", maxOutputTokens
         );
         try {
             JsonNode response = post(deepseek, body);

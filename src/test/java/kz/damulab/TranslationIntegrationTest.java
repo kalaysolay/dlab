@@ -60,7 +60,10 @@ class TranslationIntegrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("/css/translator.css")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("/js/translator.js")));
+                        .string(org.hamcrest.Matchers.containsString("/js/translator.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "id=\"translator-economy-mode\" type=\"checkbox\" checked"
+                )));
 
     }
 
@@ -92,7 +95,8 @@ class TranslationIntegrationTest {
                                 {
                                   "direction":"KAZAKH_TO_RUSSIAN",
                                   "sourceText":"Сәлем, әлем!",
-                                  "translatedText":"Привет, мир!"
+                                  "translatedText":"Привет, мир!",
+                                  "economyMode":true
                                 }
                                 """))
                 .andExpect(status().isOk())

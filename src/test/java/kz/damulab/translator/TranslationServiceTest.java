@@ -10,6 +10,7 @@ import java.util.Locale;
 
 import kz.damulab.ai.AiProvider;
 import kz.damulab.ai.AiTextResult;
+import kz.damulab.ai.AiTranslationExplanationMode;
 import kz.damulab.ai.AiTranslationExplanationRequest;
 import kz.damulab.ai.AiTranslationRequest;
 
@@ -43,7 +44,7 @@ class TranslationServiceTest {
         TranslationService service = new TranslationService(aiProvider);
 
         service.explain(new TranslationExplanationRequest(
-                TranslationDirection.KAZAKH_TO_RUSSIAN, " Сәлем ", " Привет "),
+                TranslationDirection.KAZAKH_TO_RUSSIAN, " Сәлем ", " Привет ", true),
                 Locale.forLanguageTag("kk"));
 
         ArgumentCaptor<AiTranslationExplanationRequest> captor =
@@ -52,5 +53,22 @@ class TranslationServiceTest {
         assertThat(captor.getValue().explanationLanguage()).isEqualTo("Kazakh");
         assertThat(captor.getValue().sourceText()).isEqualTo("Сәлем");
         assertThat(captor.getValue().translatedText()).isEqualTo("Привет");
+        assertThat(captor.getValue().explanationMode()).isEqualTo(AiTranslationExplanationMode.ECONOMY);
+    }
+
+    @Test
+    void usesDetailedExplanationWhenEconomyModeIsDisabled() {
+        AiProvider aiProvider = mock(AiProvider.class);
+        when(aiProvider.explainTranslation(any())).thenReturn(new AiTextResult("stub", "stub", "Разбор"));
+        TranslationService service = new TranslationService(aiProvider);
+
+        service.explain(new TranslationExplanationRequest(
+                TranslationDirection.RUSSIAN_TO_KAZAKH, "Привет", "Сәлем", false),
+                Locale.forLanguageTag("ru"));
+
+        ArgumentCaptor<AiTranslationExplanationRequest> captor =
+                ArgumentCaptor.forClass(AiTranslationExplanationRequest.class);
+        verify(aiProvider).explainTranslation(captor.capture());
+        assertThat(captor.getValue().explanationMode()).isEqualTo(AiTranslationExplanationMode.DETAILED);
     }
 }

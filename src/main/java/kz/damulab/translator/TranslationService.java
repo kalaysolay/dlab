@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import kz.damulab.ai.AiProvider;
 import kz.damulab.ai.AiTextResult;
+import kz.damulab.ai.AiTranslationExplanationMode;
 import kz.damulab.ai.AiTranslationExplanationRequest;
 import kz.damulab.ai.AiTranslationRequest;
 
@@ -42,7 +43,10 @@ public class TranslationService {
                 direction.targetLanguage(),
                 request.sourceText().trim(),
                 request.translatedText().trim(),
-                explanationLanguage
+                explanationLanguage,
+                request.economyMode()
+                        ? AiTranslationExplanationMode.ECONOMY
+                        : AiTranslationExplanationMode.DETAILED
         ));
         return new TranslationResponse(result.text());
     }

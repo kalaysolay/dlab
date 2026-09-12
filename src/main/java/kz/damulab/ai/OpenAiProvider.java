@@ -19,6 +19,7 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
     private static final String OP_QUESTIONS = "openai_question_drafts";
     private static final String OP_MINI_LECTURE = "openai_mini_lecture";
     private static final String ENDPOINT = "/v1/responses";
+    private static final int TRANSLATION_MAX_OUTPUT_TOKENS = 4096;
 
     private final AiProviderProperties properties;
     private final AiPromptBuilder promptBuilder;
@@ -162,16 +163,34 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
     /** Перевод через Responses API с актуальным промптом из БД. */
     public AiTextResult translate(AiTranslationRequest request, String model) {
         AiRenderedPrompt prompt = translationPrompts.renderTranslation(request);
-        return generateText("openai_translation", prompt.systemPrompt(), prompt.userPrompt(), model);
+        return generateText(
+                "openai_translation",
+                prompt.systemPrompt(),
+                prompt.userPrompt(),
+                model,
+                TRANSLATION_MAX_OUTPUT_TOKENS
+        );
     }
 
     /** Формирует учебный разбор по актуальному промпту из БД. */
     public AiTextResult explainTranslation(AiTranslationExplanationRequest request, String model) {
         AiRenderedPrompt prompt = translationPrompts.renderExplanation(request);
-        return generateText("openai_translation_explanation", prompt.systemPrompt(), prompt.userPrompt(), model);
+        return generateText(
+                "openai_translation_explanation",
+                prompt.systemPrompt(),
+                prompt.userPrompt(),
+                model,
+                request.explanationMode().maxOutputTokens()
+        );
     }
 
-    private AiTextResult generateText(String operation, String systemPrompt, String userPrompt, String model) {
+    private AiTextResult generateText(
+            String operation,
+            String systemPrompt,
+            String userPrompt,
+            String model,
+            int maxOutputTokens
+    ) {
         AiProviderProperties.Provider openai = properties.getOpenai();
         requireConfigured(openai.getApiKey(), "openai_api_key_missing");
         // Ученический текст не попадает в подробный AiCallLogger: сохраняем только длины.
@@ -181,7 +200,8 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
                 "input", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)
-                )
+                ),
+                "max_output_tokens", maxOutputTokens
         );
         try {
             JsonNode response = post(openai, body);

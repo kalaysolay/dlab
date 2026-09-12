@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 public record TranslationExplanationRequest(
         @NotNull TranslationDirection direction,
         @NotBlank @Size(max = 5000) String sourceText,
-        @NotBlank @Size(max = 10000) String translatedText
+        @NotBlank @Size(max = 10000) String translatedText,
+        boolean economyMode
 ) {
 }

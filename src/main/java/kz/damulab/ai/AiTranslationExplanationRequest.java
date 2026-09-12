@@ -6,6 +6,7 @@ public record AiTranslationExplanationRequest(
         String targetLanguage,
         String sourceText,
         String translatedText,
-        String explanationLanguage
+        String explanationLanguage,
+        AiTranslationExplanationMode explanationMode
 ) {
 }

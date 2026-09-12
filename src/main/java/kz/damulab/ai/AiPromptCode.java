@@ -10,7 +10,7 @@ public enum AiPromptCode {
     TRANSLATION_TRANSLATE(Set.of("sourceLanguage", "targetLanguage", "textJson")),
     TRANSLATION_EXPLAIN(Set.of(
             "sourceLanguage", "targetLanguage", "explanationLanguage",
-            "sourceTextJson", "translatedTextJson"
+            "sourceTextJson", "translatedTextJson", "explanationMode"
     ));
 
     private final Set<String> requiredPlaceholders;

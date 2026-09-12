@@ -40,7 +40,8 @@ public class AiTranslationPromptService {
                 "targetLanguage", request.targetLanguage(),
                 "explanationLanguage", request.explanationLanguage(),
                 "sourceTextJson", jsonString(request.sourceText()),
-                "translatedTextJson", jsonString(request.translatedText())
+                "translatedTextJson", jsonString(request.translatedText()),
+                "explanationMode", request.explanationMode().name()
         ));
     }
 

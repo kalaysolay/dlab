@@ -62,6 +62,14 @@
                           th:placeholder="#{translator.result.placeholder}"></textarea>
             </label>
 
+            <label class="translator-economy-option" for="translator-economy-mode">
+                <input id="translator-economy-mode" type="checkbox" checked>
+                <span>
+                    <strong th:text="#{translator.economy.label}">Экономить токены</strong>
+                    <small th:text="#{translator.economy.hint}">Короткий разбор до 120 слов</small>
+                </span>
+            </label>
+
             <div class="translator-actions">
                 <button class="button translator-explain-action" id="translator-explain" type="button" disabled>
                     <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#sparkles}"></use></svg>
