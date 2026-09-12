@@ -3,9 +3,11 @@ package kz.damulab;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import kz.damulab.ai.AiProviderCode;
+import kz.damulab.ai.AiPromptCode;
+import kz.damulab.ai.AiPromptOutputFormat;
+import kz.damulab.ai.AiPromptRepository;
+import kz.damulab.ai.AiPromptService;
 import kz.damulab.ai.AiRuntimeSettingRepository;
-import kz.damulab.ai.AiTranslationPromptCode;
-import kz.damulab.ai.AiTranslationPromptRepository;
 import kz.damulab.ai.AiUsageType;
 
 import org.junit.jupiter.api.Test;
@@ -24,7 +26,10 @@ class AiTranslationDefaultsIntegrationTest {
     private AiRuntimeSettingRepository runtimeSettings;
 
     @Autowired
-    private AiTranslationPromptRepository prompts;
+    private AiPromptService prompts;
+
+    @Autowired
+    private AiPromptRepository promptDefinitions;
 
     @Test
     void migrationSelectsDeepSeekAndCreatesBothPrompts() {
@@ -32,11 +37,15 @@ class AiTranslationDefaultsIntegrationTest {
 
         assertThat(translations.getProvider()).isEqualTo(AiProviderCode.DEEPSEEK);
         assertThat(translations.getModelName()).isEqualTo("deepseek-v4-pro");
-        var translationPrompt = prompts.findById(AiTranslationPromptCode.TRANSLATE).orElseThrow();
-        var explanationPrompt = prompts.findById(AiTranslationPromptCode.EXPLAIN).orElseThrow();
-        assertThat(translationPrompt.getSystemPrompt())
+        var translationPrompt = prompts.current(AiPromptCode.TRANSLATION_TRANSLATE);
+        var explanationPrompt = prompts.current(AiPromptCode.TRANSLATION_EXPLAIN);
+        assertThat(translationPrompt.version()).isEqualTo(1);
+        assertThat(explanationPrompt.version()).isEqualTo(1);
+        assertThat(translationPrompt.systemTemplate())
                 .contains("school learning application", "do not quote", "safe educational content only");
-        assertThat(explanationPrompt.getSystemPrompt())
+        assertThat(explanationPrompt.systemTemplate())
                 .contains("school learning application", "do not quote", "safe educational content only");
+        assertThat(promptDefinitions.findById(AiPromptCode.TRANSLATION_EXPLAIN).orElseThrow().getOutputFormat())
+                .isEqualTo(AiPromptOutputFormat.MARKDOWN);
     }
 }

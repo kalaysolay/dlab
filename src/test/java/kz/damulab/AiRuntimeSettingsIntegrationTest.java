@@ -12,13 +12,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import kz.damulab.ai.AiProviderCode;
+import kz.damulab.ai.AiPromptCode;
+import kz.damulab.ai.AiPromptRepository;
+import kz.damulab.ai.AiPromptVersionId;
+import kz.damulab.ai.AiPromptVersionRepository;
 import kz.damulab.ai.AiRenderedPrompt;
 import kz.damulab.ai.AiRuntimeSelection;
 import kz.damulab.ai.AiRuntimeSetting;
 import kz.damulab.ai.AiRuntimeSettingRepository;
 import kz.damulab.ai.AiRuntimeSettingsService;
-import kz.damulab.ai.AiTranslationPromptCode;
-import kz.damulab.ai.AiTranslationPromptRepository;
+import kz.damulab.ai.AiTranslationPromptForm;
 import kz.damulab.ai.AiTranslationPromptService;
 import kz.damulab.ai.AiTranslationRequest;
 import kz.damulab.ai.AiUsageType;
@@ -52,7 +55,10 @@ class AiRuntimeSettingsIntegrationTest {
     private AiTranslationPromptService translationPrompts;
 
     @Autowired
-    private AiTranslationPromptRepository translationPromptRepository;
+    private AiPromptRepository promptRepository;
+
+    @Autowired
+    private AiPromptVersionRepository promptVersions;
 
     @BeforeEach
     void restoreRoutes() {
@@ -146,6 +152,8 @@ class AiRuntimeSettingsIntegrationTest {
     @Test
     void savedTranslationPromptAppliesToNextRequestWithoutRestart() throws Exception {
         var original = translationPrompts.currentForm();
+        int originalVersion = promptRepository.findById(AiPromptCode.TRANSLATION_TRANSLATE)
+                .orElseThrow().getActiveVersion();
         try {
             mockMvc.perform(post("/admin/settings/ai/prompts")
                             .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -164,8 +172,17 @@ class AiRuntimeSettingsIntegrationTest {
             assertThat(rendered.systemPrompt()).isEqualTo("CUSTOM SYSTEM");
             assertThat(rendered.userPrompt())
                     .isEqualTo("Translate Russian -> Kazakh: \"Привет {targetLanguage}\"");
-            assertThat(translationPromptRepository.findById(AiTranslationPromptCode.TRANSLATE)
-                    .orElseThrow().getUpdatedBy()).isEqualTo("admin@damulab.kz");
+            var definition = promptRepository.findById(AiPromptCode.TRANSLATION_TRANSLATE).orElseThrow();
+            assertThat(definition.getActiveVersion()).isEqualTo(originalVersion + 1);
+            assertThat(definition.getUpdatedBy()).isEqualTo("admin@damulab.kz");
+            assertThat(promptVersions.findById(new AiPromptVersionId(
+                    AiPromptCode.TRANSLATION_TRANSLATE,
+                    originalVersion
+            ))).isPresent();
+            assertThat(promptVersions.findById(new AiPromptVersionId(
+                    AiPromptCode.TRANSLATION_TRANSLATE,
+                    originalVersion + 1
+            ))).isPresent();
         } finally {
             restorePrompts(original);
         }
@@ -192,13 +209,24 @@ class AiRuntimeSettingsIntegrationTest {
                 .isEqualTo(current.getTranslationUserPromptTemplate());
     }
 
-    private void restorePrompts(kz.damulab.ai.AiTranslationPromptForm form) {
-        var translation = translationPromptRepository.findById(AiTranslationPromptCode.TRANSLATE).orElseThrow();
-        translation.update(form.getTranslationSystemPrompt(), form.getTranslationUserPromptTemplate(), "test");
-        translationPromptRepository.save(translation);
-        var explanation = translationPromptRepository.findById(AiTranslationPromptCode.EXPLAIN).orElseThrow();
-        explanation.update(form.getExplanationSystemPrompt(), form.getExplanationUserPromptTemplate(), "test");
-        translationPromptRepository.save(explanation);
+    @Test
+    void unchangedPromptsDoNotCreateNewVersions() {
+        var current = translationPrompts.currentForm();
+        int translationVersion = promptRepository.findById(AiPromptCode.TRANSLATION_TRANSLATE)
+                .orElseThrow().getActiveVersion();
+        int explanationVersion = promptRepository.findById(AiPromptCode.TRANSLATION_EXPLAIN)
+                .orElseThrow().getActiveVersion();
+
+        translationPrompts.update(current);
+
+        assertThat(promptRepository.findById(AiPromptCode.TRANSLATION_TRANSLATE)
+                .orElseThrow().getActiveVersion()).isEqualTo(translationVersion);
+        assertThat(promptRepository.findById(AiPromptCode.TRANSLATION_EXPLAIN)
+                .orElseThrow().getActiveVersion()).isEqualTo(explanationVersion);
+    }
+
+    private void restorePrompts(AiTranslationPromptForm form) {
+        translationPrompts.update(form);
     }
 
     private void update(AiUsageType usageType, AiProviderCode provider, String model) {
