@@ -15,10 +15,6 @@
             <h1 class="page-title">Профиль ученика</h1>
             <p class="lede" th:text="${profile.email()}">student@damulab.kz</p>
             <div class="alert" th:if="${param.saved}">Профиль сохранен.</div>
-            <div class="notice" th:if="${param.passkeySetup}">
-                <strong>Настройка входа по отпечатку</strong>
-                <span>Сейчас откроется системное окно устройства. Подтвердите отпечаток, Face ID или PIN, чтобы привязать вход без пароля.</span>
-            </div>
             <form class="form" th:action="@{/student/profile}" th:object="${studentProfileForm}" method="post">
                 <div class="field">
                     <label for="fullName">Имя</label>
@@ -76,12 +72,12 @@
                     </div>
                 </fieldset>
                 <fieldset class="subpanel passkey-settings">
-                    <legend>Вход по отпечатку / Passkey</legend>
+                    <legend>Вход по отпечатку</legend>
                     <p class="muted-line">
-                        Привяжите это устройство, чтобы входить без пароля через отпечаток, Face ID или PIN.
+                        Включите быстрый вход на этом устройстве через отпечаток, распознавание лица или PIN.
                     </p>
                     <button id="passkey-register-button" class="button passkey-button" type="button">
-                        Привязать устройство
+                        Включить на этом устройстве
                     </button>
                     <p id="passkey-register-status" class="muted-line passkey-status" aria-live="polite"></p>
                 </fieldset>

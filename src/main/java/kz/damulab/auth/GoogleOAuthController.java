@@ -16,6 +16,7 @@ import kz.damulab.users.AppUser;
 import kz.damulab.users.DuplicatePhoneException;
 import kz.damulab.users.InvalidPhoneException;
 import kz.damulab.users.RoleCode;
+import kz.damulab.passkeys.PasskeySetupFlow;
 
 /** Завершает регистрацию нового Google-пользователя локальными данными профиля. */
 @Controller
@@ -87,13 +88,7 @@ public class GoogleOAuthController {
             return "redirect:/login?oauthError";
         }
         request.getSession().removeAttribute(PENDING_IDENTITY_SESSION_KEY);
-        if (hasRole(authentication, "ROLE_ADMIN")) {
-            return "redirect:/admin";
-        }
-        if (hasRole(authentication, "ROLE_PARENT")) {
-            return "redirect:/parent";
-        }
-        return "redirect:/student";
+        return "redirect:" + PasskeySetupFlow.profileSetupUrl(authentication);
     }
 
     private GoogleIdentity pendingIdentity(HttpSession session) {
@@ -104,8 +99,4 @@ public class GoogleOAuthController {
         return value instanceof GoogleIdentity identity ? identity : null;
     }
 
-    private boolean hasRole(Authentication authentication, String role) {
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> authority.getAuthority().equals(role));
-    }
 }

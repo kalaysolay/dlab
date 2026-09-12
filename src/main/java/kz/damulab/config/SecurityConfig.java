@@ -17,6 +17,7 @@ import kz.damulab.parentlink.ParentLinkInvitationPageController;
 
 import kz.damulab.auth.GoogleOAuthAvailability;
 import kz.damulab.auth.GoogleOAuthSuccessHandler;
+import kz.damulab.passkeys.PasskeySetupFlow;
 
 @Configuration
 public class SecurityConfig {
@@ -77,7 +78,8 @@ public class SecurityConfig {
                                         response,
                                         hasPendingParentLinkInvitation(request)
                                                 ? "/parent-link-invitations/confirm"
-                                                : successUrl(authentication)
+                                                : PasskeySetupFlow.consumeRedirect(request, authentication)
+                                                        .orElseGet(() -> successUrl(authentication))
                                 ))
                         .permitAll()
                 )

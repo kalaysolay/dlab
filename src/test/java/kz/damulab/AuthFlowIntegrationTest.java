@@ -179,15 +179,21 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void loginPageDoesNotOfferPasskeyLoginButton() throws Exception {
+    void loginPageOffersPasskeyLoginButton() throws Exception {
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(not(containsString("passkey-login-button"))));
+                        .string(containsString("passkey-login-button")));
+
+        mockMvc.perform(post("/api/passkeys/login/options")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicKey.challenge").isNotEmpty());
     }
 
     @Test
-    void webRegistrationDoesNotOfferOrStartPasskeySetup() throws Exception {
+    void webRegistrationStartsPasskeySetupWithoutAnExtraCheckbox() throws Exception {
         mockMvc.perform(get("/register"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
@@ -195,17 +201,22 @@ class AuthFlowIntegrationTest {
 
         String email = "passkey.setup." + System.nanoTime() + "@example.com";
 
-        // Даже вручную переданный параметр не должен включать мобильный сценарий в веб-контроллере.
-        mockMvc.perform(post("/register")
+        MvcResult registration = mockMvc.perform(post("/register")
                         .param("email", email)
                         .param("password", "password123")
                         .param("fullName", "Passkey Setup")
                         .param("role", "STUDENT")
                         .param("gradeNo", "4")
-                        .param("passkeySetupRequested", "true")
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login?registered=true"));
+                .andExpect(redirectedUrl("/student/profile?passkeySetup=true"))
+                .andReturn();
+
+        mockMvc.perform(post("/api/passkeys/register/options")
+                        .session((MockHttpSession) registration.getRequest().getSession(false)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicKey.authenticatorSelection.authenticatorAttachment").value("platform"))
+                .andExpect(jsonPath("$.publicKey.authenticatorSelection.residentKey").value("required"));
     }
 
     @Test

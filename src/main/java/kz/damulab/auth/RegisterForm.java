@@ -36,8 +36,6 @@ public class RegisterForm {
     @Size(max = 8)
     private String preferredLanguage = "ru";
 
-    private boolean passkeySetupRequested;
-
     public String getEmail() {
         return email;
     }
@@ -94,11 +92,4 @@ public class RegisterForm {
         this.preferredLanguage = preferredLanguage;
     }
 
-    public boolean isPasskeySetupRequested() {
-        return passkeySetupRequested;
-    }
-
-    public void setPasskeySetupRequested(boolean passkeySetupRequested) {
-        this.passkeySetupRequested = passkeySetupRequested;
-    }
 }

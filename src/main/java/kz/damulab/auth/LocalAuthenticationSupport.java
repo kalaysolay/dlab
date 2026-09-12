@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 
 import kz.damulab.users.AppUser;
 
-/** Переводит успешно проверенный внешний вход в обычную локальную Spring Security-сессию. */
+/** Создаёт обычную локальную Spring Security-сессию после уже проверенного входа или регистрации. */
 @Component
 public class LocalAuthenticationSupport {
 
@@ -24,11 +24,16 @@ public class LocalAuthenticationSupport {
         this.userDetailsService = userDetailsService;
     }
 
-    /** Аутентифицирует пользователя с локальными ROLE_* и сохраняет контекст в HTTP session. */
+    /** Аутентифицирует доверенного пользователя с локальными ROLE_* и сохраняет контекст в HTTP session. */
     public Authentication authenticate(AppUser user, HttpServletRequest request) {
         UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
         if (!details.isEnabled()) {
             throw new GoogleOAuthException("Local account is disabled");
+        }
+        // Этот вход создаётся вручную, вне UsernamePasswordAuthenticationFilter, поэтому
+        // стандартная защита Spring от session fixation сама не сработает.
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
         }
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
                 details,

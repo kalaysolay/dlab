@@ -30,7 +30,7 @@
             <form class="form wide-form" th:action="@{/login}" method="post">
                 <div class="field">
                     <label for="username" th:text="#{login.email}">Email</label>
-                    <input id="username" name="username" type="email" autocomplete="username" required>
+                    <input id="username" name="username" type="email" autocomplete="username webauthn" required>
                 </div>
                 <div class="field">
                     <label for="password" th:text="#{login.password}">Пароль</label>
@@ -38,6 +38,11 @@
                 </div>
                 <button class="button primary" type="submit" th:text="#{login.submit}">Войти</button>
             </form>
+            <div class="auth-divider" aria-hidden="true"><span>или</span></div>
+            <button id="passkey-login-button" class="button passkey-button" type="button">
+                Войти по отпечатку
+            </button>
+            <p id="passkey-login-status" class="muted-line passkey-status" aria-live="polite"></p>
             <details class="muted-line">
                 <summary th:text="#{login.verification.resendSummary}">Не пришло письмо подтверждения?</summary>
                 <form id="verification-resend-form" class="form wide-form" th:action="@{/verify-email/resend}" method="post">
@@ -60,5 +65,6 @@
     </main>
 </div>
 <script th:src="@{/js/email-verification.js}" defer></script>
+<script th:src="@{/js/passkeys.js}" defer></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 package kz.damulab.auth;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
@@ -12,19 +13,23 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import kz.damulab.users.DuplicatePhoneException;
 import kz.damulab.users.InvalidPhoneException;
+import kz.damulab.passkeys.PasskeySetupFlow;
 
 @Controller
 public class AuthPageController {
 
     private final RegistrationService registrationService;
     private final EmailVerificationService emailVerificationService;
+    private final LocalAuthenticationSupport localAuthentication;
 
     public AuthPageController(
             RegistrationService registrationService,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            LocalAuthenticationSupport localAuthentication
     ) {
         this.registrationService = registrationService;
         this.emailVerificationService = emailVerificationService;
+        this.localAuthentication = localAuthentication;
     }
 
     /** Нужен форме и при GET, и при повторном рендере после ошибки POST. */
@@ -37,7 +42,8 @@ public class AuthPageController {
     String register(
             @Valid @ModelAttribute("registerForm") RegisterForm form,
             BindingResult bindingResult,
-            RedirectAttributes redirectAttributes
+            RedirectAttributes redirectAttributes,
+            HttpServletRequest request
     ) {
         if (bindingResult.hasErrors()) {
             return "auth/register";
@@ -59,14 +65,17 @@ public class AuthPageController {
             return "auth/register";
         }
         if (registration.verificationRequired()) {
+            // На неподтверждённом аккаунте WebAuthn регистрировать нельзя. Запоминаем намерение
+            // в этой browser-сессии и покажем системную биометрию сразу после первого входа.
+            PasskeySetupFlow.schedule(request.getSession(true));
             redirectAttributes.addAttribute(
                     registration.emailAccepted() ? "verificationSent" : "verificationSendFailed",
                     "true"
             );
             return "redirect:/login";
         }
-        redirectAttributes.addAttribute("registered", "true");
-        return "redirect:/login";
+        var authentication = localAuthentication.authenticate(registration.user(), request);
+        return "redirect:" + PasskeySetupFlow.profileSetupUrl(authentication);
     }
 
     /** Погашает токен из письма и возвращает пользователя на страницу входа. */
