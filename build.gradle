@@ -61,6 +61,7 @@ dependencies {
     implementation 'org.webjars.npm:quill:2.0.3'
     implementation 'org.webjars.npm:katex:0.16.11'
     implementation 'org.webjars.npm:dompurify:3.1.7'
+    implementation 'org.webjars.npm:marked:18.0.7'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 

@@ -22,12 +22,14 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
 
     private final AiProviderProperties properties;
     private final AiPromptBuilder promptBuilder;
+    private final AiTranslationPromptService translationPrompts;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
 
     public OpenAiProvider(
             AiProviderProperties properties,
             AiPromptBuilder promptBuilder,
+            AiTranslationPromptService translationPrompts,
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
             AiDraftSchemaValidator validator
@@ -35,6 +37,7 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
         super(objectMapper, validator);
         this.properties = properties;
         this.promptBuilder = promptBuilder;
+        this.translationPrompts = translationPrompts;
         this.restClientBuilder = restClientBuilder;
         this.objectMapper = objectMapper;
     }
@@ -154,6 +157,44 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
         throw lastQualityError == null
                 ? new AiProviderException("ai_mini_lecture_too_brief", "Mini-lecture quality check failed")
                 : lastQualityError;
+    }
+
+    /** Перевод через Responses API с актуальным промптом из БД. */
+    public AiTextResult translate(AiTranslationRequest request, String model) {
+        AiRenderedPrompt prompt = translationPrompts.renderTranslation(request);
+        return generateText("openai_translation", prompt.systemPrompt(), prompt.userPrompt(), model);
+    }
+
+    /** Формирует учебный разбор по актуальному промпту из БД. */
+    public AiTextResult explainTranslation(AiTranslationExplanationRequest request, String model) {
+        AiRenderedPrompt prompt = translationPrompts.renderExplanation(request);
+        return generateText("openai_translation_explanation", prompt.systemPrompt(), prompt.userPrompt(), model);
+    }
+
+    private AiTextResult generateText(String operation, String systemPrompt, String userPrompt, String model) {
+        AiProviderProperties.Provider openai = properties.getOpenai();
+        requireConfigured(openai.getApiKey(), "openai_api_key_missing");
+        // Ученический текст не попадает в подробный AiCallLogger: сохраняем только длины.
+        log.info("AI >>> op={} provider=openai model={} inputLen={}", operation, model, userPrompt.length());
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "input", List.of(
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", userPrompt)
+                )
+        );
+        try {
+            JsonNode response = post(openai, body);
+            String text = extractOpenAiText(response == null ? objectMapper.createObjectNode() : response).trim();
+            if (text.isBlank()) {
+                throw new AiProviderException("openai_response_empty", "OpenAI returned an empty text");
+            }
+            log.info("AI <<< op={} provider=openai model={} outputLen={}", operation, model, text.length());
+            return new AiTextResult("openai", model, text);
+        } catch (RestClientException ex) {
+            log.error("OpenAI {}: HTTP/сеть — {}", operation, ex.getMessage(), ex);
+            throw new AiProviderException("openai_request_failed", ex.getMessage());
+        }
     }
 
     private JsonNode post(AiProviderProperties.Provider openai, Map<String, Object> body) {

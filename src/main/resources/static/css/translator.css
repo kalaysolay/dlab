@@ -1,0 +1,279 @@
+/* Переводчик отделён от общего app.css, чтобы мобильные правила фичи не влияли на другие страницы. */
+.translator-page {
+    display: grid;
+    gap: 20px;
+    max-width: 860px;
+    overflow-x: clip;
+}
+
+.translator-back {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: 8px;
+    min-height: 44px;
+    color: #475569;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.translator-back:hover {
+    color: var(--primary);
+}
+
+.translator-heading {
+    display: grid;
+    gap: 8px;
+}
+
+.translator-heading h1,
+.translator-heading p {
+    margin: 0;
+}
+
+.translator-heading h1 {
+    font-size: clamp(1.75rem, 5vw, 2.55rem);
+    line-height: 1.08;
+}
+
+.translator-heading > p:last-child {
+    color: var(--muted);
+    font-size: 1.02rem;
+}
+
+.translator-card {
+    display: grid;
+    min-width: 0;
+    gap: 16px;
+    padding: clamp(18px, 4vw, 28px);
+}
+
+.translator-direction {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.translator-direction legend,
+.translator-field > span {
+    margin-bottom: 9px;
+    color: #334155;
+    font-size: 0.87rem;
+    font-weight: 800;
+}
+
+.translator-direction-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 6px;
+    border: 1px solid #dbe3ef;
+    border-radius: 18px;
+    background: #f8fafc;
+}
+
+.translator-direction-options label {
+    display: grid;
+    min-width: 0;
+    min-height: 48px;
+    place-items: center;
+    border-radius: 13px;
+    color: #64748b;
+    cursor: pointer;
+    font-weight: 800;
+    text-align: center;
+}
+
+.translator-direction-options input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.translator-direction-options label:has(input:checked) {
+    background: #fff;
+    color: #4338ca;
+    box-shadow: 0 5px 16px rgba(79, 70, 229, 0.13);
+}
+
+.translator-direction-options label:has(input:focus-visible) {
+    outline: 3px solid rgba(79, 70, 229, 0.25);
+    outline-offset: 2px;
+}
+
+.translator-field {
+    display: grid;
+    min-width: 0;
+}
+
+.translator-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-height: 132px;
+    max-height: 50dvh;
+    padding: 15px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1.55;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    resize: vertical;
+}
+
+.translator-field textarea:focus {
+    border-color: #818cf8;
+    outline: 3px solid rgba(99, 102, 241, 0.14);
+}
+
+.translator-field textarea[readonly] {
+    background: #f8fafc;
+}
+
+.translator-field-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: -10px;
+    color: var(--muted);
+    font-size: 0.76rem;
+}
+
+.translator-primary-action {
+    justify-self: start;
+    min-height: 48px;
+    min-width: 150px;
+}
+
+.translator-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.translator-explain-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    gap: 8px;
+}
+
+.translator-explain-action .lucide-icon,
+.translator-explanation-title .lucide-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.translator-error {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff1f2;
+    color: #be123c;
+    font-weight: 700;
+}
+
+.translator-explanation {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid #c7d2fe;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #eef2ff, #f0fdfa);
+}
+
+.translator-explanation-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #4338ca;
+}
+
+.translator-explanation-title h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.translator-explanation-text {
+    margin-top: 12px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.translator-explanation-text.is-plain-text {
+    white-space: pre-wrap;
+}
+
+.translator-explanation-text > :first-child {
+    margin-top: 0;
+}
+
+.translator-explanation-text > :last-child {
+    margin-bottom: 0;
+}
+
+.translator-explanation-text p,
+.translator-explanation-text ul,
+.translator-explanation-text ol,
+.translator-explanation-text blockquote {
+    margin: 0 0 10px;
+}
+
+.translator-explanation-text ul,
+.translator-explanation-text ol {
+    padding-left: 1.35rem;
+}
+
+.translator-explanation-text li + li {
+    margin-top: 5px;
+}
+
+.translator-explanation-text h3,
+.translator-explanation-text h4 {
+    margin: 14px 0 7px;
+    color: #334155;
+}
+
+.translator-explanation-text blockquote {
+    padding-left: 12px;
+    border-left: 3px solid #a5b4fc;
+    color: #475569;
+}
+
+.translator-explanation-text code {
+    white-space: break-spaces;
+}
+
+.translator-privacy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    .translator-page {
+        gap: 16px;
+        padding-right: 14px;
+        padding-left: 14px;
+    }
+
+    .translator-direction-options {
+        grid-template-columns: 1fr;
+    }
+
+    .translator-primary-action,
+    .translator-explain-action {
+        width: 100%;
+    }
+
+    .translator-field-meta span:first-child {
+        max-width: 70%;
+    }
+}

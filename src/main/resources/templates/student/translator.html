@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html th:lang="${#locale.language}" lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title th:text="#{translator.title}">Переводчик</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/translator.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page translator-page">
+        <a class="translator-back" th:href="@{/student}">
+            <span aria-hidden="true">←</span>
+            <span th:text="#{translator.back}">На главную</span>
+        </a>
+
+        <header class="translator-heading">
+            <p class="section-kicker" th:text="#{translator.kicker}">Языковой помощник</p>
+            <h1 th:text="#{translator.heading}">Казахско-русский переводчик</h1>
+            <p th:text="#{translator.lede}">Переведите текст, а затем разберите его вместе с AI.</p>
+        </header>
+
+        <section class="panel translator-card"
+                 id="translator-app"
+                 th:attr="data-error-general=#{translator.error.general},data-error-empty=#{translator.error.empty},data-translating=#{translator.translating},data-explaining=#{translator.explaining}">
+            <fieldset class="translator-direction">
+                <legend th:text="#{translator.direction}">Направление перевода</legend>
+                <div class="translator-direction-options">
+                    <!-- Казахский → русский выбран по умолчанию как основной учебный сценарий. -->
+                    <label>
+                        <input type="radio" name="direction" value="KAZAKH_TO_RUSSIAN" checked>
+                        <span th:text="#{translator.direction.kkRu}">Қазақша → Русский</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="direction" value="RUSSIAN_TO_KAZAKH">
+                        <span th:text="#{translator.direction.ruKk}">Русский → Қазақша</span>
+                    </label>
+                </div>
+            </fieldset>
+
+            <label class="translator-field" for="translator-source">
+                <span th:text="#{translator.source.label}">Текст для перевода</span>
+                <textarea id="translator-source" rows="5" maxlength="5000"
+                          th:placeholder="#{translator.source.placeholder}"></textarea>
+            </label>
+            <div class="translator-field-meta">
+                <span th:text="#{translator.source.hint}">Можно вставить несколько абзацев</span>
+                <span><b id="translator-count">0</b>/5000</span>
+            </div>
+
+            <button class="button primary translator-primary-action" id="translator-submit" type="button"
+                    th:text="#{translator.action}">Перевести</button>
+
+            <label class="translator-field" for="translator-result">
+                <span th:text="#{translator.result.label}">Перевод</span>
+                <textarea id="translator-result" rows="5" readonly
+                          th:placeholder="#{translator.result.placeholder}"></textarea>
+            </label>
+
+            <div class="translator-actions">
+                <button class="button translator-explain-action" id="translator-explain" type="button" disabled>
+                    <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#sparkles}"></use></svg>
+                    <span th:text="#{translator.explain.action}">Объяснить перевод</span>
+                </button>
+            </div>
+
+            <p class="translator-error" id="translator-error" role="alert" hidden></p>
+
+            <section class="translator-explanation" id="translator-explanation" hidden
+                     aria-live="polite" aria-labelledby="translator-explanation-title">
+                <div class="translator-explanation-title">
+                    <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#brain}"></use></svg>
+                    <h2 id="translator-explanation-title" th:text="#{translator.explain.title}">Разбор перевода</h2>
+                </div>
+                <!-- Markdown очищается DOMPurify перед вставкой; при сбое библиотек остаётся обычный текст. -->
+                <div class="translator-explanation-text" id="translator-explanation-text"></div>
+            </section>
+        </section>
+
+        <p class="translator-privacy" th:text="#{translator.privacy}">
+            Не вводите пароли и другие секретные данные.
+        </p>
+    </main>
+</div>
+<script th:src="@{/webjars/marked/lib/marked.umd.js}" defer></script>
+<script th:src="@{/webjars/dompurify/dist/purify.min.js}" defer></script>
+<script th:src="@{/js/translator.js}" defer></script>
+</body>
+</html>

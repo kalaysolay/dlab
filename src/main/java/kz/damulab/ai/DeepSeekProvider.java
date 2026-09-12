@@ -22,12 +22,14 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
 
     private final AiProviderProperties properties;
     private final AiPromptBuilder promptBuilder;
+    private final AiTranslationPromptService translationPrompts;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
 
     public DeepSeekProvider(
             AiProviderProperties properties,
             AiPromptBuilder promptBuilder,
+            AiTranslationPromptService translationPrompts,
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
             AiDraftSchemaValidator validator
@@ -35,6 +37,7 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
         super(objectMapper, validator);
         this.properties = properties;
         this.promptBuilder = promptBuilder;
+        this.translationPrompts = translationPrompts;
         this.restClientBuilder = restClientBuilder;
         this.objectMapper = objectMapper;
     }
@@ -159,6 +162,47 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
         throw lastQualityError == null
                 ? new AiProviderException("ai_mini_lecture_too_brief", "Mini-lecture quality check failed")
                 : lastQualityError;
+    }
+
+    /** Перевод через Chat Completions с актуальным промптом из БД. */
+    public AiTextResult translate(AiTranslationRequest request, String model) {
+        AiRenderedPrompt prompt = translationPrompts.renderTranslation(request);
+        return generateText("deepseek_translation", prompt.systemPrompt(), prompt.userPrompt(), model);
+    }
+
+    /** Просит модель разобрать перевод по актуальному промпту из БД. */
+    public AiTextResult explainTranslation(AiTranslationExplanationRequest request, String model) {
+        AiRenderedPrompt prompt = translationPrompts.renderExplanation(request);
+        return generateText("deepseek_translation_explanation", prompt.systemPrompt(), prompt.userPrompt(), model);
+    }
+
+    private AiTextResult generateText(String operation, String systemPrompt, String userPrompt, String model) {
+        AiProviderProperties.Provider deepseek = properties.getDeepseek();
+        requireConfigured(deepseek.getApiKey(), "deepseek_api_key_missing");
+        // Не используем подробный AI-логгер: перевод может содержать личный текст ученика.
+        log.info("AI >>> op={} provider=deepseek model={} inputLen={}", operation, model, userPrompt.length());
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "messages", List.of(
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", userPrompt)
+                ),
+                "thinking", Map.of("type", "disabled"),
+                "temperature", 0.1,
+                "max_tokens", 4096
+        );
+        try {
+            JsonNode response = post(deepseek, body);
+            String text = extractDeepSeekText(response == null ? objectMapper.createObjectNode() : response).trim();
+            if (text.isBlank()) {
+                throw new AiProviderException("deepseek_response_empty", "DeepSeek returned an empty text");
+            }
+            log.info("AI <<< op={} provider=deepseek model={} outputLen={}", operation, model, text.length());
+            return new AiTextResult("deepseek", model, text);
+        } catch (RestClientException ex) {
+            log.error("DeepSeek {}: HTTP/сеть — {}", operation, ex.getMessage(), ex);
+            throw new AiProviderException("deepseek_request_failed", ex.getMessage());
+        }
     }
 
     private JsonNode post(AiProviderProperties.Provider deepseek, Map<String, Object> body) {

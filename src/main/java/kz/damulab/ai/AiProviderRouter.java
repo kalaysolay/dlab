@@ -94,6 +94,43 @@ public class AiProviderRouter implements AiProvider {
         };
     }
 
+    /** Вызывает независимый маршрут TRANSLATIONS для пользовательского перевода. */
+    @Override
+    public AiTextResult translate(AiTranslationRequest request) {
+        AiRuntimeSelection selection = translationSelection("translate");
+        if (selection.provider() == AiProviderCode.STUB) {
+            return stub.translate(request);
+        }
+        ensureExternalProvidersEnabled(selection.provider());
+        return switch (selection.provider()) {
+            case OPENAI -> openAi.translate(request, selection.model());
+            case DEEPSEEK -> deepSeek.translate(request, selection.model());
+            case STUB -> throw new IllegalStateException("Stub route must be handled before external dispatch");
+        };
+    }
+
+    /** Использует тот же маршрут и модель, чтобы разбор соответствовал выполненному переводу. */
+    @Override
+    public AiTextResult explainTranslation(AiTranslationExplanationRequest request) {
+        AiRuntimeSelection selection = translationSelection("explainTranslation");
+        if (selection.provider() == AiProviderCode.STUB) {
+            return stub.explainTranslation(request);
+        }
+        ensureExternalProvidersEnabled(selection.provider());
+        return switch (selection.provider()) {
+            case OPENAI -> openAi.explainTranslation(request, selection.model());
+            case DEEPSEEK -> deepSeek.explainTranslation(request, selection.model());
+            case STUB -> throw new IllegalStateException("Stub route must be handled before external dispatch");
+        };
+    }
+
+    private AiRuntimeSelection translationSelection(String operation) {
+        AiRuntimeSelection selection = settings.resolve(AiUsageType.TRANSLATIONS);
+        // Пользовательский текст намеренно не логируется: он может содержать персональные данные.
+        log.info("AiProviderRouter: {} provider={} model={}", operation, selection.provider(), selection.model());
+        return selection;
+    }
+
     private void ensureExternalProvidersEnabled(AiProviderCode provider) {
         if (properties.isRealProvidersEnabled()) {
             return;

@@ -11,7 +11,7 @@ spring:
     enabled: true
 damulab:
   ai:
-    # Миграция V26 создаёт runtime-маршруты STUB; внешний API дополнительно заблокирован флагом.
+    # V38 выбирает DeepSeek для переводов, но тестовый профиль блокирует любой внешний API.
     real-providers-enabled: false
   testing:
     default-question-count: 12

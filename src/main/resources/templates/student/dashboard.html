@@ -60,6 +60,18 @@
             <span class="chev" aria-hidden="true">›</span>
         </a>
 
+        <!-- Переводчик расположен сразу после уроков как ежедневный языковой инструмент. -->
+        <a class="student-lessons-link student-translator-link" th:href="@{/student/translator}">
+            <span class="student-lessons-link-icon" aria-hidden="true">
+                <svg class="lucide-icon"><use th:href="@{/icons/lucide-sprite.svg#languages}"></use></svg>
+            </span>
+            <span class="student-lessons-link-copy">
+                <strong th:text="#{student.dashboard.translator.title}">Переводчик</strong>
+                <small th:text="#{student.dashboard.translator.body}">Переводите между казахским и русским с разбором.</small>
+            </span>
+            <span class="chev" aria-hidden="true">›</span>
+        </a>
+
         <section class="student-home-grid">
             <article class="panel student-last-card">
                 <div class="card-title-row">

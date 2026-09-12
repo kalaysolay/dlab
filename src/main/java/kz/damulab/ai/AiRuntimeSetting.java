@@ -10,8 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * Текущий маршрут AI для одного сценария. В таблице всегда две строки:
- * QUESTIONS и LECTURES. API-ключи и endpoint-ы здесь намеренно не хранятся —
+ * Текущий маршрут AI для одного сценария. В таблице есть независимые строки
+ * QUESTIONS, LECTURES и TRANSLATIONS. API-ключи и endpoint-ы здесь не хранятся —
  * они остаются серверными секретами в {@link AiProviderProperties}.
  */
 @Entity

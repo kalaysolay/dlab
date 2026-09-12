@@ -1,5 +1,7 @@
 package kz.damulab.ai;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import org.springframework.stereotype.Controller;
@@ -15,13 +17,16 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminAiSettingsPageController {
 
     private final AiRuntimeSettingsService settings;
+    private final AiTranslationPromptService translationPrompts;
     private final AiProviderProperties providerProperties;
 
     public AdminAiSettingsPageController(
             AiRuntimeSettingsService settings,
+            AiTranslationPromptService translationPrompts,
             AiProviderProperties providerProperties
     ) {
         this.settings = settings;
+        this.translationPrompts = translationPrompts;
         this.providerProperties = providerProperties;
     }
 
@@ -29,6 +34,9 @@ public class AdminAiSettingsPageController {
     String page(Model model) {
         if (!model.containsAttribute("aiSettingsForm")) {
             model.addAttribute("aiSettingsForm", settings.currentForm());
+        }
+        if (!model.containsAttribute("aiTranslationPromptForm")) {
+            model.addAttribute("aiTranslationPromptForm", translationPrompts.currentForm());
         }
         addReferenceModel(model);
         return "admin/ai-settings";
@@ -42,6 +50,7 @@ public class AdminAiSettingsPageController {
             RedirectAttributes redirectAttributes
     ) {
         if (bindingResult.hasErrors()) {
+            model.addAttribute("aiTranslationPromptForm", translationPrompts.currentForm());
             addReferenceModel(model);
             return "admin/ai-settings";
         }
@@ -53,9 +62,35 @@ public class AdminAiSettingsPageController {
         return "redirect:/admin/settings/ai";
     }
 
+    /** Сохраняет редактируемые промпты отдельно от выбора провайдера и модели. */
+    @PostMapping("/admin/settings/ai/prompts")
+    String updateTranslationPrompts(
+            @Valid @ModelAttribute("aiTranslationPromptForm") AiTranslationPromptForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes
+    ) {
+        translationPrompts.validate(form, bindingResult);
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("aiSettingsForm", settings.currentForm());
+            addReferenceModel(model);
+            return "admin/ai-settings";
+        }
+        translationPrompts.update(form);
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Промпты переводчика сохранены и применятся к следующему запросу"
+        );
+        return "redirect:/admin/settings/ai";
+    }
+
     private void addReferenceModel(Model model) {
         model.addAttribute("activeAdminNav", "ai-settings");
         model.addAttribute("providers", AiProviderCode.values());
+        model.addAttribute(
+                "translationProviders",
+                List.of(AiProviderCode.DEEPSEEK, AiProviderCode.OPENAI)
+        );
         model.addAttribute("realProvidersEnabled", providerProperties.isRealProvidersEnabled());
         model.addAttribute("openAiKeyConfigured", isConfigured(providerProperties.getOpenai().getApiKey()));
         model.addAttribute("deepSeekKeyConfigured", isConfigured(providerProperties.getDeepseek().getApiKey()));

@@ -55,6 +55,26 @@ public class StubAiProvider implements AiProvider {
         return MiniLectureHtmlComposer.toResult(stubStructuredPayload(request));
     }
 
+    /** Возвращает заметную заглушку, чтобы тестовый профиль не имитировал настоящий перевод. */
+    @Override
+    public AiTextResult translate(AiTranslationRequest request) {
+        return new AiTextResult(
+                "stub",
+                "stub",
+                "[Stub: внешний LLM не вызван] " + request.text().trim()
+        );
+    }
+
+    /** Объясняет назначение stub-режима без отправки ученического текста наружу. */
+    @Override
+    public AiTextResult explainTranslation(AiTranslationExplanationRequest request) {
+        return new AiTextResult(
+                "stub",
+                "stub",
+                "Это тестовый разбор: внешний LLM отключён. Выберите провайдера для переводов в настройках AI."
+        );
+    }
+
     private static String preview(String text, int max) {
         if (text == null || text.isBlank()) {
             return "-";

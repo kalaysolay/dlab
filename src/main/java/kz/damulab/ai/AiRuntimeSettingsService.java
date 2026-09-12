@@ -30,28 +30,32 @@ public class AiRuntimeSettingsService {
         return new AiRuntimeSelection(setting.getProvider(), setting.getModelName());
     }
 
-    /** Собирает обе строки БД в форму редактирования. */
+    /** Собирает все строки БД в форму редактирования. */
     @Transactional(readOnly = true)
     public AiSettingsForm currentForm() {
         AiRuntimeSelection questions = resolve(AiUsageType.QUESTIONS);
         AiRuntimeSelection lectures = resolve(AiUsageType.LECTURES);
+        AiRuntimeSelection translations = resolve(AiUsageType.TRANSLATIONS);
         AiSettingsForm form = new AiSettingsForm();
         form.setQuestionsProvider(questions.provider());
         form.setQuestionsModel(questions.model());
         form.setLecturesProvider(lectures.provider());
         form.setLecturesModel(lectures.model());
+        form.setTranslationsProvider(translations.provider());
+        form.setTranslationsModel(translations.model());
         return form;
     }
 
     /**
-     * Сохраняет оба маршрута в одной транзакции. Если один блок формы некорректен,
-     * ни настройка вопросов, ни настройка лекций не изменится.
+     * Сохраняет все маршруты в одной транзакции. Валидация формы не допускает
+     * частичного изменения настроек.
      */
     @Transactional
     public void update(AiSettingsForm form) {
         String actor = currentActor();
         updateOne(AiUsageType.QUESTIONS, form.getQuestionsProvider(), form.getQuestionsModel(), actor);
         updateOne(AiUsageType.LECTURES, form.getLecturesProvider(), form.getLecturesModel(), actor);
+        updateOne(AiUsageType.TRANSLATIONS, form.getTranslationsProvider(), form.getTranslationsModel(), actor);
     }
 
     private void updateOne(
@@ -67,7 +71,7 @@ public class AiRuntimeSettingsService {
         audit.record(
                 "ai_runtime_setting_updated",
                 "AiRuntimeSetting",
-                usageType == AiUsageType.QUESTIONS ? 1L : 2L,
+                (long) usageType.ordinal() + 1,
                 usageType + ":" + provider + ":" + model.trim()
         );
     }

@@ -8447,6 +8447,16 @@ h2 {
     max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
     background: #101828; color: white; overflow: hidden;
 }
+
+/* Второй сервисный вход сохраняет геометрию «Уроков», но различается цветом. */
+.student-translator-link {
+    border-color: #a7f3d0;
+    background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%);
+}
+
+.student-translator-link .student-lessons-link-icon {
+    color: #047857;
+}
 .lecture-image-viewer::backdrop { background: #101828; }
 .lecture-image-viewer[open] { display: flex; flex-direction: column; }
 .lecture-image-controls {
