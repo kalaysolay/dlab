@@ -23,6 +23,7 @@ import java.util.Locale;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import kz.damulab.gamification.Streak;
 import kz.damulab.gamification.StreakRepository;
 import kz.damulab.notifications.DeviceToken;
@@ -110,6 +111,9 @@ class PushCampaignIntegrationTest {
     @Autowired
     private Clock clock;
 
+    @Autowired
+    private EntityManager entityManager;
+
     // ─── CRUD через API ─────────────────────────────────────────────────────
 
     @Test
@@ -186,6 +190,12 @@ class PushCampaignIntegrationTest {
     @Test
     void campaignExecutionCreatesCampaignRunWithStatistics() {
         PushCampaign campaign = saveCampaign("Run test", "Привет! {streak} дней", "11:00", "ALL");
+
+        // В production runner загружает кампанию до открытия транзакции execute(),
+        // поэтому сервис получает detached entity. Явно воспроизводим эту границу:
+        // без повторной загрузки managed-экземпляра last_run_at не попадёт в БД.
+        entityManager.flush();
+        entityManager.detach(campaign);
 
         campaignService.execute(campaign);
 

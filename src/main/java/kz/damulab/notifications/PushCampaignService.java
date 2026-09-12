@@ -152,33 +152,38 @@ public class PushCampaignService {
      */
     @Transactional
     public void execute(PushCampaign campaign) {
+        // Runner получает кампании через repository до входа в транзакцию этого метода.
+        // К этому моменту переданная entity уже detached, поэтому изменения её полей
+        // (в частности last_run_at) Hibernate не сохраняет. Повторно загружаем кампанию
+        // внутри текущей транзакции и дальше работаем только с managed-экземпляром.
+        PushCampaign managedCampaign = findCampaign(campaign.getId());
         OffsetDateTime now = OffsetDateTime.now(clock);
-        PushCampaignRun run = campaignRuns.save(new PushCampaignRun(campaign));
+        PushCampaignRun run = campaignRuns.save(new PushCampaignRun(managedCampaign));
 
         List<DeviceToken> tokens = deviceTokens.findByProviderAndEnabledTrue("webpush");
-        String targetUrl = buildTargetUrl(campaign);
+        String targetUrl = buildTargetUrl(managedCampaign);
 
         int targeted = tokens.size();
         int sent = 0;
         int failed = 0;
 
         for (DeviceToken token : tokens) {
-            String body = resolveBody(campaign.getBodyTemplate(), token);
+            String body = resolveBody(managedCampaign.getBodyTemplate(), token);
             PushDeliveryResult result = provider.sendRaw(body, targetUrl, token);
             if (result.success()) {
                 sent++;
             } else {
                 failed++;
                 log.warn("push-campaign: id={} token={} failed: {} {}",
-                        campaign.getId(), token.getId(), result.errorCode(), result.errorMessage());
+                        managedCampaign.getId(), token.getId(), result.errorCode(), result.errorMessage());
             }
         }
 
         run.finish(OffsetDateTime.now(clock), targeted, sent, failed);
-        campaign.recordRun(now);
+        managedCampaign.recordRun(now);
 
         log.info("push-campaign: id={} name='{}' executed: targeted={} sent={} failed={}",
-                campaign.getId(), campaign.getName(), targeted, sent, failed);
+                managedCampaign.getId(), managedCampaign.getName(), targeted, sent, failed);
     }
 
     // ─── Вспомогательные методы ──────────────────────────────────────────────
