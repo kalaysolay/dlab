@@ -37,13 +37,21 @@ class AiTranslationDefaultsIntegrationTest {
         var translations = runtimeSettings.findById(AiUsageType.TRANSLATIONS).orElseThrow();
 
         assertThat(translations.getProvider()).isEqualTo(AiProviderCode.DEEPSEEK);
-        assertThat(translations.getModelName()).isEqualTo("deepseek-v4-pro");
+        assertThat(translations.getModelName()).isEqualTo("deepseek-v4-flash");
         var translationPrompt = prompts.current(AiPromptCode.TRANSLATION_TRANSLATE);
         var explanationPrompt = prompts.current(AiPromptCode.TRANSLATION_EXPLAIN);
-        assertThat(translationPrompt.version()).isEqualTo(1);
+        assertThat(translationPrompt.version()).isEqualTo(2);
         assertThat(explanationPrompt.version()).isEqualTo(2);
         assertThat(translationPrompt.systemTemplate())
-                .contains("school learning application", "do not quote", "safe educational content only");
+                .contains(
+                        "school learning application",
+                        "do not quote",
+                        "safe educational content only",
+                        "Жақып as Жакып",
+                        "not Якуп or Яков",
+                        "Jonathan",
+                        "must never become Жанибек"
+                );
         assertThat(explanationPrompt.systemTemplate())
                 .contains("school learning application", "do not quote", "safe educational content only", "120 words");
         assertThat(explanationPrompt.userTemplate()).contains("{explanationMode}");

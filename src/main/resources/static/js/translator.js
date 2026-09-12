@@ -10,7 +10,6 @@
     const translateButton = document.getElementById("translator-submit");
     const explainButton = document.getElementById("translator-explain");
     const explainLabel = explainButton.querySelector("span");
-    const economyMode = document.getElementById("translator-economy-mode");
     const explanation = document.getElementById("translator-explanation");
     const explanationText = document.getElementById("translator-explanation-text");
     const error = document.getElementById("translator-error");
@@ -102,12 +101,6 @@
         hideError();
         resetDerivedContent();
     }));
-    economyMode.addEventListener("change", () => {
-        // Уже показанный разбор относится к предыдущему режиму подробности.
-        explanation.hidden = true;
-        explanationText.replaceChildren();
-    });
-
     translateButton.addEventListener("click", async () => {
         const text = source.value.trim();
         if (!text) {
@@ -143,11 +136,11 @@
         const translationAtRequest = lastTranslation;
         const request = {
             ...translationAtRequest,
-            economyMode: economyMode.checked
+            // Экономный режим фиксирован продуктовым решением и не требует отдельной настройки в UI.
+            economyMode: true
         };
         hideError();
         explainButton.disabled = true;
-        economyMode.disabled = true;
         explainLabel.textContent = root.dataset.explaining;
         try {
             const payload = await postJson("/api/student/translator/explain", request);
@@ -165,7 +158,6 @@
             }
         } finally {
             explainButton.disabled = !lastTranslation;
-            economyMode.disabled = false;
             explainLabel.textContent = idleExplainLabel;
         }
     });

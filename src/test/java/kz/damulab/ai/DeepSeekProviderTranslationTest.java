@@ -52,7 +52,7 @@ class DeepSeekProviderTranslationTest {
                 "Привет",
                 "Russian",
                 AiTranslationExplanationMode.ECONOMY
-        ), "deepseek-v4-pro");
+        ), "deepseek-v4-flash");
 
         assertThat(result.text()).isEqualTo("Короткий разбор");
         server.verify();

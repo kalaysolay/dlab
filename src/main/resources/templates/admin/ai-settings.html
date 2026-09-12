@@ -118,7 +118,7 @@
                         <label class="field">
                             <span>Модель</span>
                             <input th:field="*{translationsModel}" maxlength="128" list="translation-model-examples"
-                                   placeholder="Например: gpt-5.6">
+                                   placeholder="Например: deepseek-v4-flash">
                             <small class="error" th:errors="*{translationsModel}">Укажите модель</small>
                         </label>
                     </div>
@@ -133,6 +133,7 @@
                     <option value="deepseek-v4-pro"></option>
                 </datalist>
                 <datalist id="translation-model-examples">
+                    <option value="deepseek-v4-flash"></option>
                     <option value="gpt-5.6"></option>
                     <option value="deepseek-v4-pro"></option>
                 </datalist>

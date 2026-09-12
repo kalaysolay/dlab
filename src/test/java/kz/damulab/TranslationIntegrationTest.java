@@ -61,8 +61,8 @@ class TranslationIntegrationTest {
                         .string(org.hamcrest.Matchers.containsString("/css/translator.css")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("/js/translator.js")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString(
-                        "id=\"translator-economy-mode\" type=\"checkbox\" checked"
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("translator-economy-mode")
                 )));
 
     }
@@ -151,6 +151,7 @@ class TranslationIntegrationTest {
                         .with(user("student@damulab.kz").roles("STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("DOMPurify.sanitize")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("economyMode: true")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("ALLOWED_TAGS")));
 
         mockMvc.perform(get("/webjars/marked/18.0.7/lib/marked.umd.js")

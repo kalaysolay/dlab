@@ -64,7 +64,7 @@ class AiRuntimeSettingsIntegrationTest {
     void restoreRoutes() {
         update(AiUsageType.QUESTIONS, AiProviderCode.STUB, "stub");
         update(AiUsageType.LECTURES, AiProviderCode.STUB, "stub");
-        update(AiUsageType.TRANSLATIONS, AiProviderCode.DEEPSEEK, "deepseek-v4-pro");
+        update(AiUsageType.TRANSLATIONS, AiProviderCode.DEEPSEEK, "deepseek-v4-flash");
     }
 
     @Test
@@ -78,6 +78,7 @@ class AiRuntimeSettingsIntegrationTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Настройки AI")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Промпты переводчика")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("deepseek-v4-pro")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("deepseek-v4-flash")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("gpt-5.6")));
     }
 
@@ -111,7 +112,7 @@ class AiRuntimeSettingsIntegrationTest {
                         .param("lecturesProvider", "OPENAI")
                         .param("lecturesModel", "gpt-5.6")
                         .param("translationsProvider", "DEEPSEEK")
-                        .param("translationsModel", "deepseek-v4-pro"))
+                        .param("translationsModel", "deepseek-v4-flash"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/settings/ai"));
 
@@ -123,7 +124,7 @@ class AiRuntimeSettingsIntegrationTest {
         assertThat(lectures.provider()).isEqualTo(AiProviderCode.OPENAI);
         assertThat(lectures.model()).isEqualTo("gpt-5.6");
         assertThat(translations.provider()).isEqualTo(AiProviderCode.DEEPSEEK);
-        assertThat(translations.model()).isEqualTo("deepseek-v4-pro");
+        assertThat(translations.model()).isEqualTo("deepseek-v4-flash");
         assertThat(repository.findById(AiUsageType.QUESTIONS).orElseThrow().getUpdatedBy())
                 .isEqualTo("admin@damulab.kz");
     }
@@ -138,7 +139,7 @@ class AiRuntimeSettingsIntegrationTest {
                         .param("lecturesProvider", "OPENAI")
                         .param("lecturesModel", "gpt-5.6")
                         .param("translationsProvider", "DEEPSEEK")
-                        .param("translationsModel", "deepseek-v4-pro"))
+                        .param("translationsModel", "deepseek-v4-flash"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/ai-settings"))
                 .andExpect(model().attributeHasFieldErrors("aiSettingsForm", "questionsModel"));
@@ -146,7 +147,7 @@ class AiRuntimeSettingsIntegrationTest {
         assertThat(settings.resolve(AiUsageType.QUESTIONS).provider()).isEqualTo(AiProviderCode.STUB);
         assertThat(settings.resolve(AiUsageType.LECTURES).provider()).isEqualTo(AiProviderCode.STUB);
         assertThat(settings.resolve(AiUsageType.TRANSLATIONS).provider()).isEqualTo(AiProviderCode.DEEPSEEK);
-        assertThat(settings.resolve(AiUsageType.TRANSLATIONS).model()).isEqualTo("deepseek-v4-pro");
+        assertThat(settings.resolve(AiUsageType.TRANSLATIONS).model()).isEqualTo("deepseek-v4-flash");
     }
 
     @Test
