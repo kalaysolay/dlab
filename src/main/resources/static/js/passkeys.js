@@ -1,8 +1,38 @@
 (function () {
-    const unsupportedMessage = "Passkey недоступен в этом браузере или контексте. Нужен HTTPS или localhost.";
+    const unsupportedMessage = "Биометрия недоступна в этом браузере. Откройте приложение в Chrome или Safari по HTTPS либо войдите по паролю.";
+    const enabledKey = "damulab-biometric-enabled";
+    let busy = false;
+
+    // Это только предпочтение интерфейса, не подтверждение входа. Подпись всегда проверяет сервер.
+    function rememberEnabled() {
+        try { localStorage.setItem(enabledKey, "1"); } catch (ignored) { /* private mode */ }
+    }
+
+    function wasEnabled() {
+        try { return localStorage.getItem(enabledKey) === "1"; } catch (ignored) { return false; }
+    }
+
+    function errorMessage(error) {
+        if (error.name === "NotAllowedError" || error.name === "AbortError") {
+            return "Подтверждение отменено или время ожидания истекло. Повторите попытку либо войдите по паролю.";
+        }
+        if (error.name === "InvalidStateError") {
+            return "Ключ уже сохранён. Нажмите «Использовать сохранённый ключ» или войдите по биометрии на экране входа.";
+        }
+        if (error.status === 401 || error.status === 403) {
+            return "Сессия истекла. Войдите по паролю и повторите настройку.";
+        }
+        if (error.name === "SecurityError") {
+            return "Не удалось открыть биометрию для этого адреса. Откройте приложение по основному адресу Damulab через HTTPS.";
+        }
+        if (error instanceof TypeError) {
+            return "Нет связи с сервером. Проверьте интернет и повторите.";
+        }
+        return error.userMessage || "Не удалось подтвердить ключ доступа. Повторите попытку или войдите по паролю.";
+    }
 
     function isSupported() {
-        return Boolean(window.PublicKeyCredential && navigator.credentials);
+        return Boolean(window.isSecureContext && window.PublicKeyCredential && navigator.credentials);
     }
 
     function base64UrlToBuffer(value) {
@@ -89,16 +119,15 @@
             headers: { "Content-Type": "application/json" },
             ...options
         });
-        if (!response.ok) {
-            const text = await response.text();
-            let message = text;
-            try {
-                message = JSON.parse(text).message || text;
-            } catch (ignored) {
-                // Не-JSON ответ (например, от reverse proxy) всё равно попадёт в console для диагностики.
+        if (!response.ok || response.redirected) {
+            let data = {};
+            try { data = await response.json(); } catch (ignored) { /* proxy/HTML error */ }
+            const error = new Error(data.error || "Request failed");
+            error.status = response.redirected ? 401 : response.status;
+            // Только известный JSON-контракт: HTML reverse proxy и stack trace пользователю не показываем.
+            if (data.message && data.reference) {
+                error.userMessage = data.message + " Если ошибка повторяется, сообщите поддержке код: " + data.reference;
             }
-            const error = new Error(message || `HTTP ${response.status}`);
-            error.status = response.status;
             throw error;
         }
         return response.json();
@@ -113,6 +142,9 @@
     }
 
     async function registerPasskey(button, status) {
+        if (busy) return;
+        busy = true;
+        window.damulabBiometricPromptActive = true;
         setStatus(status, "Подтвердите отпечаток, распознавание лица или PIN устройства.", false);
         button.disabled = true;
         try {
@@ -125,27 +157,29 @@
                 method: "POST",
                 body: JSON.stringify(encodeAttestationCredential(credential))
             });
-            button.textContent = "Добавить другое устройство";
-            setStatus(status, "Готово. Теперь на этом устройстве можно входить по отпечатку.", false);
+            rememberEnabled();
+            button.textContent = "Биометрия включена";
+            const continueLink = document.getElementById("passkey-setup-continue");
+            if (continueLink) {
+                continueLink.textContent = "Продолжить";
+                continueLink.className = "button primary";
+                continueLink.focus();
+            }
+            setStatus(status, "Готово! При открытии приложения вход будет подтверждаться биометрией или PIN устройства.", false);
         } catch (error) {
             console.error("Passkey registration failed", error);
-            if (error.name === "NotAllowedError") {
-                setStatus(status, "Настройка отменена или системное окно закрылось. Нажмите кнопку, чтобы повторить.", true);
-            } else if (error.name === "InvalidStateError") {
-                setStatus(status, "Это устройство уже настроено для входа. Попробуйте войти по отпечатку.", true);
-            } else if (error.status === 401 || error.status === 403) {
-                setStatus(status, "Сессия истекла. Войдите снова и повторите настройку.", true);
-            } else if (error instanceof TypeError) {
-                setStatus(status, "Нет связи с сервером. Проверьте интернет и повторите.", true);
-            } else {
-                setStatus(status, "Сервер не принял настройку. Ошибка записана в журнал; обновите страницу и повторите.", true);
-            }
+            setStatus(status, errorMessage(error), true);
         } finally {
+            busy = false;
+            window.damulabBiometricPromptActive = false;
             button.disabled = false;
         }
     }
 
     async function loginWithPasskey(button, status) {
+        if (busy) return;
+        busy = true;
+        window.damulabBiometricPromptActive = true;
         const usernameInput = document.getElementById("username");
         const username = usernameInput ? usernameInput.value.trim() : "";
         setStatus(status, "Подтвердите отпечаток, распознавание лица или PIN устройства.", false);
@@ -165,14 +199,14 @@
                 method: "POST",
                 body: JSON.stringify(encodeAssertionCredential(credential))
             });
-            window.location.assign(result.redirectUrl || "/dashboard");
+            rememberEnabled();
+            window.location.replace(result.redirectUrl || "/dashboard");
         } catch (error) {
             console.error("Passkey login failed", error);
-            const message = error.name === "NotAllowedError"
-                ? "Вход отменён. Можно повторить или войти по паролю."
-                : "Не удалось войти по отпечатку. Проверьте email или войдите по паролю.";
-            setStatus(status, message, true);
+            setStatus(status, errorMessage(error), true);
         } finally {
+            busy = false;
+            window.damulabBiometricPromptActive = false;
             button.disabled = false;
         }
     }
@@ -199,14 +233,14 @@
         loginButton?.addEventListener("click", () => loginWithPasskey(loginButton, loginStatus));
         const query = new URLSearchParams(window.location.search);
         if (registerButton && query.get("passkeySetup") === "true") {
-            // Параметр одноразовый: reload после успешной настройки не должен снова открывать биометрию.
-            query.delete("passkeySetup");
-            const cleanQuery = query.toString();
-            const cleanUrl = window.location.pathname
-                + (cleanQuery ? `?${cleanQuery}` : "")
-                + window.location.hash;
-            window.history.replaceState(null, "", cleanUrl);
-            window.setTimeout(() => registerPasskey(registerButton, registerStatus), 350);
+            // Совместимость со старыми ссылками: показываем предложение, не создаём ключ без согласия.
+            window.location.replace("/passkeys/setup");
+            return;
+        }
+        if (loginButton && document.body.hasAttribute("data-passkey-entry") && wasEnabled()) {
+            // Обычный modal WebAuthn-запрос, а не conditional autofill, требующий фокуса email.
+            // Если браузер требует жест пользователя, остаётся видимая кнопка повторного входа.
+            loginWithPasskey(loginButton, loginStatus);
         }
     });
 })();

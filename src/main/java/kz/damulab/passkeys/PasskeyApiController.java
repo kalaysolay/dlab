@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/** Хранит одноразовые WebAuthn-запросы в сессии и создаёт вход после проверки подписи. */
 @RestController
 public class PasskeyApiController {
 
@@ -38,9 +40,14 @@ public class PasskeyApiController {
 
     @PostMapping(value = "/api/passkeys/register/options", produces = "application/json")
     String registerOptions(Authentication authentication, HttpSession session) {
-        String requestJson = toJson(passkeyService.startRegistration(authentication.getName()));
-        session.setAttribute(REGISTRATION_REQUEST_SESSION_KEY, requestJson);
-        return requestJson;
+        var options = passkeyService.startRegistration(authentication.getName());
+        try {
+            // Браузерный JSON содержит publicKey, а fromJson ожидает внутренний формат toJson.
+            session.setAttribute(REGISTRATION_REQUEST_SESSION_KEY, options.toJson());
+            return options.toCredentialsCreateJson();
+        } catch (JsonProcessingException ex) {
+            throw new PasskeyException("Could not create passkey registration options", ex);
+        }
     }
 
     @PostMapping("/api/passkeys/register")
@@ -52,15 +59,19 @@ public class PasskeyApiController {
     ) {
         String requestJson = requiredSessionValue(session, REGISTRATION_REQUEST_SESSION_KEY);
         passkeyService.finishRegistration(authentication.getName(), requestJson, credentialJson);
-        session.removeAttribute(REGISTRATION_REQUEST_SESSION_KEY);
         return new PasskeyStatusResponse(true);
     }
 
     @PostMapping(value = "/api/passkeys/login/options", produces = "application/json")
     String loginOptions(@RequestBody PasskeyLoginOptionsRequest request, HttpSession session) {
-        String requestJson = toJson(passkeyService.startLogin(request.username()));
-        session.setAttribute(ASSERTION_REQUEST_SESSION_KEY, requestJson);
-        return requestJson;
+        var options = passkeyService.startLogin(request.username());
+        try {
+            // Сохраняет challenge и привязку к username/userHandle, которую браузерный JSON теряет.
+            session.setAttribute(ASSERTION_REQUEST_SESSION_KEY, options.toJson());
+            return options.toCredentialsGetJson();
+        } catch (JsonProcessingException ex) {
+            throw new PasskeyException("Could not create passkey login options", ex);
+        }
     }
 
     @PostMapping("/api/passkeys/login")
@@ -71,8 +82,10 @@ public class PasskeyApiController {
     ) {
         String requestJson = requiredSessionValue(session, ASSERTION_REQUEST_SESSION_KEY);
         String username = passkeyService.finishLogin(requestJson, credentialJson);
-        session.removeAttribute(ASSERTION_REQUEST_SESSION_KEY);
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        new AccountStatusUserDetailsChecker().check(userDetails);
+        // Вне стандартного фильтра Spring защиту от session fixation выполняем вручную.
+        servletRequest.changeSessionId();
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 userDetails,
                 null,
@@ -90,10 +103,12 @@ public class PasskeyApiController {
 
     private String requiredSessionValue(HttpSession session, String key) {
         Object value = session.getAttribute(key);
+        // Challenge одноразовый, в том числе при неверной подписи. Повтор начинается с options.
+        session.removeAttribute(key);
         if (value instanceof String stringValue && !stringValue.isBlank()) {
             return stringValue;
         }
-        throw new PasskeyException("Passkey session expired");
+        throw new PasskeyException("session_expired", "Время подтверждения истекло. Нажмите кнопку, чтобы повторить.");
     }
 
     private String successUrl(Authentication authentication) {
@@ -112,22 +127,6 @@ public class PasskeyApiController {
     private boolean hasRole(Authentication authentication, String role) {
         return authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals(role));
-    }
-
-    private String toJson(com.yubico.webauthn.data.PublicKeyCredentialCreationOptions options) {
-        try {
-            return options.toCredentialsCreateJson();
-        } catch (JsonProcessingException ex) {
-            throw new PasskeyException("Could not create passkey registration options", ex);
-        }
-    }
-
-    private String toJson(com.yubico.webauthn.AssertionRequest request) {
-        try {
-            return request.toCredentialsGetJson();
-        } catch (JsonProcessingException ex) {
-            throw new PasskeyException("Could not create passkey login options", ex);
-        }
     }
 
     record PasskeyStatusResponse(boolean registered) {

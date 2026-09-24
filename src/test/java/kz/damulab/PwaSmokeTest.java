@@ -54,7 +54,7 @@ class PwaSmokeTest {
     void serviceWorkerIsServedAndDoesNotCacheActivationTokens() throws Exception {
         mockMvc.perform(get("/service-worker.js"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("damulab-shell-v3")))
+                .andExpect(content().string(containsString("damulab-shell-v4")))
                 .andExpect(content().string(containsString("/activate-account")))
                 .andExpect(content().string(containsString("searchParams.has('token')")))
                 // Офлайн-fallback должен быть прописан в SW

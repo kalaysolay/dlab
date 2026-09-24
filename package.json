@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "smoke:lectures": "node scripts/smoke/lecture-rich-editor-smoke.js"
+    "smoke:lectures": "node scripts/smoke/lecture-rich-editor-smoke.js",
+    "smoke:passkeys": "node scripts/smoke/passkeys-smoke.js"
   },
   "keywords": [],
   "author": "",

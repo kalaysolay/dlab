@@ -209,7 +209,7 @@ class AuthFlowIntegrationTest {
                         .param("gradeNo", "4")
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/student/profile?passkeySetup=true"))
+                .andExpect(redirectedUrl("/passkeys/setup"))
                 .andReturn();
 
         mockMvc.perform(post("/api/passkeys/register/options")

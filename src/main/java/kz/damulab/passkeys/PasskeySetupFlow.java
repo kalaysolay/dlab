@@ -23,7 +23,7 @@ public final class PasskeySetupFlow {
     }
 
     /**
-     * Погашает отложенное предложение и возвращает URL профиля нужной роли.
+     * Погашает отложенное предложение и возвращает URL настройки биометрии.
      * Пустой результат означает обычный вход без перехода в настройку.
      */
     public static Optional<String> consumeRedirect(HttpServletRequest request, Authentication authentication) {
@@ -35,10 +35,8 @@ public final class PasskeySetupFlow {
         return Optional.of(profileSetupUrl(authentication));
     }
 
-    /** Возвращает профиль STUDENT/PARENT с одноразовым параметром автоматического запуска WebAuthn. */
+    /** Открывает предложение с явным согласием на создание ключа после регистрации. */
     public static String profileSetupUrl(Authentication authentication) {
-        boolean parent = authentication.getAuthorities().stream()
-                .anyMatch(authority -> authority.getAuthority().equals("ROLE_PARENT"));
-        return (parent ? "/parent/profile" : "/student/profile") + "?passkeySetup=true";
+        return "/passkeys/setup";
     }
 }

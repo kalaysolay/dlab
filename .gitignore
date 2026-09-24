@@ -53,6 +53,7 @@ docs/
 AGENTS.md
 /docs/*
 !/docs/DEPLOY_VPS.md
+!/docs/PASSKEYS.md
 !/docs/LESSON_IMPORT_FORMAT.md
 !/docs/lesson-import-example.json
 !/docs/QUESTION_GENERATION_AGENT_RULES.md

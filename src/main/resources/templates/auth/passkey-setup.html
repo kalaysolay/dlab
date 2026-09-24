@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <title>Быстрый вход в Damulab</title>
+</head>
+<body class="biometric-page" data-passkey-setup>
+<main class="biometric-card">
+    <img class="biometric-logo" th:src="@{/icons/damulab-icon.svg}" alt="Damulab" width="80" height="80">
+    <h1>Включить вход по биометрии?</h1>
+    <p class="muted-line">При следующем открытии приложения подтвердите вход отпечатком или лицом — без ввода пароля.</p>
+    <p class="muted-line">Телефон предложит создать ключ доступа для Damulab и подтвердить его биометрией или PIN. Используется уже настроенный отпечаток — заново сканировать его не нужно.</p>
+    <button id="passkey-register-button" class="button primary" type="button">Включить на этом устройстве</button>
+    <p id="passkey-register-status" class="passkey-status muted-line" role="status" aria-live="polite"></p>
+    <input id="username" type="hidden" th:value="${passkeyUsername}">
+    <button id="passkey-login-button" class="button passkey-button" type="button">Использовать сохранённый ключ</button>
+    <p id="passkey-login-status" class="passkey-status muted-line" role="status" aria-live="polite"></p>
+    <a id="passkey-setup-continue" class="biometric-secondary" th:href="@{/dashboard}">Позже</a>
+    <p class="muted-line biometric-note">Отпечаток остаётся на устройстве и не передаётся в Damulab. Настройку можно включить позже в профиле.</p>
+</main>
+<script th:src="@{/js/passkeys.js}" defer></script>
+<script th:src="@{/js/pwa.js}" defer></script>
+</body>
+</html>

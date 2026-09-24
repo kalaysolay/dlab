@@ -88,6 +88,10 @@ public class PasskeyService {
                 .orElseThrow(() -> new PasskeyException("User not found"));
         try {
             PublicKeyCredentialCreationOptions request = PublicKeyCredentialCreationOptions.fromJson(requestJson);
+            // Смена аккаунта в соседней вкладке не должна привязать ключ к другому владельцу.
+            if (!request.getUser().getId().equals(new ByteArray(user.getWebAuthnUserHandle()))) {
+                throw new PasskeyException("Registration account changed");
+            }
             PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> response =
                     PublicKeyCredential.parseRegistrationResponseJson(credentialJson);
             RegistrationResult result = relyingParty.finishRegistration(FinishRegistrationOptions.builder()
@@ -120,7 +124,7 @@ public class PasskeyService {
                 .filter(value -> !value.isBlank());
         if (normalizedUsername.isPresent()
                 && !credentials.existsByUserEmailIgnoreCase(normalizedUsername.get())) {
-            throw new PasskeyException("No passkey is registered for this user");
+            throw new PasskeyException("key_not_found", "Для этого аккаунта не найден ключ доступа. Войдите по паролю и включите биометрию в профиле.");
         }
         StartAssertionOptions.StartAssertionOptionsBuilder builder = StartAssertionOptions.builder()
                 .userVerification(UserVerificationRequirement.REQUIRED);

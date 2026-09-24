@@ -35,6 +35,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/parent-link-invitations/confirm").permitAll()
                         .requestMatchers(
                                 "/",
+                                "/app",
                                 "/login",
                                 "/register",
                                 "/register/google",

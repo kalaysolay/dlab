@@ -8483,3 +8483,17 @@ h2 {
 .lecture-youtube-dialog::backdrop { background: rgb(0 0 0 / 50%); }
 .lecture-youtube-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
 .lecture-youtube-actions button { min-height: 44px; }
+
+/* Экран запуска PWA не показывает данные кабинета до подтверждения входа. */
+.biometric-page { margin: 0; min-height: 100vh; min-height: 100dvh; background: #fff; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+.biometric-card { width: 100%; max-width: 420px; text-align: center; display: flex; flex-direction: column; gap: 16px; }
+.biometric-card h1 { font-size: clamp(24px, 6vw, 32px); line-height: 1.25; margin: 8px 0 0; }
+.biometric-card p { margin: 0; }
+.biometric-card .button { width: 100%; white-space: normal; }
+.biometric-logo { align-self: center; }
+.biometric-secondary { color: #5141d9; padding: 8px; text-underline-offset: 4px; }
+.biometric-note { font-size: 13px; }
+.biometric-card .passkey-status:empty { display: none; }
+
+html.biometric-resume { background: #fff; }
+html.biometric-resume body { visibility: hidden; }

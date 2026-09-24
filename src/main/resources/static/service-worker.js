@@ -1,5 +1,5 @@
 /**
- * Damulab Service Worker v3.
+ * Damulab Service Worker v4.
  *
  * Стратегия: network-first с записью в кэш; при офлайне — кэш, затем /offline.
  * SHELL_ASSETS предзагружаются при install: критичные страницы + статика.
@@ -7,13 +7,12 @@
  *
  * Версия кэша: меняй CACHE_NAME при обновлении shell-ресурсов, чтобы старый кэш очистился.
  */
-const CACHE_NAME = 'damulab-shell-v3';
+const CACHE_NAME = 'damulab-shell-v4';
 
 // Ресурсы публичной оболочки, кэшируемые при первом install.
 // /offline — обязателен: используется как fallback при отсутствии сети.
 const SHELL_ASSETS = [
     '/',
-    '/login',
     '/offline',
     '/css/app.css',
     '/css/fonts.css',
@@ -58,7 +57,12 @@ self.addEventListener('fetch', event => {
     const isSensitive = requestUrl.origin === self.location.origin && (
         requestUrl.pathname === '/activate-account'
         || requestUrl.pathname === '/verify-email'
-        || requestUrl.pathname.startsWith('/api/auth/')
+        || requestUrl.pathname === '/app'
+        || requestUrl.pathname === '/login'
+        || requestUrl.pathname === '/register'
+        || requestUrl.pathname === '/dashboard'
+        || /^\/(student|parent|admin|passkeys)(\/|$)/.test(requestUrl.pathname)
+        || requestUrl.pathname.startsWith('/api/')
         || requestUrl.searchParams.has('token')
     );
 
@@ -78,7 +82,7 @@ self.addEventListener('fetch', event => {
         fetch(event.request)
             .then(response => {
                 // Кэшируем успешные ответы (не 4xx/5xx)
-                if (response.ok) {
+                if (response.ok && !response.redirected && !/no-store/i.test(response.headers.get("Cache-Control") || "")) {
                     const copy = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
                 }

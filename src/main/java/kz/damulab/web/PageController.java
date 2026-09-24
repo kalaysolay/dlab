@@ -7,6 +7,7 @@ import org.springframework.ui.Model;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import kz.damulab.auth.EmailVerificationService;
 import kz.damulab.auth.RegisterForm;
@@ -29,13 +30,26 @@ public class PageController {
     }
 
     @GetMapping("/login")
-    String login(Authentication authentication) {
-        if (authentication != null
+    String login(Authentication authentication, @RequestParam(defaultValue = "false") boolean reauth) {
+        if (!reauth && authentication != null
                 && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken)) {
             return "redirect:/dashboard";
         }
         return "auth/login";
+    }
+
+    /** PWA начинает с биометрии, даже когда cookie предыдущего входа ещё действует. */
+    @GetMapping("/app")
+    String appEntry() {
+        return "auth/app-entry";
+    }
+
+    /** Ключ можно привязать только к текущему аутентифицированному аккаунту. */
+    @GetMapping("/passkeys/setup")
+    String passkeySetup(Authentication authentication, Model model) {
+        model.addAttribute("passkeyUsername", authentication.getName());
+        return "auth/passkey-setup";
     }
 
     @GetMapping("/register")

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <title>Вход в Damulab</title>
+</head>
+<body class="biometric-page" data-passkey-entry>
+<main class="biometric-card">
+    <img class="biometric-logo" th:src="@{/icons/damulab-icon.svg}" alt="Damulab" width="80" height="80">
+    <h1>С возвращением!</h1>
+    <p class="muted-line">Войдите с помощью отпечатка, распознавания лица или PIN устройства.</p>
+    <button id="passkey-login-button" class="button primary" type="button">Войти по биометрии</button>
+    <p id="passkey-login-status" class="passkey-status muted-line" role="status" aria-live="polite"></p>
+    <a class="biometric-secondary" th:href="@{/login(reauth=true)}">Войти по паролю или через Google</a>
+    <a class="biometric-secondary" th:href="@{/register}">Создать аккаунт</a>
+    <noscript>Для биометрии включите JavaScript или войдите по паролю.</noscript>
+</main>
+<script th:src="@{/js/passkeys.js}" defer></script>
+<script th:src="@{/js/pwa.js}" defer></script>
+</body>
+</html>

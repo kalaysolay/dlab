@@ -1,0 +1,73 @@
+# Биометрический вход в PWA
+
+После регистрации (email/password и Google) открывается /passkeys/setup.
+При включённом подтверждении email предложение откладывается до первого входа
+в той же браузерной сессии. Создание ключа запускается только нажатием кнопки:
+«Включить на этом устройстве». Есть «Использовать сохранённый ключ» для текущего
+аккаунта и «Позже».
+
+Операционная система использует уже настроенную биометрию или PIN.
+PWA не может управлять текстом системного окна, принудительно выбрать именно
+отпечаток или убрать создание ключа доступа. Сервер хранит публичный ключ,
+а не отпечатки. См. [Google: passkeys](https://developers.google.com/identity/passkeys/developer-guides).
+
+После успешной регистрации/входа localStorage хранит только предпочтение
+damulab-biometric-enabled=1. Новый start_url=/app показывает белый экран с
+логотипом и автоматически вызывает WebAuthn при наличии этого предпочтения.
+Старый ярлык / в standalone перенаправляется туда же. Возврат из фона в
+установленное приложение также открывает /app; собственное системное окно
+WebAuthn не вызывает повторного запуска. Обычные вкладки браузера не перехватываются.
+Отмена оставляет кнопки повтора и входа по паролю/Google.
+При очистке данных браузера сохранённый ключ можно выбрать кнопкой вручную.
+Маршрутизация экрана не является отдельной серверной блокировкой действующей
+HTTP-сессии: API по-прежнему защищены Spring Security.
+
+## Причина прежнего отказа
+
+PasskeyApiController сохранял toCredentialsCreateJson/toCredentialsGetJson,
+а PasskeyService разбирал их через fromJson. Браузерная обёртка publicKey
+несовместима с внутренним форматом. В сессии теперь сохраняется toJson,
+клиент получает toCredentials*Json.
+[Документация Yubico](https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.9.0/com/yubico/webauthn/AssertionRequest.html#toJson()).
+
+Challenge погашается при попытке подтверждения. Смена аккаунта во время
+регистрации отклоняется. После входа проверяется доступность аккаунта и
+меняется session ID. Проверки подписи, origin, RP ID и user verification сохранены.
+
+## Диагностика и конфигурация
+
+Ответ сервера содержит error, безопасное message и reference (UUID).
+Пользователь видит код обращения; администратор ищет его в stdout/stderr
+Spring Boot (журнал контейнера/службы), logger PasskeyExceptionHandler.
+Запись: Passkey request rejected [reference] и stack trace причины.
+Обработчик имеет приоритет над общим AuthExceptionHandler, который иначе
+перехватывает вложенное IllegalArgumentException.
+HTML ошибок прокси и технические исключения пользователю не показываются.
+
+Прод-конфигурация из .env.prod.example:
+WEBAUTHN_RP_ID=damulab.kz
+WEBAUTHN_ALLOWED_ORIGINS=https://damulab.kz
+
+Приложение должно открываться по разрешённому HTTPS-origin. Не добавляйте
+произвольные origins ради обхода проверки. Новые миграции БД не требуются.
+Service worker v4 очищает старый кэш; страницы входа, кабинетов и API не
+восстанавливаются из Cache Storage.
+
+## Проверка
+
+Сервер:
+./gradlew.bat test --tests kz.damulab.PasskeyFlowIntegrationTest --tests kz.damulab.AuthFlowIntegrationTest --tests '*EmailVerification*' --tests '*GoogleOAuth*'
+
+Браузер (отдельный локальный сервер, тестовая H2-база):
+./gradlew.bat bootRun --args='--spring.profiles.active=test --server.port=18080 --damulab.passkeys.allowed-origins=http://localhost:18080'
+npm run smoke:passkeys
+
+Smoke использует Playwright и виртуальный CTAP2 authenticator, создаёт тестовый
+аккаунт, проверяет сохранение/повторное использование ключа, вход с истёкшей
+сессией, отмену/повтор, пароль, возврат из фона и старый ярлык.
+PLAYWRIGHT_PATH и CHROME_PATH переопределяют пути; QA_BASE_URL — локальный адрес.
+Скриншоты: build/passkeys-smoke.
+
+На настоящем Android/iPhone после выкладки отдельно проверить системный диалог:
+новая регистрация → согласие → отпечаток/PIN → свернуть/открыть PWA → вход.
+Внешний вид и требование дополнительного нажатия зависят от ОС и браузера.
