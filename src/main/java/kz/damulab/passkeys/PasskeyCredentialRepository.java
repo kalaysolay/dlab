@@ -11,6 +11,8 @@ public interface PasskeyCredentialRepository extends JpaRepository<PasskeyCreden
 
     List<PasskeyCredential> findAllByCredentialId(String credentialId);
 
+    boolean existsByCredentialId(String credentialId);
+
     Optional<PasskeyCredential> findByCredentialIdAndUserWebAuthnUserHandle(String credentialId, byte[] userHandle);
 
     boolean existsByUserEmailIgnoreCase(String email);

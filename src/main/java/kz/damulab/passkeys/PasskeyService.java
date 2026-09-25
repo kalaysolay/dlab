@@ -139,6 +139,12 @@ public class PasskeyService {
             AssertionRequest request = AssertionRequest.fromJson(requestJson);
             PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> response =
                     PublicKeyCredential.parseAssertionResponseJson(credentialJson);
+            // После неудачной настройки ключ может остаться на телефоне без записи на сервере.
+            if (!credentials.existsByCredentialId(response.getId().getBase64Url())) {
+                throw new PasskeyException("key_not_registered",
+                        "Этот ключ не зарегистрирован в Damulab. Войдите по паролю или через Google "
+                                + "и заново включите биометрию в профиле.");
+            }
             AssertionResult result = relyingParty.finishAssertion(FinishAssertionOptions.builder()
                     .request(request)
                     .response(response)
@@ -153,6 +159,8 @@ public class PasskeyService {
                     .orElseThrow(() -> new PasskeyException("Passkey credential not found"));
             credential.markUsed(result.getSignatureCount(), result.isBackedUp());
             return result.getUsername();
+        } catch (PasskeyException ex) {
+            throw ex;
         } catch (IOException | AssertionFailedException | RuntimeException ex) {
             throw new PasskeyException("Passkey authentication failed", ex);
         }

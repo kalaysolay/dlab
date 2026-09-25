@@ -14,6 +14,7 @@ import java.security.spec.ECGenParameterSpec;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
+import kz.damulab.passkeys.PasskeyCredentialRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -40,6 +41,38 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PasskeyFlowIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
+    @Autowired PasskeyCredentialRepository credentials;
+
+    @Test
+    void reportsKeyThatExistsOnDeviceButWasNotSavedOnServer() throws Exception {
+        Device device = registerDevice();
+        // Состояние после прежней ошибки настройки: телефон сохранил ключ, а сервер — нет.
+        // Удаляем только ключ тестового аккаунта, оставляя реальную подпись authenticator.
+        credentials.deleteAll(credentials.findAllByCredentialId(encode(device.id())));
+        MockHttpSession session = new MockHttpSession();
+        JsonNode options = loginOptions(session, null);
+        mvc.perform(post("/api/passkeys/login").session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(assertion(device, options, "http://localhost:8080", true)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("key_not_registered"))
+                .andExpect(jsonPath("$.message").value(containsString("профиле")))
+                .andExpect(jsonPath("$.reference").isNotEmpty());
+        mvc.perform(get("/api/me").session(session)).andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void signsInWithSyncedPasskey() throws Exception {
+        // Google Password Manager и iCloud используют BE/BS, которых не было в старом fixture.
+        Device device = registerDevice(0x18);
+        MockHttpSession session = new MockHttpSession();
+        JsonNode options = loginOptions(session, null);
+        mvc.perform(post("/api/passkeys/login").session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(assertion(device, options, "http://localhost:8080", true, 0x18)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.redirectUrl").value("/student"));
+    }
 
     @Test
     void registersAndSignsInWithDiscoverableAndExistingKeys() throws Exception {
@@ -89,6 +122,10 @@ class PasskeyFlowIntegrationTest {
     }
 
     private Device registerDevice() throws Exception {
+        return registerDevice(0);
+    }
+
+    private Device registerDevice(int backupFlags) throws Exception {
         String email = "biometric-" + UUID.randomUUID() + "@example.com";
         var registration = mvc.perform(post("/register").with(csrf())
                         .param("email", email).param("password", "password123").param("fullName", "Biometric Test")
@@ -111,7 +148,7 @@ class PasskeyFlowIntegrationTest {
                 .put(coordinate(publicKey.getW().getAffineY().toByteArray())).array();
         // RP hash + UP/UV/AT + counter + AAGUID + credential ID + COSE key (attestation=none).
         byte[] authenticatorData = ByteBuffer.allocate(37 + 16 + 2 + id.length + cose.length)
-                .put(hash("localhost".getBytes(StandardCharsets.UTF_8))).put((byte) 0x45).putInt(0)
+                .put(hash("localhost".getBytes(StandardCharsets.UTF_8))).put((byte) (0x45 | backupFlags)).putInt(0)
                 .put(new byte[16]).putShort((short) id.length).put(id).put(cose).array();
         byte[] attestation = new ObjectMapper(new CBORFactory()).writeValueAsBytes(
                 Map.of("fmt", "none", "attStmt", Map.of(), "authData", authenticatorData));
@@ -138,10 +175,14 @@ class PasskeyFlowIntegrationTest {
     }
 
     private String assertion(Device device, JsonNode options, String origin, boolean verified) throws Exception {
+        return assertion(device, options, origin, verified, 0);
+    }
+
+    private String assertion(Device device, JsonNode options, String origin, boolean verified, int backupFlags) throws Exception {
         byte[] client = clientData("webauthn.get", options, origin);
         // Счётчик 0 разрешён WebAuthn для authenticator без поддержки счётчиков.
         byte[] auth = ByteBuffer.allocate(37).put(hash("localhost".getBytes(StandardCharsets.UTF_8)))
-                .put((byte) (verified ? 5 : 1)).putInt(0).array();
+                .put((byte) ((verified ? 5 : 1) | backupFlags)).putInt(0).array();
         Signature signer = Signature.getInstance("SHA256withECDSA");
         signer.initSign(device.pair().getPrivate());
         signer.update(auth);
