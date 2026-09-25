@@ -1,6 +1,7 @@
 package kz.damulab.lectures;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -30,15 +31,18 @@ public class AdminLecturePageController {
     private static final Pattern ATTACHMENT_FILE_INDEX = Pattern.compile("^attachmentFiles\\[(\\d+)]$");
 
     private final LectureService lectureService;
+    private final StudentLectureService studentLectureService;
     private final ContentGraphService contentGraph;
     private final TopicRepository topics;
 
     public AdminLecturePageController(
             LectureService lectureService,
+            StudentLectureService studentLectureService,
             ContentGraphService contentGraph,
             TopicRepository topics
     ) {
         this.lectureService = lectureService;
+        this.studentLectureService = studentLectureService;
         this.contentGraph = contentGraph;
         this.topics = topics;
     }
@@ -141,8 +145,10 @@ public class AdminLecturePageController {
     }
 
     @GetMapping("/admin/lectures/{id}/preview")
-    String previewLecture(@PathVariable Long id, Model model) {
-        model.addAttribute("lecture", lectureService.getLecture(id));
+    String previewLecture(@PathVariable Long id, Locale locale, Model model) {
+        StudentLectureReaderView reader = studentLectureService.previewLecture(id, locale.getLanguage());
+        model.addAttribute("reader", reader);
+        model.addAttribute("lecture", reader.lecture());
         model.addAttribute("adminPreview", true);
         return "student/lecture";
     }

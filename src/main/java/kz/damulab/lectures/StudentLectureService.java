@@ -120,6 +120,37 @@ public class StudentLectureService {
     }
 
     /**
+     * Собирает тот же reader для административного предпросмотра, но не требует
+     * публикации лекции и не создаёт ученический прогресс.
+     */
+    @Transactional(readOnly = true)
+    public StudentLectureReaderView previewLecture(Long lectureId, String language) {
+        Lecture lecture = lectures.findById(lectureId)
+                .orElseThrow(() -> new LectureException("lecture_not_found"));
+        LectureVersion version = lecture.getCurrentVersion();
+        if (version == null || version.getTopic() == null) {
+            throw new LectureException("lecture_version_not_found");
+        }
+        Topic topic = version.getTopic();
+        Subject subject = topic.getSubject();
+        List<LectureCheckpointQuestionView> questions = questionViews(lecture, language);
+        return new StudentLectureReaderView(
+                lectureService.getLecture(lecture.getId()),
+                subject.getId(),
+                subject.getTitleRu(),
+                subject.getTitleKk(),
+                topic.getGrade().getId(),
+                localized(version.getTitleRu(), version.getTitleKk(), language),
+                localized(topic.getTitleRu(), topic.getTitleKk(), language),
+                localized(version.getContentRuHtml(), version.getContentKkHtml(), language),
+                StudentLectureStatus.NOT_STARTED.apiValue(),
+                false,
+                questions.isEmpty(),
+                questions
+        );
+    }
+
+    /**
      * Возвращает безопасные модели вопросов для разбора отправленной HTML-формы.
      * Метод повторно проверяет публикацию лекции, поэтому произвольный идентификатор
      * нельзя использовать для чтения скрытых вопросов.

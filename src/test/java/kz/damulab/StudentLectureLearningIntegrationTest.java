@@ -265,7 +265,7 @@ class StudentLectureLearningIntegrationTest {
                 .doesNotContain("Русский материал " + marker);
 
         assertRussianFallbackForIncompleteKazakhVersion(fixture, marker);
-        assertAdminPreviewRemainsBilingual(lectureId, marker);
+        assertAdminPreviewUsesApplicationLocale(lectureId, marker);
     }
 
     /** Проверяет, что открытие лекции одним учеником не меняет статус другого. */
@@ -448,15 +448,27 @@ class StudentLectureLearningIntegrationTest {
                 .contains("Fallback материал " + marker);
     }
 
-    /** Admin preview по-прежнему выводит обе авторские языковые версии. */
-    private void assertAdminPreviewRemainsBilingual(Long lectureId, String marker) throws Exception {
-        mockMvc.perform(get("/admin/lectures/{id}/preview", lectureId)
+    /** Admin preview повторяет production reader и использует общий язык приложения. */
+    private void assertAdminPreviewUsesApplicationLocale(Long lectureId, String marker) throws Exception {
+        String russianPreview = mockMvc.perform(get("/admin/lectures/{id}/preview", lectureId)
                         .with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-tab=\"ru\"")))
-                .andExpect(content().string(containsString("data-reader-tab=\"kk\"")))
-                .andExpect(content().string(containsString("Русский материал " + marker)))
-                .andExpect(content().string(containsString("Қазақша материал " + marker)));
+                .andExpect(content().string(containsString("data-lesson-tab=\"theory\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-reader-tab=\"ru\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-reader-tab=\"kk\""))))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(russianPreview)
+                .contains("Русский материал " + marker)
+                .doesNotContain("Қазақша материал " + marker);
+
+        String kazakhPreview = mockMvc.perform(get("/admin/lectures/{id}/preview", lectureId)
+                        .param("lang", "kk")
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(kazakhPreview)
+                .contains("Қазақша материал " + marker)
+                .doesNotContain("Русский материал " + marker);
     }
 
     /** Создаёт тему математики четвёртого класса через публичный административный API. */
