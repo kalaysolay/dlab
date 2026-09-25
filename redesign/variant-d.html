@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DamuLab — визуальная витрина</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body class="visual">
+  <nav class="proto" aria-label="Варианты макета"><a href="index.html">← Все варианты</a><a href="variant-a.html">01 Хаб</a><a href="variant-b.html">02 Маршрут</a><a href="variant-c.html">03 Поиск</a><a class="on" href="variant-d.html">04 Витрина</a><a href="variant-e.html">05 Лекция</a><a href="variant-f.html">06 Текущий UI + поиск</a></nav>
+  <div class="app">
+    <aside class="side">
+      <a class="brand" href="#"><span class="mark"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg></span><span>DamuLab</span></a>
+      <nav class="nav"><button class="active" data-nav="home"><svg class="icon"><use href="assets/icons.svg#home"></use></svg><span>Главная</span></button><button data-nav="services"><svg class="icon"><use href="assets/icons.svg#grid"></use></svg><span>Все сервисы</span></button><button data-nav="lessons"><svg class="icon"><use href="assets/icons.svg#book"></use></svg><span>Уроки</span></button><button data-nav="quiz"><svg class="icon"><use href="assets/icons.svg#game"></use></svg><span>Играть</span></button><button data-nav="progress"><svg class="icon"><use href="assets/icons.svg#chart"></use></svg><span>Прогресс</span></button></nav>
+      <div class="side-note"><strong>8 дней подряд</strong><span>Продолжай в своём ритме</span></div>
+    </aside>
+    <main class="main">
+      <header class="top"><a class="brand mobile-brand" href="#"><span class="mark"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg></span>DamuLab</a><div class="hello"><strong>Сәлем, Алия!</strong><span>Чем займёмся сегодня?</span></div><div class="actions"><div class="langs"><button class="active" data-lang="ru">РУС</button><button data-lang="kk">ҚАЗ</button></div><button class="round avatar" data-demo="Открываем профиль">А</button></div></header>
+      <section class="view active" data-view="home">
+        <div class="visual-hero"><div><h1>Все нужное для учёбы — на одном экране</h1><p>Полупрозрачные карточки оставляют сервисы узнаваемыми даже без чтения.</p></div><button class="linkbtn" data-all>Все сервисы →</button></div>
+        <div class="visual-grid">
+          <button class="visual-card" data-service="dictionary"><img src="assets/generated/service-dictionary.png" alt=""><span class="visual-copy"><i class="arrow-chip"><svg class="icon"><use href="assets/icons.svg#arrow"></use></svg></i><strong>Словарь</strong><span>Перевод слов, формы и живые примеры</span></span></button>
+          <button class="visual-card" data-service="translator"><img src="assets/generated/service-translator.png" alt=""><span class="visual-copy"><i class="arrow-chip"><svg class="icon"><use href="assets/icons.svg#arrow"></use></svg></i><strong>Переводчик</strong><span>Большие тексты на русском и казахском</span></span></button>
+          <button class="visual-card" data-service="camera"><img src="assets/generated/service-camera.png" alt=""><span class="visual-copy"><i class="arrow-chip"><svg class="icon"><use href="assets/icons.svg#arrow"></use></svg></i><strong>Решить по фото</strong><span>Пошаговое объяснение без спойлера</span></span></button>
+          <button class="visual-card" data-service="quiz"><img src="assets/generated/service-quiz.png" alt=""><span class="visual-copy"><i class="arrow-chip"><svg class="icon"><use href="assets/icons.svg#arrow"></use></svg></i><strong>Играть</strong><span>Викторины, переводы и «Верю — не верю»</span></span></button>
+        </div>
+        <div class="utility-row"><button class="utility-card" data-service="lessons"><span class="service-icon"><svg class="icon"><use href="assets/icons.svg#book"></use></svg></span><span><strong>Уроки</strong><span>Продолжить с места остановки</span></span></button><button class="utility-card" data-service="tests"><span class="service-icon"><svg class="icon"><use href="assets/icons.svg#check"></use></svg></span><span><strong>Тесты</strong><span>Короткая проверка знаний</span></span></button><button class="utility-card" data-service="progress"><span class="service-icon"><svg class="icon"><use href="assets/icons.svg#chart"></use></svg></span><span><strong>Мой прогресс</strong><span>Темы, серия и результаты</span></span></button></div>
+      </section>
+      <div data-shared-views></div>
+    </main>
+    <nav class="mobile-nav"><button class="active" data-nav="home"><svg class="icon"><use href="assets/icons.svg#home"></use></svg><span>Главная</span></button><button data-nav="services"><svg class="icon"><use href="assets/icons.svg#grid"></use></svg><span>Сервисы</span></button><button data-nav="lessons"><svg class="icon"><use href="assets/icons.svg#book"></use></svg><span>Уроки</span></button><button data-nav="quiz"><svg class="icon"><use href="assets/icons.svg#game"></use></svg><span>Играть</span></button><button data-nav="progress"><svg class="icon"><use href="assets/icons.svg#chart"></use></svg><span>Прогресс</span></button></nav>
+  </div>
+  <script src="assets/prototype.js"></script>
+</body>
+</html>

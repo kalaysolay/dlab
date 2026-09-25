@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DamuLab — умный поиск в текущем интерфейсе</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body class="current-theme">
+  <nav class="proto" aria-label="Варианты макета"><a href="index.html">← Все варианты</a><a href="variant-a.html">01 Хаб</a><a href="variant-b.html">02 Маршрут</a><a href="variant-c.html">03 Поиск</a><a href="variant-d.html">04 Витрина</a><a href="variant-e.html">05 Лекция</a><a class="on" href="variant-f.html">06 Текущий UI + поиск</a></nav>
+  <div class="current-shell">
+    <header class="current-header">
+      <div class="current-header-row">
+        <a class="current-brand" href="#"><span class="mark"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg></span><span><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+        <div class="current-header-actions"><select class="current-language" aria-label="Язык"><option>Русский</option><option>Қазақша</option></select><button class="round" data-demo="Открываем профиль" aria-label="Профиль">А</button></div>
+      </div>
+      <nav class="current-nav" aria-label="Навигация ученика">
+        <button class="active"><svg class="icon"><use href="assets/icons.svg#home"></use></svg><span>Главная</span></button>
+        <button data-demo="Открываем тесты"><svg class="icon"><use href="assets/icons.svg#check"></use></svg><span>Тесты</span></button>
+        <button data-demo="Открываем аналитику"><svg class="icon"><use href="assets/icons.svg#chart"></use></svg><span>Аналитика</span></button>
+        <button data-demo="Открываем викторины"><svg class="icon"><use href="assets/icons.svg#game"></use></svg><span>Викторина</span></button>
+        <button data-demo="Открываем достижения"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg><span>Достижения</span></button>
+      </nav>
+    </header>
+
+    <main class="current-page">
+      <section class="current-hero">
+        <p class="current-kicker">Student Home</p>
+        <h1>Привет, Алия! Какую вершину покорим сегодня?</h1>
+      </section>
+
+      <section class="current-panel">
+        <div class="smart-search-head"><div><h2>Спроси DamuLab</h2><p>Найди короткий ответ, слово, перевод, урок или нужный сервис.</p></div><span class="typing-note"><i></i>Ответ обычно за несколько секунд</span></div>
+        <div class="smart-search">
+          <label class="smart-search-box"><svg class="icon"><use href="assets/icons.svg#search"></use></svg><input data-smart-query aria-label="Вопрос DamuLab" autocomplete="off" value="как найти площадь треугольника" placeholder="Например: как найти площадь треугольника?"></label>
+          <button class="smart-search-submit" type="button" data-smart-submit>Найти</button>
+          <div class="smart-suggestions" data-smart-suggestions hidden></div>
+        </div>
+        <div class="search-types"><button data-smart-fill="перевести слово білім">Перевести слово</button><button data-smart-fill="объясни дроби простыми словами">Объяснить тему</button><button data-demo="Открываем камеру">Снять задачу</button></div>
+      </section>
+
+      <article class="smart-answer" data-smart-answer>
+        <div class="answer-top"><div><span class="answer-label">Короткий ответ</span><h2>Как найти площадь треугольника</h2></div><span class="answer-confidence">По школьной программе</span></div>
+        <p class="answer-lede">Умножь длину основания треугольника на высоту, проведённую к этому основанию, и раздели результат на два.</p>
+        <div class="answer-formula" role="math" aria-label="Площадь равна основание умножить на высоту и разделить на два">S = (a × h) / 2</div>
+        <div class="answer-steps"><div class="answer-step"><b>1. Выбери основание</b><span>Подойдёт любая сторона треугольника.</span></div><div class="answer-step"><b>2. Найди высоту</b><span>Она должна быть перпендикулярна основанию.</span></div><div class="answer-step"><b>3. Подставь числа</b><span>Например: 6 × 4 ÷ 2 = 12 см².</span></div></div>
+        <div class="answer-actions"><button class="current-primary" data-demo="Открываем подробное объяснение">Объяснить подробнее</button><a class="current-secondary" href="variant-e.html" style="display:inline-flex;align-items:center">Открыть урок</a><button class="current-secondary" data-demo="Ответ сохранён">Сохранить</button></div>
+      </article>
+
+      <section class="current-home-grid">
+        <article class="current-panel"><div class="current-card-title"><span class="service-icon"><svg class="icon"><use href="assets/icons.svg#book"></use></svg></span><h2>Миссия дня / Күндік миссия</h2></div><div class="current-mission"><div><strong>Первый предметный срез</strong><span>Начни с короткого теста.</span></div><div><strong>Укрепи слабые места</strong><span>После результата выбери следующую тему.</span></div></div><button class="current-primary" style="margin-top:14px" data-demo="Начинаем миссию">Начать</button></article>
+        <article class="current-panel"><div class="current-card-title"><span class="service-icon"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg></span><h2>Слово дня</h2></div><div class="word-day"><p class="current-kicker">Запоминайка</p><strong>Жігер</strong><span>Настойчивость и воля двигаться к цели.</span></div></article>
+      </section>
+    </main>
+  </div>
+  <script src="assets/prototype.js"></script>
+</body>
+</html>

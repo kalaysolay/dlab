@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DamuLab — лекция с формулами и изображениями</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body class="lecture-theme">
+  <nav class="proto" aria-label="Варианты макета"><a href="index.html">← Все варианты</a><a href="variant-a.html">01 Хаб</a><a href="variant-b.html">02 Маршрут</a><a href="variant-c.html">03 Поиск</a><a href="variant-d.html">04 Витрина</a><a class="on" href="variant-e.html">05 Лекция</a><a href="variant-f.html">06 Текущий UI + поиск</a></nav>
+  <div class="app">
+    <aside class="side"><a class="brand" href="variant-a.html"><span class="mark"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg></span><span>DamuLab</span></a><nav class="nav"><button data-demo="На главную" aria-label="Главная"><svg class="icon"><use href="assets/icons.svg#home"></use></svg><span>Главная</span></button><button class="active" aria-label="Уроки"><svg class="icon"><use href="assets/icons.svg#book"></use></svg><span>Уроки</span></button><button data-demo="Открываем прогресс" aria-label="Прогресс"><svg class="icon"><use href="assets/icons.svg#chart"></use></svg><span>Прогресс</span></button></nav></aside>
+    <main class="main">
+      <header class="top"><a class="brand mobile-brand" href="variant-a.html"><span class="mark"><svg class="icon"><use href="assets/icons.svg#spark"></use></svg></span>DamuLab</a><div class="hello"><strong>Математика · 7 класс</strong><span>Урок 4 из 12</span></div><div class="actions"><div class="langs"><button class="active" data-lang="ru">РУС</button><button data-lang="kk">ҚАЗ</button></div><button class="round avatar" data-demo="Открываем профиль">А</button></div></header>
+      <div class="lecture-layout">
+        <article class="lecture-paper">
+          <div class="lecture-breadcrumb"><a href="variant-a.html">Уроки</a><span>›</span><span>Геометрия</span></div>
+          <h1>Длина окружности и площадь круга</h1>
+          <p class="lecture-lede">Разберём, что означает число π, выведем две главные формулы и применим их к знакомым предметам.</p>
+          <div class="lecture-meta"><span class="meta-chip">12 минут</span><span class="meta-chip">2 формулы</span><span class="meta-chip">3 примера</span></div>
+
+          <section class="lecture-section" id="idea"><h2>1. Радиус и диаметр</h2><p>Радиус <b>r</b> соединяет центр круга с любой точкой на окружности. Диаметр <b>d</b> проходит через центр и равен двум радиусам.</p><div class="formula" role="math" aria-label="Диаметр равен двум радиусам">d = 2r <small>Диаметр всегда в два раза больше радиуса</small></div>
+            <div class="diagram-card"><svg class="circle-diagram" viewBox="0 0 200 200" role="img" aria-label="Круг с отмеченным центром и радиусом"><circle cx="100" cy="100" r="76" fill="#dff3ef" stroke="#176f62" stroke-width="4"/><circle cx="100" cy="100" r="5" fill="#176f62"/><line x1="100" y1="100" x2="165" y2="61" stroke="#ef8a4a" stroke-width="4"/><text x="106" y="94" font-family="Onest" font-size="15" fill="#176f62">O</text><text x="137" y="72" font-family="Georgia" font-size="18" fill="#9b4b1d">r</text></svg><div><strong>Чертёж остаётся чётким при увеличении</strong><p>Схемы сохраняются как SVG, поэтому подписи и линии не размываются на телефоне или большом экране.</p></div></div>
+          </section>
+
+          <section class="lecture-section" id="length"><h2>2. Длина окружности</h2><p>Отношение длины любой окружности к её диаметру постоянно. Это число обозначают греческой буквой π и приближённо считают равным 3,14.</p><div class="formula-row"><div class="formula-card"><strong>C = 2πr</strong><span>если известен радиус</span></div><div class="formula-card"><strong>C = πd</strong><span>если известен диаметр</span></div></div>
+            <figure class="lecture-figure"><img src="assets/generated/lecture-wheel.png" alt="Синее велосипедное колесо, показанное почти прямо"><span class="figure-overlay" aria-hidden="true"></span><button class="zoom-button" type="button" data-image-zoom="assets/generated/lecture-wheel.png">Увеличить</button><figcaption>Рисунок 1. От центра втулки до обода отмечен радиус колеса.</figcaption></figure>
+            <div class="example-box"><h3>Пример: колесо радиусом 35 см</h3><p>C = 2 × 3,14 × 35 = 219,8 см</p><p>За один полный оборот колесо проедет примерно 2,2 метра.</p></div>
+          </section>
+
+          <section class="lecture-section" id="area"><h2>3. Площадь круга</h2><p>Площадь зависит от квадрата радиуса. Если радиус увеличить в два раза, площадь станет больше в четыре раза.</p><div class="formula" role="math" aria-label="Площадь круга равна пи умножить на радиус в квадрате">S = πr<sup>2</sup><small>S — площадь, r — радиус, π ≈ 3,14</small></div><div class="example-box"><h3>Продолжим пример</h3><p>S = 3,14 × 35<sup>2</sup> = 3 846,5 см²</p></div></section>
+
+          <section class="lecture-section" id="check"><h2>Проверь себя</h2><p>Диаметр круглого стола равен 120 см. Какова длина его края?</p><div class="room-actions"><button class="primary" data-demo="Верно: 376,8 см">376,8 см</button><button class="secondary" data-demo="Попробуй применить C = πd">240 см</button><button class="secondary" data-demo="Попробуй ещё раз">120π² см</button></div></section>
+        </article>
+        <aside class="lecture-toc"><h2>Содержание урока</h2><a href="#idea">Радиус и диаметр</a><a href="#length">Длина окружности</a><a href="#area">Площадь круга</a><a href="#check">Проверь себя</a><div class="lecture-progress"><i></i></div><p style="font-size:.78rem;color:var(--muted)">Пройдено 38%</p><button class="primary" style="width:100%" data-demo="Урок сохранён">Продолжить позже</button></aside>
+      </div>
+    </main>
+  </div>
+  <script src="assets/prototype.js"></script>
+</body>
+</html>
