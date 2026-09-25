@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Damulab — макет урока</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="tabs-sticky">
+<div class="app-shell">
+    <header class="student-header">
+        <div class="student-header-row">
+            <a class="brand" href="#top" aria-label="Damulab.kz — главная">
+                <span class="brand-mark"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span>
+                <span><strong>Damulab.kz</strong><small>Мой путь развития</small></span>
+            </a>
+            <div class="header-actions">
+                <label class="language-select"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg><select aria-label="Язык интерфейса"><option>Русский</option><option>Қазақша</option></select></label>
+                <button class="icon-button" type="button" aria-label="Профиль"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></button>
+            </div>
+        </div>
+        <nav class="student-nav" aria-label="Навигация ученика">
+            <a href="#"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#home"></use></svg><span>Главная</span></a>
+            <a href="#"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#clipboard-check"></use></svg><span>Тесты</span></a>
+            <a href="#"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg><span>Аналитика</span></a>
+            <a href="#"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg><span>Викторина</span></a>
+            <a href="#"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#trophy"></use></svg><span>Достижения</span></a>
+        </nav>
+    </header>
+
+    <main id="top" class="lesson-page">
+        <section class="lesson-heading">
+            <a class="back-link" href="#">← К списку уроков</a>
+            <div class="lesson-heading-grid">
+                <div>
+                    <span class="topic-chip">Математика · 5 класс</span>
+                    <h1>Округление десятичных дробей</h1>
+                    <p>Как быстро определить ближайшее значение и не ошибиться с разрядом.</p>
+                </div>
+            </div>
+        </section>
+
+        <nav class="lesson-tabs" aria-label="Разделы урока">
+            <div class="lesson-tabs-inner">
+                <button class="lesson-tab active" type="button" data-tab="theory"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#book-open-check"></use></svg><span><strong>Теория</strong><small>Материал урока</small></span></button>
+                <button class="lesson-tab" id="testingTab" type="button" data-tab="testing"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#clipboard-check"></use></svg><span><strong>Тестирование</strong><small>6 вопросов</small></span><b id="tabAnswered">2/6</b></button>
+            </div>
+        </nav>
+
+        <section class="tab-panel active" data-panel="theory">
+            <div class="theory-layout">
+                <aside class="lesson-outline" aria-label="Содержание урока">
+                    <p class="eyebrow">Содержание</p>
+                    <nav>
+                        <a class="active" href="#idea"><span>01</span>Что такое округление</a>
+                        <a href="#rule"><span>02</span>Правило по шагам</a>
+                        <a href="#example"><span>03</span>Разбор примера</a>
+                        <a href="#media"><span>04</span>Видео и анимация</a>
+                        <a href="#summary"><span>05</span>Коротко о главном</a>
+                    </nav>
+                    <div class="outline-note"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#route"></use></svg><span><strong>8 минут</strong> на чтение</span></div>
+                </aside>
+
+                <article class="lesson-article">
+                    <header class="article-intro" id="idea">
+                        <p class="eyebrow">01 · Основная идея</p>
+                        <h2>Округление помогает заменить число близким и более удобным</h2>
+                        <p class="lead">Когда точное значение не обязательно, мы сохраняем нужный разряд, а цифры справа заменяем нулями или отбрасываем.</p>
+                    </header>
+
+                    <div class="article-copy">
+                        <p>Например, число <span class="inline-formula">7,362</span> можно округлить до десятых. Сначала находим цифру в разряде десятых — это <strong>3</strong>. Затем смотрим на следующую цифру справа.</p>
+                    </div>
+
+                    <figure class="lesson-figure" data-media="image" data-src="../../../src/main/resources/static/img/lectures/rounding-decimals/place-values.svg" data-title="Разряды десятичной дроби 7,362">
+                        <button class="media-open" type="button" aria-label="Увеличить изображение">
+                            <img src="../../../src/main/resources/static/img/lectures/rounding-decimals/place-values.svg" alt="Разряды десятичной дроби 7,362">
+                            <span>Увеличить</span>
+                        </button>
+                        <figcaption><strong>Рисунок 1.</strong> Разряды числа 7,362. Нажмите на изображение, чтобы рассмотреть его без потери качества.</figcaption>
+                    </figure>
+
+                    <section id="rule" class="article-section">
+                        <p class="eyebrow">02 · Правило по шагам</p>
+                        <h2>Смотрим на одну цифру справа</h2>
+                        <ol class="rule-steps">
+                            <li><span>1</span><div><strong>Выберите разряд</strong><p>Определите, до какого разряда нужно округлить число.</p></div></li>
+                            <li><span>2</span><div><strong>Посмотрите на соседа справа</strong><p>Именно он подсказывает, менять выбранную цифру или нет.</p></div></li>
+                            <li><span>3</span><div><strong>Примените правило</strong><p>Если сосед от 5 до 9 — увеличьте цифру на один. Если от 0 до 4 — оставьте без изменений.</p></div></li>
+                        </ol>
+                    </section>
+
+                    <section class="formula-card" aria-label="Правило округления">
+                        <span class="formula-label">Правило</span>
+                        <div class="formula-main"><span>0, 1, 2, 3, 4</span><b>→</b><strong>оставляем</strong></div>
+                        <div class="formula-divider"></div>
+                        <div class="formula-main"><span>5, 6, 7, 8, 9</span><b>→</b><strong>увеличиваем на 1</strong></div>
+                    </section>
+
+                    <section id="example" class="article-section">
+                        <p class="eyebrow">03 · Разбор примера</p>
+                        <h2>Округлим 7,362 до десятых</h2>
+                        <div class="worked-example">
+                            <div class="worked-number" aria-label="семь целых триста шестьдесят две тысячных округляется до семи целых четырёх десятых">
+                                <span>7,3<mark>6</mark>2</span><b>≈</b><strong>7,4</strong>
+                            </div>
+                            <p>В разряде сотых стоит <strong>6</strong>. Она больше 5, поэтому цифру десятых <strong>3</strong> увеличиваем на один.</p>
+                        </div>
+                    </section>
+
+                    <figure class="lesson-figure" data-media="image" data-src="../../../src/main/resources/static/img/lectures/rounding-decimals/number-line.svg" data-title="7,362 на числовой прямой">
+                        <button class="media-open" type="button" aria-label="Открыть числовую прямую">
+                            <img src="../../../src/main/resources/static/img/lectures/rounding-decimals/number-line.svg" alt="Числовая прямая: 7,362 ближе к 7,4">
+                            <span>Открыть</span>
+                        </button>
+                        <figcaption><strong>Рисунок 2.</strong> На числовой прямой видно, почему 7,362 ближе к 7,4, чем к 7,3.</figcaption>
+                    </figure>
+
+                    <section id="media" class="article-section">
+                        <p class="eyebrow">04 · Медиаматериалы</p>
+                        <h2>Посмотрите объяснение прямо в тексте</h2>
+                        <p>Видео не уводит ученика со страницы: после просмотра чтение продолжается с того же места.</p>
+                        <button class="video-card" type="button" data-media="video" aria-label="Открыть видеообъяснение">
+                            <img src="../../../src/main/resources/static/img/lectures/rounding-decimals/number-line.svg" alt="Превью видео об округлении на числовой прямой">
+                            <span class="video-play"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg></span>
+                            <span class="video-copy"><small>Видео · 2:14</small><strong>Округление на числовой прямой</strong><em>Открывается поверх урока</em></span>
+                        </button>
+
+                        <div class="gif-block" data-media="gif" data-src="../../../src/main/resources/static/img/lectures/rounding-decimals/place-values.svg" data-title="Как меняется разряд при округлении">
+                            <div><span class="media-badge">GIF · 8 сек</span><h3>Как меняется соседний разряд</h3><p>Короткая анимация повторяется автоматически, но её можно остановить.</p></div>
+                            <button class="gif-preview media-open" type="button" aria-label="Открыть анимацию"><img src="../../../src/main/resources/static/img/lectures/rounding-decimals/place-values.svg" alt="Анимация разрядов десятичной дроби"><span>Смотреть</span></button>
+                        </div>
+                    </section>
+
+                    <section id="summary" class="summary-box">
+                        <div class="summary-icon"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></div>
+                        <div><p class="eyebrow">Коротко о главном</p><h2>Одна соседняя цифра определяет результат</h2><ul><li>0–4 — выбранную цифру не меняем;</li><li>5–9 — увеличиваем выбранную цифру на один;</li><li>после запятой лишние цифры отбрасываем.</li></ul></div>
+                    </section>
+
+                    <div class="theory-actions" id="theoryActions"><button class="primary-button" type="button" data-open-testing>Перейти к тестированию</button></div>
+                    <div class="no-test-completion" id="noTestCompletion" hidden>
+                        <div class="no-test-copy"><svg aria-hidden="true"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#book-open-check"></use></svg><div><strong>В этом уроке нет тестирования</strong><span>После изучения теории можно завершить урок и вернуться к списку уроков.</span></div></div>
+                        <button class="primary-button" type="button" id="completeLesson">Завершить урок</button>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="tab-panel" data-panel="testing" hidden>
+            <div class="test-shell">
+                <header class="test-header"><div><p class="eyebrow">Закрепление материала</p><h2>Проверьте, как вы поняли урок</h2><p>Можно свободно переходить между вопросами — ответы сохраняются в макете.</p></div><div class="test-summary"><strong id="answeredCount">2</strong><span>из 6 отвечено</span></div></header>
+                <div class="question-card">
+                    <div class="question-meta"><span id="questionLabel">Вопрос 3 из 6</span><span class="question-meta-right"><b id="questionType">FILL IN</b><span id="questionTopic">Правило округления</span></span></div>
+                    <h3 id="questionText">До десятых округляют число 7,362. Какой ответ верный?</h3>
+                    <div class="answer-list" id="answerList"></div>
+                </div>
+                <div class="question-navigation">
+                    <div class="question-navigation-head"><strong>Вопросы</strong><span><i></i> отвечено <i></i> текущий</span></div>
+                    <div class="question-numbers" id="questionNumbers"></div>
+                    <div class="test-actions"><button class="secondary-button" type="button" id="previousQuestion">Назад</button><button class="primary-button" type="button" id="nextQuestion">Дальше</button></div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<aside class="prototype-controls" aria-label="Настройки макета"><span>Сценарий макета</span><label class="scenario-control"><span>Урок</span><select id="lessonScenario" aria-label="Сценарий урока"><option value="with-test">с тестом</option><option value="no-test">без теста</option></select></label><label><input type="checkbox" id="stickyToggle" checked><i></i><b>Вкладки закреплены</b></label></aside>
+
+<div class="media-modal" id="mediaModal" hidden>
+    <button class="media-backdrop" type="button" data-close-media aria-label="Закрыть"></button>
+    <section class="media-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaTitle">
+        <header><div><span id="mediaKind">Изображение</span><h2 id="mediaTitle">Материал урока</h2></div><button class="modal-close" type="button" data-close-media>Закрыть</button></header>
+        <div class="media-stage" id="mediaStage"></div>
+        <footer><span>Esc — закрыть</span><button class="secondary-button" type="button" data-close-media>Вернуться к уроку</button></footer>
+    </section>
+</div>
+
+<div class="finish-modal" id="finishModal" hidden>
+    <button class="media-backdrop" type="button" data-close-finish aria-label="Закрыть"></button>
+    <section class="finish-dialog" role="dialog" aria-modal="true" aria-labelledby="finishTitle"><div class="finish-icon"><svg aria-hidden="true"><use id="finishIcon" href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></div><h2 id="finishTitle">Тест завершён</h2><p id="finishCopy">Вы ответили на все вопросы урока.</p><div id="missingQuestions" class="missing-questions" hidden></div><div class="finish-actions"><button class="secondary-button" type="button" data-close-finish>Закрыть</button><button class="primary-button" type="button" id="finishPrimary">Продолжить обучение</button></div></section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="prototype.js"></script>
+</body>
+</html>

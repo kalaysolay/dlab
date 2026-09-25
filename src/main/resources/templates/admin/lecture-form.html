@@ -88,35 +88,65 @@
 
                 <section class="subpanel lecture-content-shell">
                     <div class="page-head compact-head">
-                        <h2 class="section-title">Контент лекции (Quill + KaTeX)</h2>
+                        <div>
+                            <h2 class="section-title">Контент лекции (Quill + KaTeX)</h2>
+                            <p class="muted-line" th:if="${mode == 'create'}">AI создаёт обе языковые версии и заполняет редакторы только после проверки 95/100.</p>
+                        </div>
                         <div class="type-tabs compact-tabs" aria-label="Язык лекции">
                             <button class="type-tab active" type="button" data-lecture-tab="ru">RU</button>
                             <button class="type-tab" type="button" data-lecture-tab="kk">KK</button>
                         </div>
                     </div>
 
-                    <section class="lecture-tab-panel active" data-lecture-panel="ru">
+                    <div class="ai-lecture-generator" th:if="${mode == 'create'}">
                         <label class="field">
-                            <span>RU контент</span>
+                            <span>Дополнительная инструкция для генерации (необязательно)</span>
+                            <textarea id="lecture-ai-instruction" rows="3" maxlength="2000"
+                                      placeholder="Например: добавь практический пример из повседневной жизни"></textarea>
+                        </label>
+                        <div class="actions">
+                            <button id="lecture-ai-generate" class="button primary" type="button">Сгенерировать лекцию RU + KZ</button>
+                            <span class="muted-line">Используются провайдер и модель из «Настройки AI → Лекции».</span>
+                        </div>
+                        <div id="lecture-ai-progress" class="ai-gen-progress" hidden aria-live="polite">
+                            <span class="ai-gen-spinner" aria-hidden="true"></span>
+                            <span class="ai-gen-progress-text">Генерируем и проверяем лекцию. При оценке ниже 95 запрос повторится автоматически…</span>
+                        </div>
+                        <div id="lecture-ai-error" class="alert error" hidden></div>
+                        <section id="lecture-ai-quality" class="lecture-ai-quality" hidden aria-live="polite">
+                            <div class="page-head compact-head">
+                                <div>
+                                    <h3 class="section-title">Отчёт валидатора</h3>
+                                    <p id="lecture-ai-quality-summary" class="muted-line"></p>
+                                </div>
+                                <strong id="lecture-ai-quality-score" class="lecture-ai-quality-score">0 из 100</strong>
+                            </div>
+                            <div id="lecture-ai-quality-checks" class="lecture-ai-quality-checks"></div>
+                        </section>
+                    </div>
+
+                    <section class="lecture-tab-panel active" data-lecture-panel="ru">
+                        <div class="field" role="group" aria-labelledby="lecture-content-ru-label">
+                            <span id="lecture-content-ru-label">RU контент</span>
                             <textarea id="lecture-content-ru"
                                       class="lecture-hidden-input"
                                       th:field="*{contentRu}"
                                       hidden
                                       placeholder="Введите контент лекции на русском языке"></textarea>
                             <div id="lecture-editor-ru" class="lecture-rich-editor"></div>
-                        </label>
+                        </div>
                     </section>
 
                     <section class="lecture-tab-panel" data-lecture-panel="kk">
-                        <label class="field">
-                            <span>KK контент</span>
+                        <div class="field" role="group" aria-labelledby="lecture-content-kk-label">
+                            <span id="lecture-content-kk-label">KK контент</span>
                             <textarea id="lecture-content-kk"
                                       class="lecture-hidden-input"
                                       th:field="*{contentKk}"
                                       hidden
                                       placeholder="Дәріс мәтінін енгізіңіз"></textarea>
                             <div id="lecture-editor-kk" class="lecture-rich-editor"></div>
-                        </label>
+                        </div>
                     </section>
 
                     <div class="notice">
@@ -295,6 +325,14 @@
     const formulaPreview = document.getElementById('lecture-formula-preview');
     const formulaError = document.getElementById('lecture-formula-error');
     const formulaInsert = document.getElementById('lecture-formula-insert');
+    const aiGenerateButton = document.getElementById('lecture-ai-generate');
+    const aiInstruction = document.getElementById('lecture-ai-instruction');
+    const aiProgress = document.getElementById('lecture-ai-progress');
+    const aiError = document.getElementById('lecture-ai-error');
+    const aiQuality = document.getElementById('lecture-ai-quality');
+    const aiQualityScore = document.getElementById('lecture-ai-quality-score');
+    const aiQualitySummary = document.getElementById('lecture-ai-quality-summary');
+    const aiQualityChecks = document.getElementById('lecture-ai-quality-checks');
     const selectedCheckpointIds = new Set(
         Array.from(manualCheckpointHidden?.querySelectorAll('input[name="checkpointQuestionVersionIds"]') ?? [])
             .map((input) => String(input.value).trim())
@@ -537,6 +575,7 @@
         { inputId: 'lecture-content-kk', editorId: 'lecture-editor-kk' }
     ];
     const lectureEditors = [];
+    const lectureEditorByInput = new Map();
     let activeFormulaEditor = null;
     let activeFormulaRange = null;
     let pendingImageUploads = 0;
@@ -743,6 +782,9 @@
             input.classList.remove('lecture-hidden-input');
             input.classList.add('lecture-textarea');
             editorRoot.hidden = true;
+            lectureEditorByInput.set(config.inputId, {
+                setHtml: (html) => { input.value = html; }
+            });
             return;
         }
 
@@ -770,13 +812,15 @@
         quill.on('text-change', syncInput);
         // Размер меняем через модель Quill, чтобы сохранить HTML и историю undo/redo.
         const panel = document.createElement('div');
-        panel.className = 'lecture-image-size';
+        panel.className = 'lecture-image-settings';
         panel.hidden = true;
-        panel.innerHTML = '<label>Ширина изображения <input type="range" min="10" max="100" step="5"> <output></output></label>';
+        panel.innerHTML = '<label class="lecture-image-width">Ширина изображения <input type="range" min="10" max="100" step="5"> <output></output></label>'
+            + '<label class="lecture-image-alt">Альтернативный текст <input type="text" maxlength="300" placeholder="Что изображено и зачем это важно"></label>';
         editorRoot.after(panel);
         let selectedImage;
-        const slider = panel.querySelector('input');
+        const slider = panel.querySelector('input[type="range"]');
         const output = panel.querySelector('output');
+        const altInput = panel.querySelector('input[type="text"]');
         quill.root.addEventListener('click', event => {
             selectedImage = event.target.closest('img');
             panel.hidden = !selectedImage;
@@ -785,12 +829,20 @@
             slider.value = width.endsWith('%') ? parseInt(width, 10) : Math.min(100,
                 Math.round(selectedImage.getBoundingClientRect().width / quill.root.clientWidth * 100));
             output.value = slider.value + '%';
+            altInput.value = selectedImage.getAttribute('alt') || '';
         });
         slider.addEventListener('input', () => {
             if (!selectedImage || !quill.root.contains(selectedImage)) { panel.hidden = true; return; }
             const blot = window.Quill.find(selectedImage);
+            if (!blot) return;
             quill.formatText(quill.getIndex(blot), 1, { width: slider.value + '%', height: false }, 'user');
             output.value = slider.value + '%';
+        });
+        altInput.addEventListener('input', () => {
+            if (!selectedImage || !quill.root.contains(selectedImage)) { panel.hidden = true; return; }
+            const blot = window.Quill.find(selectedImage);
+            if (!blot) return;
+            quill.formatText(quill.getIndex(blot), 1, { alt: altInput.value.trim() || false }, 'user');
         });
         quill.getModule('toolbar').addHandler('image', () => selectLectureImage(quill));
         window.installLectureYouTube(quill);
@@ -811,7 +863,95 @@
         }, true);
         syncInput();
         lectureEditors.push(syncInput);
+        lectureEditorByInput.set(config.inputId, {
+            setHtml: (html) => {
+                quill.setText('');
+                quill.clipboard.dangerouslyPasteHTML(html || '');
+                syncInput();
+            }
+        });
     });
+
+    function renderAiQuality(report) {
+        if (!aiQuality || !report) {
+            return;
+        }
+        aiQuality.hidden = false;
+        aiQualityScore.textContent = report.score + ' из 100';
+        aiQualitySummary.textContent = report.summary || '';
+        aiQualityChecks.replaceChildren();
+        (report.checks || []).forEach((check) => {
+            const item = document.createElement('div');
+            item.className = 'lecture-ai-quality-check ' + (check.passed ? 'passed' : 'failed');
+            const title = document.createElement('strong');
+            title.textContent = (check.passed ? '✓ ' : '✕ ') + check.title;
+            const details = document.createElement('span');
+            details.textContent = check.details;
+            item.append(title, details);
+            aiQualityChecks.appendChild(item);
+        });
+    }
+
+    function aiErrorMessage(payload) {
+        const messages = {
+            ai_provider_disabled: 'Внешние AI-провайдеры отключены на сервере.',
+            openai_api_key_missing: 'На сервере не настроен ключ OpenAI.',
+            deepseek_api_key_missing: 'На сервере не настроен ключ DeepSeek.',
+            ai_schema_invalid: 'Модель вернула ответ неправильного формата. Повторите генерацию.',
+            ai_lecture_quality_below_threshold: 'После трёх попыток качество осталось ниже 95/100.',
+            topic_not_found: 'Выбранная тема не найдена.'
+        };
+        return messages[payload?.error] || payload?.message || 'Не удалось сгенерировать лекцию.';
+    }
+
+    async function generateLectureWithAi() {
+        const topicId = topicSelect?.value || '';
+        if (!topicId) {
+            aiError.hidden = false;
+            aiError.textContent = 'Сначала выберите тему лекции.';
+            topicSelect?.focus();
+            return;
+        }
+        aiGenerateButton.disabled = true;
+        aiProgress.hidden = false;
+        aiError.hidden = true;
+        aiQuality.hidden = true;
+        try {
+            const csrfInput = lectureForm?.querySelector('input[name="_csrf"]');
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfInput) {
+                headers['X-CSRF-TOKEN'] = csrfInput.value;
+            }
+            const response = await fetch('/api/admin/lectures/generate', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    topicId: Number(topicId),
+                    methodistInstruction: aiInstruction?.value?.trim() || ''
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                renderAiQuality(payload.quality);
+                throw new Error(aiErrorMessage(payload));
+            }
+            document.getElementById('titleRu').value = payload.titleRu || '';
+            document.getElementById('titleKk').value = payload.titleKk || '';
+            lectureEditorByInput.get('lecture-content-ru')?.setHtml(payload.contentRu);
+            lectureEditorByInput.get('lecture-content-kk')?.setHtml(payload.contentKk);
+            renderAiQuality(payload.quality);
+            lectureTabs[0]?.click();
+            aiQuality.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (error) {
+            aiError.hidden = false;
+            aiError.textContent = error.message;
+        } finally {
+            aiGenerateButton.disabled = false;
+            aiProgress.hidden = true;
+        }
+    }
+
+    aiGenerateButton?.addEventListener('click', generateLectureWithAi);
 
     function getAttachmentUrlPath(url) {
         const trimmed = (url || '').trim().toLowerCase();

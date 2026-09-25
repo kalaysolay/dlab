@@ -6963,6 +6963,51 @@ h2 {
     color: var(--muted);
 }
 
+.ai-lecture-generator {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.lecture-ai-quality {
+    padding: 16px;
+    border: 1px solid #86efac;
+    border-radius: 12px;
+    background: #f0fdf4;
+}
+
+.lecture-ai-quality-score {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #166534;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.lecture-ai-quality-checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.lecture-ai-quality-check {
+    display: grid;
+    gap: 3px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    font-size: 0.86rem;
+}
+
+.lecture-ai-quality-check.passed strong { color: #166534; }
+.lecture-ai-quality-check.failed strong { color: #b91c1c; }
+
 /* ===== AI generate: выбор темы деревом (уровень = отступ + метка L1/L2) ===== */
 
 .field-ai-topic-tree > span:first-child {
@@ -8437,9 +8482,18 @@ h2 {
     }
 }
 
-/* Элементы управления размером не входят в сохраняемый HTML лекции. */
-.lecture-image-size { padding: 12px; }
-.lecture-image-size label { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Настройки выбранного изображения не входят в сохраняемый HTML лекции. */
+.lecture-image-settings {
+    display: grid;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-muted);
+}
+.lecture-image-settings label { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lecture-image-settings .lecture-image-alt input { flex: 1 1 280px; }
 .lecture-content img { cursor: zoom-in; }
 .lecture-content img:focus-visible { outline: 3px solid #2563eb; }
 .lecture-image-viewer {
@@ -8462,8 +8516,13 @@ h2 {
 .lecture-image-controls {
     display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
     padding: max(12px, env(safe-area-inset-top)) 12px 12px; z-index: 1;
+    background: rgba(16, 24, 40, 0.92);
 }
-.lecture-image-controls button { min-width: 44px; min-height: 44px; cursor: pointer; }
+.lecture-image-controls button {
+    min-width: 44px; min-height: 44px; cursor: pointer;
+    border-color: rgba(255, 255, 255, 0.35); color: #fff; background: rgba(255, 255, 255, 0.08);
+}
+.lecture-image-controls button:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 2px; }
 .lecture-image-stage {
     flex: 1; min-height: 0; position: relative;
     overflow: hidden; touch-action: none; user-select: none;
@@ -8477,7 +8536,7 @@ h2 {
 .lecture-rich-editor .ql-editor iframe.ql-video,
 .lecture-content iframe.ql-video {
     display: block; width: 100%; max-width: 100%; height: auto;
-    aspect-ratio: 16 / 9; min-height: 200px; border: 0; margin: 1rem 0;
+    aspect-ratio: 16 / 9; min-height: 0; border: 0; margin: 1rem 0;
 }
 .lecture-youtube-dialog { width: min(480px, calc(100vw - 32px)); border: 0; border-radius: 12px; padding: 20px; }
 .lecture-youtube-dialog::backdrop { background: rgb(0 0 0 / 50%); }
@@ -8497,3 +8556,527 @@ h2 {
 
 html.biometric-resume { background: #fff; }
 html.biometric-resume body { visibility: hidden; }
+
+/* Student lesson reader: структура утверждённого макета без отдельного frontend-модуля. */
+.lecture-reader-page {
+    max-width: 1180px;
+}
+
+.student-lesson-reader .lecture-hero {
+    margin-top: 22px;
+    border: 0;
+    background: transparent;
+    padding: 0 0 24px;
+}
+
+.student-lesson-reader .lecture-hero h1 {
+    max-width: 820px;
+    margin-top: 14px;
+    font-family: "Manrope", "Nunito", "Segoe UI", sans-serif;
+    font-size: clamp(2rem, 5vw, 3.15rem);
+    letter-spacing: -0.035em;
+}
+
+.lesson-section-tabs {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    padding: 10px 0;
+}
+
+.lesson-section-tabs.has-testing {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lesson-section-tab {
+    display: flex;
+    min-width: 0;
+    min-height: 58px;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: var(--surface-muted);
+    color: var(--muted);
+    padding: 8px 16px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.lesson-section-tab > span {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+    text-align: left;
+}
+
+.lesson-section-tab strong {
+    font-size: 0.9rem;
+}
+
+.lesson-section-tab small {
+    overflow: hidden;
+    font-size: 0.69rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lesson-section-tab b {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #e5e7eb;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+}
+
+.lesson-section-tab.active {
+    border-color: #cfd6ff;
+    background: #fff;
+    color: var(--primary-dark);
+    box-shadow: 0 3px 12px rgba(79, 70, 229, 0.08);
+}
+
+.lesson-section-tab.active b {
+    background: #e6e8ff;
+}
+
+.lesson-section-tab:focus-visible,
+.lecture-outline a:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.25);
+    outline-offset: 2px;
+}
+
+.lesson-tab-panel {
+    display: none;
+}
+
+.lesson-tab-panel.active:not([hidden]) {
+    display: block;
+}
+
+.lecture-theory-layout {
+    display: grid;
+    grid-template-columns: 218px minmax(0, 720px);
+    justify-content: center;
+    align-items: start;
+    gap: 44px;
+    padding: 40px 0 20px;
+}
+
+.lecture-theory-article {
+    min-width: 0;
+}
+
+.lecture-theory-article > .lecture-content {
+    margin-top: 0;
+}
+
+.lecture-outline {
+    position: static;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    padding: 18px;
+}
+
+.lecture-outline .section-kicker {
+    margin: 0 0 8px;
+}
+
+.lecture-outline nav {
+    display: grid;
+    gap: 3px;
+}
+
+.lecture-outline a {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: start;
+    gap: 5px;
+    border-radius: 10px;
+    padding: 9px 8px;
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-decoration: none;
+}
+
+.lecture-outline a span {
+    color: #98a2b3;
+    font-size: 0.67rem;
+}
+
+.lecture-outline a:hover,
+.lecture-outline a.active {
+    background: #eef2ff;
+    color: var(--primary-dark);
+}
+
+.lecture-content h2,
+.lecture-content h3 {
+    scroll-margin-top: 20px;
+}
+
+.lecture-theory-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 28px;
+}
+
+.lesson-tab-panel[data-lesson-panel="testing"] {
+    width: min(100%, 780px);
+    margin: 0 auto;
+    padding: 36px 0 20px;
+}
+
+.lesson-tab-panel[data-lesson-panel="testing"] .lecture-checkpoints {
+    margin-top: 0;
+}
+
+@media (max-width: 880px) {
+    .lecture-theory-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding-top: 28px;
+    }
+
+    .lecture-outline nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 580px) {
+    .student-lesson-reader .lecture-hero h1 {
+        font-size: 2rem;
+    }
+
+    .lesson-section-tab {
+        min-height: 50px;
+        gap: 7px;
+        padding: 7px;
+    }
+
+    .lesson-section-tab .lucide-icon,
+    .lesson-section-tab small {
+        display: none;
+    }
+
+    .lesson-section-tab b {
+        padding-inline: 6px;
+    }
+
+    .lecture-theory-layout,
+    .lesson-tab-panel[data-lesson-panel="testing"] {
+        padding-top: 24px;
+    }
+
+    .lecture-outline nav {
+        grid-template-columns: 1fr;
+    }
+
+    .lecture-theory-actions .button {
+        width: 100%;
+    }
+}
+
+/* Read-only Quill: стандартная разметка редактора без копирования Snow theme. */
+.student-lesson-reader .lecture-content {
+    font-size: clamp(1rem, 0.96rem + 0.22vw, 1.12rem);
+    line-height: 1.78;
+    overflow-wrap: break-word;
+}
+
+.student-lesson-reader .lecture-content p,
+.student-lesson-reader .lecture-content ul,
+.student-lesson-reader .lecture-content ol,
+.student-lesson-reader .lecture-content blockquote,
+.student-lesson-reader .lecture-content pre,
+.student-lesson-reader .lecture-content table {
+    margin: 0 0 1.25rem;
+}
+
+.student-lesson-reader .lecture-content h2 {
+    margin: 2.4rem 0 0.8rem;
+    font-size: clamp(1.45rem, 1.3rem + 0.65vw, 1.9rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+}
+
+.student-lesson-reader .lecture-content h3 {
+    margin: 1.8rem 0 0.65rem;
+    font-size: clamp(1.18rem, 1.1rem + 0.35vw, 1.42rem);
+    line-height: 1.35;
+}
+
+.student-lesson-reader .lecture-content > div > :first-child {
+    margin-top: 0;
+}
+
+.student-lesson-reader .lecture-content ul,
+.student-lesson-reader .lecture-content ol {
+    display: grid;
+    gap: 0.45rem;
+    padding-left: 1.4rem;
+}
+
+.student-lesson-reader .lecture-content blockquote {
+    border-left: 4px solid var(--primary);
+    border-radius: 0 12px 12px 0;
+    background: #f5f7ff;
+    padding: 16px 18px;
+    color: var(--muted);
+}
+
+.student-lesson-reader .lecture-content pre,
+.student-lesson-reader .lecture-content code {
+    font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}
+
+.student-lesson-reader .lecture-content pre {
+    overflow-x: auto;
+    border-radius: 12px;
+    background: #101828;
+    color: #f8fafc;
+    padding: 16px;
+}
+
+.student-lesson-reader .lecture-content table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+
+.student-lesson-reader .lecture-content th,
+.student-lesson-reader .lecture-content td {
+    min-width: 120px;
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.student-lesson-reader .lecture-content a {
+    color: var(--primary-dark);
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+}
+
+.student-lesson-reader .lecture-content .ql-formula {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: -0.18em;
+}
+
+.student-lesson-reader .lecture-content .lecture-formula-block {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    border: 1px solid #dbe2ff;
+    border-radius: 14px;
+    background: #f8f9ff;
+    padding: 18px 20px;
+    text-align: center;
+}
+
+.student-lesson-reader .lecture-content .lecture-formula-block .ql-formula {
+    max-width: none;
+    min-width: max-content;
+}
+
+.student-lesson-reader .lecture-content .lecture-formula-block .katex {
+    font-size: 1.72em;
+}
+
+.student-lesson-reader .lecture-content img {
+    max-height: min(68vh, 680px);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 10px 26px rgba(16, 24, 40, 0.08);
+    object-fit: contain;
+}
+
+.student-lesson-reader .lecture-content iframe.ql-video {
+    border-radius: 14px;
+    background: #101828;
+    box-shadow: 0 10px 26px rgba(16, 24, 40, 0.12);
+}
+
+.lecture-no-testing {
+    margin-top: 32px;
+    border: 1px solid #bbf7d0;
+    border-radius: 16px;
+    background: #f0fdf4;
+    padding: 22px;
+}
+
+.lecture-no-testing h2 {
+    margin: 12px 0 8px;
+    font-size: 1.25rem;
+}
+
+.lecture-no-testing p {
+    margin: 0 0 18px;
+    color: var(--muted);
+}
+
+.lesson-checkpoint-enhanced .checkpoint-list {
+    margin-top: 22px;
+}
+
+.lesson-checkpoint-enhanced .checkpoint-card {
+    padding: 22px;
+    border-radius: 16px;
+}
+
+.lesson-checkpoint-enhanced .checkpoint-card[hidden] {
+    display: none;
+}
+
+.lesson-question-navigator {
+    width: min(100%, 620px);
+    margin: 18px auto 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface-muted);
+    padding: 14px;
+}
+
+.lesson-question-navigator-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.lesson-question-navigator-head h3 {
+    margin: 0 0 2px;
+    font-size: 0.95rem;
+}
+
+.lesson-question-navigator-head p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.lesson-question-numbers {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 7px;
+}
+
+.lesson-question-number {
+    display: inline-grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid #aebaff;
+    border-radius: 9px;
+    background: #fff;
+    color: var(--primary-dark);
+    font: 800 0.82rem/1 "Manrope", "Nunito", sans-serif;
+    cursor: pointer;
+}
+
+.lesson-question-number.answered {
+    border-color: #059669;
+    background: #059669;
+    color: #fff;
+}
+
+.lesson-question-number.current {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+}
+
+.lesson-question-number:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.3);
+    outline-offset: 2px;
+}
+
+.lesson-question-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+}
+
+.lesson-question-actions .button {
+    min-width: 118px;
+}
+
+.lesson-incomplete-summary {
+    margin-top: 22px;
+    border: 1px solid #fbbf24;
+    border-radius: 16px;
+    background: #fffbeb;
+    padding: 22px;
+    text-align: center;
+}
+
+.lesson-incomplete-summary h3 {
+    margin: 12px 0 6px;
+    font-size: 1.45rem;
+}
+
+.lesson-incomplete-summary p {
+    margin: 0 0 16px;
+    color: var(--muted);
+}
+
+.lesson-incomplete-summary .button {
+    margin-top: 18px;
+}
+
+@media (max-width: 580px) {
+    .student-lesson-reader .lecture-content .lecture-formula-block {
+        margin-inline: -4px;
+        padding: 14px 12px;
+        text-align: left;
+    }
+
+    .student-lesson-reader .lecture-content .lecture-formula-block .katex {
+        font-size: 1.45em;
+    }
+
+    .lesson-checkpoint-enhanced .checkpoint-card,
+    .lesson-incomplete-summary,
+    .lecture-no-testing {
+        padding: 16px;
+    }
+
+    .lesson-question-navigator-head {
+        align-items: center;
+    }
+
+    .lesson-question-actions .button {
+        min-width: 0;
+        flex: 1 1 0;
+    }
+}
+
+@media (max-width: 360px) {
+    /* На самом узком телефоне сохраняем полные названия вкладок; счётчик остаётся в навигаторе вопросов. */
+    .lesson-section-tab b {
+        display: none;
+    }
+
+    .lesson-section-tab strong {
+        font-size: 0.78rem;
+    }
+}

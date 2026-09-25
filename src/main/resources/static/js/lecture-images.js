@@ -3,15 +3,20 @@
 (() => {
     const images = document.querySelectorAll('.lecture-content img');
     if (!images.length) return;
+    const isKazakh = (document.documentElement.lang || '').toLowerCase().startsWith('kk');
+    const labels = isKazakh
+        ? { viewer: 'Суретті қарау', out: 'Кішірейту', in: 'Үлкейту', reset: 'Қалпына келтіру', close: 'Жабу' }
+        : { viewer: 'Просмотр изображения', out: 'Уменьшить', in: 'Увеличить', reset: 'Сбросить', close: 'Закрыть' };
     const dialog = document.createElement('dialog');
     dialog.className = 'lecture-image-viewer';
-    dialog.setAttribute('aria-label', 'Просмотр изображения');
-    dialog.innerHTML = '<div class="lecture-image-controls"><button type="button" data-action="out" aria-label="Уменьшить">−</button><button type="button" data-action="in" aria-label="Увеличить">+</button><button type="button" data-action="reset">Сбросить</button><button type="button" data-action="close" autofocus>Закрыть ×</button></div><div class="lecture-image-stage"><img alt="" draggable="false"></div>';
+    dialog.setAttribute('aria-label', labels.viewer);
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.innerHTML = `<div class="lecture-image-controls"><button type="button" data-action="out" aria-label="${labels.out}">−</button><button type="button" data-action="in" aria-label="${labels.in}">+</button><button type="button" data-action="reset">${labels.reset}</button><button type="button" data-action="close" autofocus>${labels.close}</button></div><div class="lecture-image-stage"><img alt="" draggable="false"></div>`;
     document.body.append(dialog);
     const stage = dialog.querySelector('.lecture-image-stage');
     const picture = stage.querySelector('img');
     const pointers = new Map();
-    let scale = 1, x = 0, y = 0, opener, previousOverflow;
+    let scale = 1, x = 0, y = 0, opener, previousOverflow, readingX = 0, readingY = 0, pointerMoved = false;
     const paint = () => {
         // Ограничиваем перемещение краями изображения, чтобы оно не исчезало за экраном.
         const maxX = Math.max(0, (picture.clientWidth * scale - stage.clientWidth) / 2);
@@ -31,6 +36,8 @@
             picture.src = image.currentSrc || image.src;
             picture.alt = image.alt;
             scale = 1; x = 0; y = 0;
+            readingX = window.scrollX;
+            readingY = window.scrollY;
             previousOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             dialog.showModal();
@@ -46,6 +53,8 @@
     dialog.addEventListener('close', () => {
         pointers.clear();
         document.body.style.overflow = previousOverflow;
+        picture.removeAttribute('src');
+        window.scrollTo(readingX, readingY);
         opener?.focus({ preventScroll: true });
     });
     dialog.querySelector('.lecture-image-controls').addEventListener('click', event => {
@@ -60,12 +69,16 @@
         return Math.hypot(a.x - b.x, a.y - b.y);
     };
     stage.addEventListener('pointerdown', event => {
+        pointerMoved = false;
         pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         stage.setPointerCapture(event.pointerId);
     });
     stage.addEventListener('pointermove', event => {
         const previous = pointers.get(event.pointerId);
         if (!previous) return;
+        if (Math.abs(event.clientX - previous.x) > 4 || Math.abs(event.clientY - previous.y) > 4) {
+            pointerMoved = true;
+        }
         const oldDistance = pointers.size === 2 ? distance() : 0;
         pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (pointers.size === 2 && oldDistance > 0) zoom(scale * distance() / oldDistance);
@@ -82,4 +95,14 @@
         zoom(scale * (event.deltaY < 0 ? 1.15 : 1 / 1.15));
     }, { passive: false });
     stage.addEventListener('dblclick', () => zoom(scale > 1 ? 1 : 2));
+    stage.addEventListener('click', event => {
+        if (event.target === stage && !pointerMoved) {
+            dialog.close();
+        }
+    });
+    dialog.addEventListener('click', event => {
+        if (event.target === dialog) {
+            dialog.close();
+        }
+    });
 })();

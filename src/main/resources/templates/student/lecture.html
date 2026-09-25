@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="${lecture.titleRu ?: lecture.titleKk}">Лекция</title>
+    <title th:text="${adminPreview ? (lecture.titleRu ?: lecture.titleKk) : reader.title}">Лекция</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
@@ -13,7 +13,7 @@
     <!-- Лекция использует тот же хедер, что и остальные страницы ученика. -->
     <header th:replace="~{fragments/student-header :: studentHeader}"></header>
     <main class="page lecture-reader-page">
-        <section class="panel lecture-reader">
+        <section class="panel lecture-reader" th:classappend="${!adminPreview} ? ' student-lesson-reader'">
             <div class="lecture-reader-top">
                 <a class="button"
                    th:href="${adminPreview} ? @{/admin/lectures} : @{/student/lectures/subjects/{subjectId}/grades/{gradeId}(subjectId=${reader.subjectId},gradeId=${reader.gradeId})}"
@@ -29,64 +29,117 @@
             </div>
 
             <div class="lecture-hero">
-                <span class="badge success" th:text="${lecture.topicTitleRu ?: 'Тема не выбрана'}">Проценты</span>
-                <h1 th:text="${lecture.titleRu ?: lecture.titleKk}">Проценты в повседневной жизни</h1>
+                <span class="badge success"
+                      th:text="${adminPreview ? (lecture.topicTitleRu ?: 'Тема не выбрана') : reader.topicTitle}">Проценты</span>
+                <h1 th:text="${adminPreview ? (lecture.titleRu ?: lecture.titleKk) : reader.title}">Проценты в повседневной жизни</h1>
                 <p th:text="${lecture.source ?: 'Материал Damulab'}">Источник</p>
             </div>
 
-            <div class="type-tabs compact-tabs" aria-label="Язык лекции">
-                <button class="type-tab active" type="button" data-reader-tab="ru">RU</button>
-                <button class="type-tab" type="button" data-reader-tab="kk">KK</button>
-            </div>
-
-            <article class="lecture-content active" data-reader-panel="ru">
-                <div th:if="${lecture.contentRu != null}" th:utext="${lecture.contentRu}">Текст лекции</div>
-                <div class="notice" th:if="${lecture.contentRu == null}">
-                    <strong>RU версия не заполнена</strong>
-                    <span>Используйте доступную языковую версию.</span>
+            <!-- Admin preview сохраняет прежнюю двуязычную структуру. -->
+            <th:block th:if="${adminPreview}">
+                <div class="type-tabs compact-tabs" aria-label="Язык лекции">
+                    <button class="type-tab active" type="button" data-reader-tab="ru">RU</button>
+                    <button class="type-tab" type="button" data-reader-tab="kk">KK</button>
                 </div>
-            </article>
+                <article class="lecture-content active" data-reader-panel="ru">
+                    <div th:if="${lecture.contentRu != null}" th:utext="${lecture.contentRu}">Текст лекции</div>
+                </article>
+                <article class="lecture-content" data-reader-panel="kk">
+                    <div th:if="${lecture.contentKk != null}" th:utext="${lecture.contentKk}">Лекция мәтіні</div>
+                </article>
+                <section class="lecture-materials" th:if="${!lecture.attachments.isEmpty()}">
+                    <h2 class="section-title">Материалы</h2>
+                    <div class="attachment-list">
+                        <a class="attachment-card" th:each="attachment : ${lecture.attachments}"
+                           th:href="${attachment.url}" target="_blank" rel="noopener noreferrer nofollow">
+                            <strong th:text="${attachment.title}">percent_examples.pdf</strong>
+                            <span th:text="${attachment.mediaType}">pdf</span>
+                        </a>
+                    </div>
+                </section>
+                <section class="lecture-checkpoints" th:if="${!lecture.checkpoints.isEmpty()}">
+                    <h2 class="section-title">Проверь себя</h2>
+                    <div class="checkpoint-list">
+                        <article class="checkpoint-card" th:each="checkpoint, stat : ${lecture.checkpoints}">
+                            <span class="badge" th:text="${checkpoint.type}">SCQ</span>
+                            <div class="question-list-rich-body"><strong th:text="${stat.count + '. '}">1. </strong><div th:utext="${@questionBodyHtml.render(checkpoint.bodyRu)}">Вопрос</div></div>
+                            <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(checkpoint.bodyKk)}">Қазақша сұрақ</div>
+                        </article>
+                    </div>
+                </section>
+            </th:block>
 
-            <article class="lecture-content" data-reader-panel="kk">
-                <div th:if="${lecture.contentKk != null}" th:utext="${lecture.contentKk}">Лекция мәтіні</div>
-                <div class="notice" th:if="${lecture.contentKk == null}">
-                    <strong>KK нұсқасы жоқ</strong>
-                    <span>Қолжетімді тіл нұсқасын пайдаланыңыз.</span>
-                </div>
-            </article>
+            <th:block th:if="${!adminPreview}">
+                <nav class="lesson-section-tabs" role="tablist"
+                     th:classappend="${!reader.questions.isEmpty()} ? ' has-testing'"
+                     th:attr="data-initial-lesson-tab=${checkpointResult != null or lectureCompletionBlocked == true ? 'testing' : 'theory'}"
+                     th:aria-label="#{student.lecture.tabs.aria}">
+                    <button class="lesson-section-tab active" id="lesson-tab-theory" type="button" role="tab"
+                            aria-selected="true" aria-controls="lesson-panel-theory" data-lesson-tab="theory">
+                        <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#book-open-check}"></use></svg>
+                        <span><strong th:text="#{student.lecture.tab.theory}">Теория</strong><small th:text="#{student.lecture.tab.theory.hint}">Материал урока</small></span>
+                    </button>
+                    <button class="lesson-section-tab" id="lesson-tab-testing" type="button" role="tab"
+                            th:if="${!reader.questions.isEmpty()}" aria-selected="false"
+                            aria-controls="lesson-panel-testing" data-lesson-tab="testing">
+                        <svg class="lucide-icon" aria-hidden="true"><use th:href="@{/icons/lucide-sprite.svg#clipboard-check}"></use></svg>
+                        <span><strong th:text="#{student.lecture.tab.testing}">Тестирование</strong><small th:text="#{student.lecture.tab.testing.hint(${reader.questions.size()})}">2 вопроса</small></span>
+                        <b data-lesson-answer-progress
+                           th:text="${(reader.checkpointPassed ? reader.questions.size() : 0) + '/' + reader.questions.size()}">0/2</b>
+                    </button>
+                </nav>
 
-            <section class="lecture-materials" th:if="${!lecture.attachments.isEmpty()}">
-                <h2 class="section-title">Материалы</h2>
-                <div class="attachment-list">
-                    <a class="attachment-card"
-                       th:each="attachment : ${lecture.attachments}"
-                       th:href="${attachment.url}"
-                       target="_blank"
-                       rel="noopener noreferrer nofollow">
-                        <strong th:text="${attachment.title}">percent_examples.pdf</strong>
-                        <span th:text="${attachment.mediaType}">pdf</span>
-                    </a>
-                </div>
-            </section>
+                <section class="lesson-tab-panel active" id="lesson-panel-theory" role="tabpanel"
+                         aria-labelledby="lesson-tab-theory" data-lesson-panel="theory">
+                    <div class="lecture-theory-layout">
+                        <aside class="lecture-outline" aria-label="Содержание урока" data-lecture-outline hidden>
+                            <p class="section-kicker" th:text="#{student.lecture.outline}">Содержание</p>
+                            <nav data-lecture-outline-links></nav>
+                        </aside>
+                        <article class="lecture-theory-article">
+                            <div class="lecture-content active" data-reader-content>
+                                <div th:if="${reader.content != null}" th:utext="${reader.content}">Текст лекции</div>
+                                <div class="notice" th:if="${reader.content == null}">
+                                    <strong th:text="#{student.lecture.content.empty}">Материал пока не заполнен</strong>
+                                </div>
+                            </div>
+                            <section class="lecture-materials" th:if="${!lecture.attachments.isEmpty()}">
+                                <h2 class="section-title" th:text="#{student.lecture.materials}">Материалы</h2>
+                                <div class="attachment-list">
+                                    <a class="attachment-card" th:each="attachment : ${lecture.attachments}"
+                                       th:href="${attachment.url}" target="_blank" rel="noopener noreferrer nofollow">
+                                        <strong th:text="${attachment.title}">percent_examples.pdf</strong>
+                                        <span th:text="${attachment.mediaType}">pdf</span>
+                                    </a>
+                                </div>
+                            </section>
+                            <div class="lecture-theory-actions" th:if="${!reader.questions.isEmpty()}">
+                                <button class="button primary" type="button" data-open-lesson-tab="testing"
+                                        th:text="#{student.lecture.to.testing}">Перейти к тестированию</button>
+                            </div>
+                            <section class="lecture-completion" th:if="${reader.questions.isEmpty()}">
+                                <div class="notice success" th:if="${lectureCompleted == true || reader.progressStatus == 'done'}">
+                                    <strong th:text="#{student.lecture.completed.title}">Изучение завершено</strong>
+                                    <span th:text="#{student.lecture.completed.body}">Урок отмечен как завершённый.</span>
+                                </div>
+                                <div class="lecture-no-testing" th:if="${reader.progressStatus != 'done'}">
+                                    <span class="badge success" th:text="#{student.lecture.no_testing.badge}">Только теория</span>
+                                    <h2 th:text="#{student.lecture.no_testing.title}">В этом уроке нет тестирования</h2>
+                                    <p th:text="#{student.lecture.no_testing.body}">После изучения теории можно завершить урок и вернуться к списку уроков.</p>
+                                    <form th:action="@{/student/lectures/{id}/complete(id=${lecture.id})}" method="post">
+                                        <button class="button success" type="submit" th:text="#{student.lecture.no_testing.complete}">Завершить урок</button>
+                                    </form>
+                                </div>
+                            </section>
+                        </article>
+                    </div>
+                </section>
 
-            <!-- В режиме предпросмотра администратор видит только состав контрольного блока. -->
-            <section class="lecture-checkpoints" th:if="${adminPreview && !lecture.checkpoints.isEmpty()}">
-                <h2 class="section-title">Проверь себя</h2>
-                <div class="checkpoint-list">
-                    <article class="checkpoint-card" th:each="checkpoint, stat : ${lecture.checkpoints}">
-                        <span class="badge" th:text="${checkpoint.type}">SCQ</span>
-                        <div class="question-list-rich-body"><strong th:text="${stat.count + '. '}">1. </strong><div th:utext="${@questionBodyHtml.render(checkpoint.bodyRu)}">Вопрос</div></div>
-                        <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(checkpoint.bodyKk)}">Қазақша сұрақ</div>
-                        <div class="notice">
-                            <strong>Ответы проверяются на сервере</strong>
-                            <span>Полный интерактивный checkpoint-flow подключается после MVP LMS viewer.</span>
-                        </div>
-                    </article>
-                </div>
-            </section>
-
-            <!-- Ученик получает интерактивную форму, а правильные ответы остаются на сервере. -->
-            <section class="lecture-checkpoints" th:if="${!adminPreview && !reader.questions.isEmpty()}">
+                <!-- Текущая серверная checkpoint-форма только перенесена в отдельную панель. -->
+                <section class="lesson-tab-panel" id="lesson-panel-testing" role="tabpanel"
+                         aria-labelledby="lesson-tab-testing" data-lesson-panel="testing"
+                         th:if="${!reader.questions.isEmpty()}" hidden>
+                    <section class="lecture-checkpoints">
                 <h2 class="section-title" th:text="#{student.lecture.checkpoints.title}">Проверь себя</h2>
                 <p class="lede" th:text="#{student.lecture.checkpoints.lede}">Ответьте правильно на все вопросы.</p>
 
@@ -108,12 +161,16 @@
                       th:if="${!reader.checkpointPassed}"
                       th:action="@{/student/lectures/{id}/checkpoints(id=${lecture.id})}"
                       method="post"
+                      th:attr="data-question-total=${reader.questions.size()}"
                       data-checkpoint-form>
                     <div class="checkpoint-list">
                         <article class="checkpoint-card"
-                                 th:each="question : ${reader.questions}"
-                                 th:attr="data-checkpoint-question=${question.type}">
-                            <span class="badge" th:text="#{student.lecture.question(${question.orderNo}, ${reader.questions.size()})}">Вопрос 1 из 2</span>
+                                 th:each="question, questionStat : ${reader.questions}"
+                                 th:id="${'lesson-question-' + questionStat.index}"
+                                 th:attr="data-checkpoint-question=${question.type},data-question-index=${questionStat.index},aria-labelledby=${'lesson-question-title-' + questionStat.index}">
+                            <span class="badge" th:text="#{student.lecture.question(${questionStat.count}, ${reader.questions.size()})}">Вопрос 1 из 2</span>
+                            <span class="sr-only" th:id="${'lesson-question-title-' + questionStat.index}"
+                                  th:text="#{student.lecture.question(${questionStat.count}, ${reader.questions.size()})}">Вопрос 1 из 2</span>
                             <div class="question-list-rich-body" th:utext="${@questionBodyHtml.render(question.body)}">Вопрос</div>
 
                             <!-- Один вариант ответа. -->
@@ -156,53 +213,78 @@
                             </div>
                         </article>
                     </div>
+                    <section class="lesson-question-navigator" aria-labelledby="lesson-question-navigator-title"
+                             data-question-navigator hidden>
+                        <div class="lesson-question-navigator-head">
+                            <div>
+                                <h3 id="lesson-question-navigator-title" th:text="#{student.lecture.navigator.title}">Вопросы</h3>
+                                <p aria-live="polite"
+                                   th:attr="data-progress-template=#{student.lecture.navigator.progress('@@answered@@', '@@total@@')}"
+                                   data-question-progress>
+                                    <span th:text="#{student.lecture.navigator.progress(0, ${reader.questions.size()})}">Отвечено 0 из 4</span>
+                                </p>
+                            </div>
+                            <span class="badge" data-current-question-label
+                                  th:text="#{student.lecture.question(1, ${reader.questions.size()})}">Вопрос 1 из 4</span>
+                        </div>
+                        <div class="lesson-question-numbers" role="group" th:aria-label="#{student.lecture.navigator.numbers}">
+                            <button type="button" class="lesson-question-number"
+                                    th:each="question, questionStat : ${reader.questions}"
+                                    th:text="${questionStat.count}"
+                                    th:attr="data-question-number=${questionStat.index},data-label-unanswered=#{student.lecture.navigator.question_unanswered(${questionStat.count})},data-label-answered=#{student.lecture.navigator.question_answered(${questionStat.count})},aria-label=#{student.lecture.navigator.question_unanswered(${questionStat.count})}">1</button>
+                        </div>
+                        <div class="lesson-question-actions">
+                            <button class="button" type="button" data-question-previous
+                                    th:text="#{student.lecture.navigator.previous}">Назад</button>
+                            <button class="button primary" type="button" data-question-next
+                                    th:attr="data-next-label=#{student.lecture.navigator.next},data-finish-label=#{student.lecture.navigator.finish}"
+                                    th:text="#{student.lecture.navigator.next}">Дальше</button>
+                        </div>
+                    </section>
+                    <section class="lesson-incomplete-summary" data-incomplete-summary hidden aria-live="polite">
+                        <span class="badge warning" th:text="#{student.lecture.incomplete.badge}">Нужно дополнить</span>
+                        <h3 th:text="#{student.lecture.incomplete.title}">Остались вопросы</h3>
+                        <p data-incomplete-progress></p>
+                        <div class="lesson-question-numbers" role="group" th:aria-label="#{student.lecture.incomplete.missing}">
+                            <button type="button" class="lesson-question-number" data-missing-question-template hidden>1</button>
+                        </div>
+                        <button class="button primary" type="button" data-return-to-questions
+                                th:text="#{student.lecture.incomplete.return}">Вернуться к вопросам</button>
+                    </section>
                     <div class="notice danger lecture-checkpoint-client-error" hidden data-checkpoint-error>
                         <strong th:text="#{student.lecture.checkpoints.incomplete.title}">Ответьте на все вопросы</strong>
                         <span th:text="#{student.lecture.checkpoints.incomplete.body}">После этого тест можно проверить.</span>
                     </div>
-                    <button class="button primary" type="submit" th:text="#{student.lecture.checkpoints.submit}">Проверить ответы</button>
-                </form>
-            </section>
+                    <button class="button primary" type="submit" data-checkpoint-submit
+                            th:text="#{student.lecture.checkpoints.submit}">Проверить ответы</button>
+                    </form>
+                    </section>
 
-            <!-- Завершение всегда находится в конце материала и дополнительно проверяется сервисом. -->
-            <section class="lecture-completion" th:if="${!adminPreview}">
-                <div class="notice success" th:if="${lectureCompleted == true || reader.progressStatus == 'done'}">
-                    <strong th:text="#{student.lecture.completed.title}">Изучение завершено</strong>
-                    <span th:text="#{student.lecture.completed.body}">Урок отмечен как завершённый.</span>
-                </div>
-                <div class="notice danger" th:if="${lectureCompletionBlocked == true}">
-                    <strong th:text="#{student.lecture.complete.blocked.title}">Сначала сдайте тест</strong>
-                    <span th:text="#{student.lecture.complete.blocked.body}">Нужно правильно ответить на все вопросы.</span>
-                </div>
-                <form th:if="${reader.progressStatus != 'done'}"
-                      th:action="@{/student/lectures/{id}/complete(id=${lecture.id})}"
-                      method="post">
-                    <button class="button success"
-                            type="submit"
-                            th:disabled="${!reader.canComplete}"
-                            th:text="#{student.lecture.complete}">Завершить изучение</button>
-                    <p class="muted-line"
-                       th:if="${!reader.canComplete}"
-                       th:text="#{student.lecture.complete.hint}">Кнопка станет доступна после сдачи теста.</p>
-                </form>
-            </section>
+                    <section class="lecture-completion">
+                        <div class="notice success" th:if="${lectureCompleted == true || reader.progressStatus == 'done'}">
+                            <strong th:text="#{student.lecture.completed.title}">Изучение завершено</strong>
+                            <span th:text="#{student.lecture.completed.body}">Урок отмечен как завершённый.</span>
+                        </div>
+                        <div class="notice danger" th:if="${lectureCompletionBlocked == true}">
+                            <strong th:text="#{student.lecture.complete.blocked.title}">Сначала сдайте тест</strong>
+                            <span th:text="#{student.lecture.complete.blocked.body}">Нужно правильно ответить на все вопросы.</span>
+                        </div>
+                        <form th:if="${reader.progressStatus != 'done'}" th:action="@{/student/lectures/{id}/complete(id=${lecture.id})}" method="post">
+                            <button class="button success" type="submit" th:disabled="${!reader.canComplete}"
+                                    th:text="#{student.lecture.complete}">Завершить изучение</button>
+                            <p class="muted-line" th:if="${!reader.canComplete}" th:text="#{student.lecture.complete.hint}">Кнопка станет доступна после сдачи теста.</p>
+                        </form>
+                    </section>
+                </section>
+            </th:block>
         </section>
     </main>
 </div>
 <script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
 <script>
-    // Переключение языка меняет только видимую версию текста лекции.
+    // Переключатель RU/KK существует только в административном предпросмотре.
     const readerTabs = Array.from(document.querySelectorAll('[data-reader-tab]'));
     const readerPanels = Array.from(document.querySelectorAll('[data-reader-panel]'));
-    const lectureHeroTitle = document.querySelector('.lecture-hero h1')?.textContent || '';
-    const lectureSource = document.querySelector('.lecture-hero p')?.textContent || '';
-    const roundingLectureAsset = {
-        source: 'manual:codex:rounding-decimals-grade5',
-        titleRu: 'Округление десятичных дробей',
-        titleKk: 'Ондық бөлшектерді дөңгелектеу',
-        placeValuesUrl: '/img/lectures/rounding-decimals/place-values.svg',
-        numberLineUrl: '/img/lectures/rounding-decimals/number-line.svg'
-    };
 
     /**
      * В БД формула хранится как исходный LaTeX в data-value. Рендерим её здесь и тем самым
@@ -213,6 +295,10 @@
             const value = (formula.dataset.value || '').trim();
             if (!value) {
                 return;
+            }
+            const parent = formula.parentElement;
+            if (parent && parent.children.length === 1 && parent.textContent.trim() === '') {
+                parent.classList.add('lecture-formula-block');
             }
             if (typeof window.katex === 'undefined') {
                 formula.textContent = value;
@@ -231,67 +317,7 @@
         });
     }
 
-    function insertLectureIllustration(panel, headingPrefix, imageUrl, altText) {
-        if (!panel || panel.querySelector(`img[src="${imageUrl}"]`)) {
-            return;
-        }
-        const heading = Array.from(panel.querySelectorAll('h3'))
-            .find((item) => (item.textContent || '').trim().startsWith(headingPrefix));
-        if (!heading) {
-            return;
-        }
-        const wrapper = document.createElement('p');
-        wrapper.className = 'lecture-illustration';
-        const image = document.createElement('img');
-        image.src = imageUrl;
-        image.alt = altText;
-        image.loading = 'lazy';
-        image.style.maxWidth = '100%';
-        image.style.height = 'auto';
-        image.style.border = '1px solid #d8e2ee';
-        image.style.borderRadius = '12px';
-        image.style.background = '#fff';
-        wrapper.appendChild(image);
-        heading.insertAdjacentElement('afterend', wrapper);
-    }
-
-    function hydrateRoundingLectureIllustrations() {
-        const isRoundingLecture = lectureSource.includes(roundingLectureAsset.source)
-            || lectureHeroTitle.includes(roundingLectureAsset.titleRu)
-            || lectureHeroTitle.includes(roundingLectureAsset.titleKk);
-        if (!isRoundingLecture) {
-            return;
-        }
-        const ruPanel = document.querySelector('[data-reader-panel="ru"]');
-        const kkPanel = document.querySelector('[data-reader-panel="kk"]');
-        insertLectureIllustration(
-            ruPanel,
-            'Иллюстрация 1',
-            roundingLectureAsset.placeValuesUrl,
-            'Разряды десятичной дроби 7,362'
-        );
-        insertLectureIllustration(
-            ruPanel,
-            'Иллюстрация 2',
-            roundingLectureAsset.numberLineUrl,
-            'Числовая прямая: 7,362 ближе к 7,4'
-        );
-        insertLectureIllustration(
-            kkPanel,
-            'Иллюстрация 1',
-            roundingLectureAsset.placeValuesUrl,
-            '7,362 ондық бөлшегінің разрядтары'
-        );
-        insertLectureIllustration(
-            kkPanel,
-            'Иллюстрация 2',
-            roundingLectureAsset.numberLineUrl,
-            'Сан түзуі: 7,362 саны 7,4 санына жақынырақ'
-        );
-    }
-
     renderLectureFormulas();
-    hydrateRoundingLectureIllustrations();
 
     readerTabs.forEach((tab) => {
         tab.addEventListener('click', () => {
@@ -300,32 +326,277 @@
         });
     });
 
-    // Перед отправкой проверяем заполненность каждого вопроса. Сервер всё равно
-    // повторно проверяет ответы и не доверяет этому клиентскому ограничению.
+    // Панели остаются в одном DOM: переключение не перезагружает страницу и не теряет ответы.
+    const lessonTabsRoot = document.querySelector('.lesson-section-tabs');
+    const lessonTabs = Array.from(document.querySelectorAll('[data-lesson-tab]'));
+    const lessonPanels = Array.from(document.querySelectorAll('[data-lesson-panel]'));
+
+    function openLessonTab(name, moveFocus = false) {
+        const nextTab = lessonTabs.find((tab) => tab.dataset.lessonTab === name);
+        const nextPanel = lessonPanels.find((panel) => panel.dataset.lessonPanel === name);
+        if (!nextTab || !nextPanel) {
+            return;
+        }
+        lessonTabs.forEach((tab) => {
+            const selected = tab === nextTab;
+            tab.classList.toggle('active', selected);
+            tab.setAttribute('aria-selected', String(selected));
+            tab.tabIndex = selected ? 0 : -1;
+        });
+        lessonPanels.forEach((panel) => {
+            const selected = panel === nextPanel;
+            panel.classList.toggle('active', selected);
+            panel.hidden = !selected;
+        });
+        if (moveFocus) {
+            nextTab.focus({ preventScroll: true });
+        }
+    }
+
+    lessonTabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => openLessonTab(tab.dataset.lessonTab));
+        tab.addEventListener('keydown', (event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                return;
+            }
+            event.preventDefault();
+            let nextIndex = event.key === 'Home' ? 0 : lessonTabs.length - 1;
+            if (event.key === 'ArrowLeft') {
+                nextIndex = (index - 1 + lessonTabs.length) % lessonTabs.length;
+            } else if (event.key === 'ArrowRight') {
+                nextIndex = (index + 1) % lessonTabs.length;
+            }
+            openLessonTab(lessonTabs[nextIndex].dataset.lessonTab, true);
+        });
+    });
+
+    document.querySelectorAll('[data-open-lesson-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+            openLessonTab(button.dataset.openLessonTab, true);
+            lessonTabsRoot?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    if (lessonTabsRoot) {
+        openLessonTab(lessonTabsRoot.dataset.initialLessonTab || 'theory');
+    }
+
+    /** Строит содержание только из реальных h2/h3 локализованной версии лекции. */
+    function buildLectureOutline() {
+        const content = document.querySelector('[data-reader-content]');
+        const outline = document.querySelector('[data-lecture-outline]');
+        const links = outline?.querySelector('[data-lecture-outline-links]');
+        if (!content || !outline || !links) {
+            return;
+        }
+        const headings = Array.from(content.querySelectorAll('h2, h3'))
+            .filter((heading) => (heading.textContent || '').trim() !== '');
+        if (headings.length < 2) {
+            return;
+        }
+
+        const usedIds = new Set();
+        headings.forEach((heading, index) => {
+            const text = (heading.textContent || '').trim();
+            const slug = text.toLocaleLowerCase()
+                .normalize('NFKD')
+                .replace(/[^\p{L}\p{N}]+/gu, '-')
+                .replace(/^-|-$/g, '') || `section-${index + 1}`;
+            const baseId = heading.id || `lesson-${slug}`;
+            let uniqueId = baseId;
+            let suffix = 2;
+            while (usedIds.has(uniqueId) || (document.getElementById(uniqueId) && document.getElementById(uniqueId) !== heading)) {
+                uniqueId = `${baseId}-${suffix}`;
+                suffix += 1;
+            }
+            usedIds.add(uniqueId);
+            heading.id = uniqueId;
+
+            const link = document.createElement('a');
+            link.href = `#${uniqueId}`;
+            link.classList.toggle('active', index === 0);
+            const number = document.createElement('span');
+            number.textContent = String(index + 1).padStart(2, '0');
+            link.append(number, document.createTextNode(text));
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                links.querySelectorAll('a').forEach((item) => item.classList.toggle('active', item === link));
+                heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                history.replaceState(null, '', `#${uniqueId}`);
+            });
+            links.append(link);
+        });
+        outline.hidden = false;
+    }
+
+    buildLectureOutline();
+
+    // Все поля остаются в одной форме и в DOM. Клиент управляет только показом,
+    // заполненностью и навигацией; правильность по-прежнему определяет сервер.
     const checkpointForm = document.querySelector('[data-checkpoint-form]');
     if (checkpointForm) {
-        checkpointForm.addEventListener('submit', (event) => {
-            const questionCards = Array.from(checkpointForm.querySelectorAll('[data-checkpoint-question]'));
-            let allAnswered = true;
-            questionCards.forEach((card) => {
-                const questionType = card.dataset.checkpointQuestion;
-                if (questionType === 'SCQ' || questionType === 'MCQ') {
-                    allAnswered = allAnswered && card.querySelector('input:checked') !== null;
-                } else if (questionType === 'MATCHING') {
-                    const selects = Array.from(card.querySelectorAll('select'));
-                    allAnswered = allAnswered && selects.length > 0 && selects.every((select) => select.value !== '');
-                } else if (questionType === 'FILL_IN') {
-                    const inputs = Array.from(card.querySelectorAll('input[type="text"]'));
-                    allAnswered = allAnswered && inputs.length > 0 && inputs.every((input) => input.value.trim() !== '');
+        const questionCards = Array.from(checkpointForm.querySelectorAll('[data-checkpoint-question]'));
+        const navigator = checkpointForm.querySelector('[data-question-navigator]');
+        const numberButtons = Array.from(checkpointForm.querySelectorAll('[data-question-number]'));
+        const previousButton = checkpointForm.querySelector('[data-question-previous]');
+        const nextButton = checkpointForm.querySelector('[data-question-next]');
+        const submitButton = checkpointForm.querySelector('[data-checkpoint-submit]');
+        const progress = checkpointForm.querySelector('[data-question-progress]');
+        const currentLabel = checkpointForm.querySelector('[data-current-question-label]');
+        const tabProgress = document.querySelector('[data-lesson-answer-progress]');
+        const incompleteSummary = checkpointForm.querySelector('[data-incomplete-summary]');
+        const incompleteProgress = checkpointForm.querySelector('[data-incomplete-progress]');
+        const missingTemplate = checkpointForm.querySelector('[data-missing-question-template]');
+        const returnButton = checkpointForm.querySelector('[data-return-to-questions]');
+        let currentIndex = 0;
+
+        function isQuestionAnswered(card) {
+            const questionType = card.dataset.checkpointQuestion;
+            if (questionType === 'SCQ' || questionType === 'MCQ') {
+                return card.querySelector('input:checked') !== null;
+            }
+            if (questionType === 'MATCHING') {
+                const selects = Array.from(card.querySelectorAll('select'));
+                return selects.length > 0 && selects.every((select) => select.value !== '');
+            }
+            if (questionType === 'FILL_IN') {
+                const inputs = Array.from(card.querySelectorAll('input[type="text"]'));
+                return inputs.length > 0 && inputs.every((input) => input.value.trim() !== '');
+            }
+            return false;
+        }
+
+        function answeredIndexes() {
+            return questionCards
+                .map((card, index) => isQuestionAnswered(card) ? index : -1)
+                .filter((index) => index >= 0);
+        }
+
+        function progressText(answered) {
+            const template = progress?.dataset.progressTemplate || '@@answered@@/@@total@@';
+            return template
+                .replace('@@answered@@', String(answered))
+                .replace('@@total@@', String(questionCards.length));
+        }
+
+        function updateQuestionState() {
+            const answered = new Set(answeredIndexes());
+            const answeredCount = answered.size;
+            if (progress) {
+                progress.textContent = progressText(answeredCount);
+            }
+            if (tabProgress) {
+                tabProgress.textContent = `${answeredCount}/${questionCards.length}`;
+            }
+            numberButtons.forEach((button, index) => {
+                const isCurrent = index === currentIndex;
+                const isAnswered = answered.has(index);
+                button.classList.toggle('current', isCurrent);
+                button.classList.toggle('answered', isAnswered);
+                button.classList.toggle('unanswered', !isAnswered);
+                if (isCurrent) {
+                    button.setAttribute('aria-current', 'step');
+                } else {
+                    button.removeAttribute('aria-current');
                 }
+                button.tabIndex = isCurrent ? 0 : -1;
+                button.setAttribute('aria-label', isAnswered
+                    ? button.dataset.labelAnswered
+                    : button.dataset.labelUnanswered);
             });
-            if (!allAnswered) {
-                event.preventDefault();
-                const error = checkpointForm.querySelector('[data-checkpoint-error]');
-                if (error) {
-                    error.hidden = false;
-                    error.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (previousButton) {
+                previousButton.disabled = currentIndex === 0;
+            }
+            if (nextButton) {
+                const isLast = currentIndex === questionCards.length - 1;
+                nextButton.textContent = isLast
+                    ? nextButton.dataset.finishLabel
+                    : nextButton.dataset.nextLabel;
+            }
+            const title = questionCards[currentIndex]?.querySelector('.sr-only')?.textContent;
+            if (currentLabel && title) {
+                currentLabel.textContent = title;
+            }
+        }
+
+        function showQuestion(index, options = {}) {
+            if (index < 0 || index >= questionCards.length) {
+                return;
+            }
+            currentIndex = index;
+            incompleteSummary.hidden = true;
+            navigator.hidden = false;
+            questionCards.forEach((card, cardIndex) => card.hidden = cardIndex !== currentIndex);
+            updateQuestionState();
+            if (options.focusNumber) {
+                numberButtons[currentIndex]?.focus({ preventScroll: true });
+            }
+            if (options.scroll) {
+                questionCards[currentIndex]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function showIncompleteSummary(missingIndexes) {
+            questionCards.forEach((card) => card.hidden = true);
+            navigator.hidden = true;
+            incompleteSummary.hidden = false;
+            incompleteProgress.textContent = progressText(questionCards.length - missingIndexes.length);
+            incompleteSummary.querySelectorAll('[data-missing-question]').forEach((button) => button.remove());
+            missingIndexes.forEach((index) => {
+                const button = missingTemplate.cloneNode(true);
+                button.hidden = false;
+                button.removeAttribute('data-missing-question-template');
+                button.dataset.missingQuestion = String(index);
+                button.textContent = String(index + 1);
+                button.setAttribute('aria-label', numberButtons[index].dataset.labelUnanswered);
+                button.addEventListener('click', () => showQuestion(index, { scroll: true }));
+                missingTemplate.before(button);
+            });
+            incompleteSummary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        checkpointForm.classList.add('lesson-checkpoint-enhanced');
+        navigator.hidden = false;
+        submitButton.hidden = true;
+        showQuestion(0);
+
+        numberButtons.forEach((button, index) => {
+            button.addEventListener('click', () => showQuestion(index, { scroll: true }));
+            button.addEventListener('keydown', (event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                    return;
                 }
+                event.preventDefault();
+                let nextIndex = event.key === 'Home' ? 0 : numberButtons.length - 1;
+                if (event.key === 'ArrowLeft') {
+                    nextIndex = (index - 1 + numberButtons.length) % numberButtons.length;
+                } else if (event.key === 'ArrowRight') {
+                    nextIndex = (index + 1) % numberButtons.length;
+                }
+                showQuestion(nextIndex, { focusNumber: true, scroll: true });
+            });
+        });
+        previousButton?.addEventListener('click', () => showQuestion(currentIndex - 1, { scroll: true }));
+        nextButton?.addEventListener('click', () => {
+            if (currentIndex < questionCards.length - 1) {
+                showQuestion(currentIndex + 1, { scroll: true });
+                return;
+            }
+            checkpointForm.requestSubmit(submitButton);
+        });
+        returnButton?.addEventListener('click', () => {
+            const firstMissing = questionCards.findIndex((card) => !isQuestionAnswered(card));
+            showQuestion(firstMissing >= 0 ? firstMissing : 0, { scroll: true });
+        });
+        checkpointForm.addEventListener('input', updateQuestionState);
+        checkpointForm.addEventListener('change', updateQuestionState);
+        checkpointForm.addEventListener('submit', (event) => {
+            const missingIndexes = questionCards
+                .map((card, index) => isQuestionAnswered(card) ? -1 : index)
+                .filter((index) => index >= 0);
+            if (missingIndexes.length > 0) {
+                event.preventDefault();
+                showIncompleteSummary(missingIndexes);
             }
         });
     }

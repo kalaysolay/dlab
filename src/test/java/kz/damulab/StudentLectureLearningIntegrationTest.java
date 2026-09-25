@@ -11,7 +11,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -69,6 +74,9 @@ class StudentLectureLearningIntegrationTest {
 
     @Autowired
     private StudentLectureProgressRepository progressRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     /** Проверяет, что ссылка на уроки расположена между миссией и последним занятием. */
     @Test
@@ -199,7 +207,12 @@ class StudentLectureLearningIntegrationTest {
                 .andExpect(content().string(containsString("/dist/katex.min.css")))
                 .andExpect(content().string(containsString("/dist/katex.min.js")))
                 .andExpect(content().string(containsString("window.katex.render")))
-                .andExpect(content().string(containsString("Завершить изучение")));
+                .andExpect(content().string(containsString("data-lesson-tab=\"theory\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-lesson-tab=\"testing\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-open-lesson-tab=\"testing\""))))
+                .andExpect(content().string(containsString("В этом уроке нет тестирования")))
+                .andExpect(content().string(containsString("После изучения теории можно завершить урок и вернуться к списку уроков.")))
+                .andExpect(content().string(containsString("Завершить урок")));
 
         assertThat(progress(lectureId).getStatus()).isEqualTo(StudentLectureStatus.IN_PROGRESS);
 
@@ -211,6 +224,48 @@ class StudentLectureLearningIntegrationTest {
 
         assertThat(progress(lectureId).getStatus()).isEqualTo(StudentLectureStatus.DONE);
         assertThat(progress(lectureId).getCompletedAt()).isNotNull();
+        var completedAt = progress(lectureId).getCompletedAt();
+
+        // Повторный POST безопасен: завершённый урок не сбрасывается и дата не переписывается.
+        mockMvc.perform(post("/student/lectures/{id}/complete", lectureId)
+                        .with(user(STUDENT_EMAIL).roles("STUDENT"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        assertThat(progress(lectureId).getStatus()).isEqualTo(StudentLectureStatus.DONE);
+        assertThat(progress(lectureId).getCompletedAt()).isEqualTo(completedAt);
+    }
+
+    /** Проверяет выбор содержимого глобальной локалью и отсутствие языковых вкладок в reader. */
+    @Test
+    void readerUsesApplicationLocaleAndFallsBackToRussianContent() throws Exception {
+        TopicFixture fixture = createTopic("student-reader-locale-");
+        String marker = shortMarker();
+        Long lectureId = createAndPublishLecture(
+                fixture.topicId(),
+                "Русский заголовок " + marker,
+                "Қазақша тақырып " + marker,
+                "<p>Русский материал " + marker + "</p>",
+                "<p>Қазақша материал " + marker + "</p>"
+        );
+
+        String russianReader = studentLectureHtml(lectureId, null);
+        assertThat(russianReader)
+                .contains("Русский заголовок " + marker)
+                .contains("Русский материал " + marker)
+                .doesNotContain("Қазақша тақырып " + marker)
+                .doesNotContain("Қазақша материал " + marker)
+                .doesNotContain("data-reader-tab=\"ru\"")
+                .doesNotContain("data-reader-tab=\"kk\"");
+
+        String kazakhReader = studentLectureHtml(lectureId, "kk");
+        assertThat(kazakhReader)
+                .contains("Қазақша тақырып " + marker)
+                .contains("Қазақша материал " + marker)
+                .doesNotContain("Русский заголовок " + marker)
+                .doesNotContain("Русский материал " + marker);
+
+        assertRussianFallbackForIncompleteKazakhVersion(fixture, marker);
+        assertAdminPreviewRemainsBilingual(lectureId, marker);
     }
 
     /** Проверяет, что открытие лекции одним учеником не меняет статус другого. */
@@ -255,6 +310,9 @@ class StudentLectureLearningIntegrationTest {
         mockMvc.perform(get("/student/lectures/{id}", lectureId)
                         .with(user(STUDENT_EMAIL).roles("STUDENT")))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-lesson-tab=\"theory\"")))
+                .andExpect(content().string(containsString("data-lesson-tab=\"testing\"")))
+                .andExpect(content().string(containsString("data-lesson-panel=\"testing\"")))
                 .andExpect(content().string(containsString("Проверить ответы")));
         mockMvc.perform(post("/student/lectures/{id}/complete", lectureId)
                         .with(user(STUDENT_EMAIL).roles("STUDENT"))
@@ -285,6 +343,120 @@ class StudentLectureLearningIntegrationTest {
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection());
         assertThat(progress(lectureId).getStatus()).isEqualTo(StudentLectureStatus.DONE);
+    }
+
+    /** Проверяет единый DOM-набор полей и серверную проверку всех поддерживаемых типов. */
+    @Test
+    void checkpointNavigatorSupportsEveryExistingQuestionType() throws Exception {
+        TopicFixture fixture = createTopic("student-all-checkpoints-");
+        List<Long> versions = List.of(
+                createPublishedQuestionVersion(fixture, "SCQ"),
+                createPublishedQuestionVersion(fixture, "MCQ"),
+                createPublishedQuestionVersion(fixture, "MATCHING"),
+                createPublishedQuestionVersion(fixture, "FILL_IN")
+        );
+        Long lectureId = createAndPublishLectureWithCheckpoints(
+                fixture.topicId(),
+                "Все типы вопросов " + shortMarker(),
+                versions
+        );
+        JsonNode checkpoints = publishedLecture(lectureId).path("checkpoints");
+        assertThat(checkpoints.size()).isEqualTo(4);
+        Map<String, Long> checkpointIds = new LinkedHashMap<>();
+        checkpoints.forEach(node -> checkpointIds.put(node.path("type").asText(), node.path("id").asLong()));
+
+        Long scqId = checkpointIds.get("SCQ");
+        Long mcqId = checkpointIds.get("MCQ");
+        Long matchingId = checkpointIds.get("MATCHING");
+        Long fillId = checkpointIds.get("FILL_IN");
+
+        String page = studentLectureHtml(lectureId, null);
+        assertThat(page)
+                .contains("data-question-navigator")
+                .contains("data-incomplete-summary")
+                .contains("data-progress-template=\"Отвечено @@answered@@ из @@total@@\"")
+                .doesNotContain("Отвечено answered из total")
+                .contains("Остались вопросы")
+                .contains("name=\"answer_" + scqId + "\"")
+                .contains("name=\"answer_" + mcqId + "\"")
+                .contains("name=\"match_" + matchingId + "_0\"")
+                .contains("name=\"match_" + matchingId + "_1\"")
+                .contains("name=\"fill_" + fillId + "_0\"");
+
+        // Все поля отправляются одной формой; первая заполненная попытка намеренно неверная.
+        mockMvc.perform(post("/student/lectures/{id}/checkpoints", lectureId)
+                        .with(user(STUDENT_EMAIL).roles("STUDENT"))
+                        .with(csrf())
+                        .param("answer_" + scqId, "A")
+                        .param("answer_" + mcqId, "A")
+                        .param("match_" + matchingId + "_0", "0.25")
+                        .param("match_" + matchingId + "_1", "0.5")
+                        .param("fill_" + fillId + "_0", "29"))
+                .andExpect(status().is3xxRedirection());
+        assertThat(progress(lectureId).getCheckpointAttemptCount()).isEqualTo(1);
+        assertThat(progress(lectureId).getCheckpointPassedAt()).isNull();
+
+        mockMvc.perform(post("/student/lectures/{id}/checkpoints", lectureId)
+                        .with(user(STUDENT_EMAIL).roles("STUDENT"))
+                        .with(csrf())
+                        .param("answer_" + scqId, "B")
+                        .param("answer_" + mcqId, "A", "C")
+                        .param("match_" + matchingId + "_0", "0.5")
+                        .param("match_" + matchingId + "_1", "0.25")
+                        .param("fill_" + fillId + "_0", "30"))
+                .andExpect(status().is3xxRedirection());
+        assertThat(progress(lectureId).getCheckpointAttemptCount()).isEqualTo(2);
+        assertThat(progress(lectureId).getCheckpointPassedAt()).isNotNull();
+    }
+
+    /** Загружает student reader с указанной глобальной локалью приложения. */
+    private String studentLectureHtml(Long lectureId, String language) throws Exception {
+        var request = get("/student/lectures/{id}", lectureId)
+                .with(user(STUDENT_EMAIL).roles("STUDENT"));
+        if (language != null) {
+            request.param("lang", language);
+        }
+        return mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+    }
+
+    /** Воспроизводит неполную старую запись, которую KK-reader должен показать по-русски. */
+    private void assertRussianFallbackForIncompleteKazakhVersion(
+            TopicFixture fixture,
+            String marker
+    ) throws Exception {
+        Long lectureId = createAndPublishLecture(
+                fixture.topicId(),
+                "Fallback заголовок " + marker,
+                "Уақытша қазақша атау " + marker,
+                "<p>Fallback материал " + marker + "</p>",
+                "<p>Уақытша қазақша мәтін " + marker + "</p>"
+        );
+        // Публикация требует обе версии; прямое изменение имитирует неполные legacy-данные.
+        jdbcTemplate.update("""
+                update lecture_versions
+                set title_kk = null, content_kk_html = null
+                where id = (select current_version_id from lectures where id = ?)
+                """, lectureId);
+
+        String fallbackReader = studentLectureHtml(lectureId, "kk");
+        assertThat(fallbackReader)
+                .contains("Fallback заголовок " + marker)
+                .contains("Fallback материал " + marker);
+    }
+
+    /** Admin preview по-прежнему выводит обе авторские языковые версии. */
+    private void assertAdminPreviewRemainsBilingual(Long lectureId, String marker) throws Exception {
+        mockMvc.perform(get("/admin/lectures/{id}/preview", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-tab=\"ru\"")))
+                .andExpect(content().string(containsString("data-reader-tab=\"kk\"")))
+                .andExpect(content().string(containsString("Русский материал " + marker)))
+                .andExpect(content().string(containsString("Қазақша материал " + marker)));
     }
 
     /** Создаёт тему математики четвёртого класса через публичный административный API. */
@@ -327,26 +499,83 @@ class StudentLectureLearningIntegrationTest {
 
     /** Создаёт SCQ с правильным вариантом B и публикует его для ручного checkpoint. */
     private Long createPublishedQuestionVersion(TopicFixture fixture) throws Exception {
+        return createPublishedQuestionVersion(fixture, "SCQ");
+    }
+
+    /** Создаёт и публикует вопрос одного из четырёх уже существующих типов. */
+    private Long createPublishedQuestionVersion(TopicFixture fixture, String type) throws Exception {
+        String payload = switch (type) {
+            case "SCQ" -> """
+                    {
+                      "subjectId": %d,
+                      "topicIds": [%d],
+                      "gradeIds": [%d],
+                      "type": "SCQ",
+                      "difficulty": 2,
+                      "bodyRu": "Сколько будет два плюс два?",
+                      "bodyKk": "Екі қосу екі нешеге тең?",
+                      "source": "student-lecture-test",
+                      "options": [
+                        {"label":"A","textRu":"3","textKk":"3","correct":false},
+                        {"label":"B","textRu":"4","textKk":"4","correct":true}
+                      ]
+                    }
+                    """.formatted(fixture.subjectId(), fixture.topicId(), fixture.gradeId());
+            case "MCQ" -> """
+                    {
+                      "subjectId": %d,
+                      "topicIds": [%d],
+                      "gradeIds": [%d],
+                      "type": "MCQ",
+                      "difficulty": 2,
+                      "bodyRu": "Выберите чётные числа",
+                      "bodyKk": "Жұп сандарды таңдаңыз",
+                      "source": "student-lecture-test",
+                      "options": [
+                        {"label":"A","textRu":"2","textKk":"2","correct":true},
+                        {"label":"B","textRu":"3","textKk":"3","correct":false},
+                        {"label":"C","textRu":"4","textKk":"4","correct":true}
+                      ]
+                    }
+                    """.formatted(fixture.subjectId(), fixture.topicId(), fixture.gradeId());
+            case "MATCHING" -> """
+                    {
+                      "subjectId": %d,
+                      "topicIds": [%d],
+                      "gradeIds": [%d],
+                      "type": "MATCHING",
+                      "difficulty": 3,
+                      "bodyRu": "Соотнесите проценты и дроби",
+                      "bodyKk": "Пайыздар мен бөлшектерді сәйкестендіріңіз",
+                      "source": "student-lecture-test",
+                      "matchingPairs": [
+                        {"leftRu":"50%%","leftKk":"50%%","rightRu":"0.5","rightKk":"0.5"},
+                        {"leftRu":"25%%","leftKk":"25%%","rightRu":"0.25","rightKk":"0.25"}
+                      ]
+                    }
+                    """.formatted(fixture.subjectId(), fixture.topicId(), fixture.gradeId());
+            case "FILL_IN" -> """
+                    {
+                      "subjectId": %d,
+                      "topicIds": [%d],
+                      "gradeIds": [%d],
+                      "type": "FILL_IN",
+                      "difficulty": 2,
+                      "bodyRu": "15%% от 200 равно [[1]]",
+                      "bodyKk": "200 санының 15 пайызы [[1]]",
+                      "source": "student-lecture-test",
+                      "fillAnswers": [
+                        {"placeholder":"[[1]]","answer":"30","matchMode":"NUMERIC_TOLERANCE","tolerance":0.01}
+                      ]
+                    }
+                    """.formatted(fixture.subjectId(), fixture.topicId(), fixture.gradeId());
+            default -> throw new IllegalArgumentException("Unsupported type: " + type);
+        };
         String response = mockMvc.perform(post("/api/admin/questions")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "subjectId": %d,
-                                  "topicIds": [%d],
-                                  "gradeIds": [%d],
-                                  "type": "SCQ",
-                                  "difficulty": 2,
-                                  "bodyRu": "Сколько будет два плюс два?",
-                                  "bodyKk": "Екі қосу екі нешеге тең?",
-                                  "source": "student-lecture-test",
-                                  "options": [
-                                    {"label":"A","textRu":"3","textKk":"3","correct":false},
-                                    {"label":"B","textRu":"4","textKk":"4","correct":true}
-                                  ]
-                                }
-                                """.formatted(fixture.subjectId(), fixture.topicId(), fixture.gradeId())))
+                        .content(payload))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -368,10 +597,21 @@ class StudentLectureLearningIntegrationTest {
 
     /** Создаёт черновик лекции без теста либо с одним ручным checkpoint. */
     private Long createLecture(Long topicId, String title, Long questionVersionId) throws Exception {
-        String controlMode = questionVersionId == null ? "NONE" : "MANUAL";
-        String checkpointJson = questionVersionId == null
+        return createLectureWithCheckpoints(
+                topicId,
+                title,
+                questionVersionId == null ? List.of() : List.of(questionVersionId)
+        );
+    }
+
+    /** Создаёт черновик лекции со всеми указанными ручными checkpoint. */
+    private Long createLectureWithCheckpoints(Long topicId, String title, List<Long> questionVersionIds) throws Exception {
+        String controlMode = questionVersionIds.isEmpty() ? "NONE" : "MANUAL";
+        String checkpointJson = questionVersionIds.isEmpty()
                 ? ""
-                : ", \"checkpointQuestionVersionIds\": [" + questionVersionId + "]";
+                : ", \"checkpointQuestionVersionIds\": ["
+                        + questionVersionIds.stream().map(String::valueOf).collect(Collectors.joining(","))
+                        + "]";
         String response = mockMvc.perform(post("/api/admin/lectures")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf())
@@ -394,9 +634,58 @@ class StudentLectureLearningIntegrationTest {
         return idFrom(response);
     }
 
+    /** Создаёт и публикует двуязычную лекцию с различимыми версиями для locale-тестов. */
+    private Long createAndPublishLecture(
+            Long topicId,
+            String titleRu,
+            String titleKk,
+            String contentRu,
+            String contentKk
+    ) throws Exception {
+        String response = mockMvc.perform(post("/api/admin/lectures")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "titleRu": "%s",
+                                  "titleKk": "%s",
+                                  "contentRu": "%s",
+                                  "contentKk": "%s",
+                                  "source": "student-lecture-locale-integration",
+                                  "controlMode": "NONE"
+                                }
+                                """.formatted(topicId, titleRu, titleKk, contentRu, contentKk)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long lectureId = idFrom(response);
+        mockMvc.perform(post("/api/admin/lectures/{id}/publish", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk());
+        return lectureId;
+    }
+
     /** Создаёт лекцию и отдельно публикует её, чтобы она стала видна ученикам. */
     private Long createAndPublishLecture(Long topicId, String title, Long questionVersionId) throws Exception {
         Long lectureId = createLecture(topicId, title, questionVersionId);
+        mockMvc.perform(post("/api/admin/lectures/{id}/publish", lectureId)
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isOk());
+        return lectureId;
+    }
+
+    /** Создаёт и публикует лекцию с несколькими ручными checkpoint. */
+    private Long createAndPublishLectureWithCheckpoints(
+            Long topicId,
+            String title,
+            List<Long> questionVersionIds
+    ) throws Exception {
+        Long lectureId = createLectureWithCheckpoints(topicId, title, questionVersionIds);
         mockMvc.perform(post("/api/admin/lectures/{id}/publish", lectureId)
                         .with(user("admin@damulab.kz").roles("ADMIN"))
                         .with(csrf()))

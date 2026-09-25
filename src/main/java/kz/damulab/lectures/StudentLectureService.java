@@ -189,6 +189,7 @@ public class StudentLectureService {
     ) {
         Topic topic = lecture.getCurrentVersion().getTopic();
         Subject subject = topic.getSubject();
+        LectureVersion version = lecture.getCurrentVersion();
         List<LectureCheckpointQuestionView> questions = questionViews(lecture, language);
         boolean checkpointPassed = progress.getCheckpointPassedAt() != null;
         boolean canComplete = questions.isEmpty()
@@ -200,6 +201,9 @@ public class StudentLectureService {
                 subject.getTitleRu(),
                 subject.getTitleKk(),
                 topic.getGrade().getId(),
+                localized(version.getTitleRu(), version.getTitleKk(), language),
+                localized(topic.getTitleRu(), topic.getTitleKk(), language),
+                localized(version.getContentRuHtml(), version.getContentKkHtml(), language),
                 progress.getStatus().apiValue(),
                 checkpointPassed,
                 canComplete,
