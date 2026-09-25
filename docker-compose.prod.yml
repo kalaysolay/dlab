@@ -50,6 +50,9 @@ services:
       WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-damulab.kz}
       WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Damulab.kz}
       WEBAUTHN_ALLOWED_ORIGINS: ${WEBAUTHN_ALLOWED_ORIGINS:-https://damulab.kz}
+      # Доверенная PWA-сессия: 36 часов по умолчанию, можно изменить без пересборки образа.
+      SESSION_TIMEOUT: ${SESSION_TIMEOUT:-36h}
+      SESSION_COOKIE_MAX_AGE: ${SESSION_COOKIE_MAX_AGE:-36h}
       DAMULAB_LECTURES_ATTACHMENTS_STORAGE_DIR: /data/lecture-attachments
       DAMULAB_LECTURES_IMAGES_STORAGE_DIR: /data/lecture-images
       QUESTION_IMAGES_STORAGE_DIR: /data/question-images

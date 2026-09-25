@@ -12,6 +12,11 @@ damulab:
 
 server:
   forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        # В production JSESSIONID передаётся только по HTTPS.
+        secure: true
 
 logging:
   level:

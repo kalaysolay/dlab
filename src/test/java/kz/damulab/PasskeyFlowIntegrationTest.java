@@ -11,6 +11,7 @@ import java.security.MessageDigest;
 import java.security.Signature;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +44,14 @@ class PasskeyFlowIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired PasskeyCredentialRepository credentials;
+    @Value("${server.servlet.session.timeout}") Duration sessionTimeout;
+    @Value("${server.servlet.session.cookie.max-age}") Duration sessionCookieMaxAge;
+
+    @Test
+    void trustedDeviceSessionLivesForThirtySixHours() {
+        assertThat(sessionTimeout).isEqualTo(Duration.ofHours(36));
+        assertThat(sessionCookieMaxAge).isEqualTo(Duration.ofHours(36));
+    }
 
     @Test
     void reportsKeyThatExistsOnDeviceButWasNotSavedOnServer() throws Exception {
@@ -111,8 +121,10 @@ class PasskeyFlowIntegrationTest {
     }
 
     @Test
-    void entryAlsoWorksWithExistingSessionAndOffersPasswordFallback() throws Exception {
+    void activeSessionSkipsBiometricsAndExpiredSessionOffersPasswordFallback() throws Exception {
         mvc.perform(get("/app").with(user("student@damulab.kz").roles("STUDENT")))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/dashboard"));
+        mvc.perform(get("/app"))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("data-passkey-entry")));
         mvc.perform(get("/login?reauth=true").with(user("student@damulab.kz").roles("STUDENT")))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("id=" + (char) 34 + "password" + (char) 34)));

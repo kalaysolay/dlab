@@ -22,6 +22,14 @@ server:
   # За nginx/Caddy: учитывать X-Forwarded-Proto/Host, чтобы редиректы шли на https://
   forward-headers-strategy: framework
   servlet:
+    session:
+      # Личное установленное PWA не должно спрашивать биометрию при каждом открытии.
+      # Таймаут считается от последнего запроса, а persistent cookie переживает закрытие приложения.
+      timeout: ${SESSION_TIMEOUT:36h}
+      cookie:
+        max-age: ${SESSION_COOKIE_MAX_AGE:36h}
+        http-only: true
+        same-site: lax
     encoding:
       charset: UTF-8
       enabled: true

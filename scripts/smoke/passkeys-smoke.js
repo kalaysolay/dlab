@@ -59,6 +59,11 @@ fs.mkdirSync(outDir, { recursive: true });
     await page.waitForFunction(() => document.getElementById("passkey-register-status").textContent.includes("Готово"));
     assert.equal((await cdp.send("WebAuthn.getCredentials", { authenticatorId })).credentials.length, 1);
 
+    // Cookie должна пережить закрытие PWA и истечь примерно через заданные 36 часов.
+    const trustedCookie = (await context.cookies(baseUrl)).find(cookie => cookie.name === "JSESSIONID");
+    const remainingCookieSeconds = trustedCookie.expires - Date.now() / 1000;
+    assert(remainingCookieSeconds > 35.9 * 60 * 60 && remainingCookieSeconds <= 36 * 60 * 60);
+
     // Вход работает как с действующей сессией, так и после её удаления.
     await page.goto(baseUrl + "/app");
     await page.waitForURL("**/student");
@@ -70,8 +75,10 @@ fs.mkdirSync(outDir, { recursive: true });
     await page.waitForURL("**/student");
 
     // Отмена не зацикливает системное окно; доступны повтор и полноценная форма пароля.
-    const cancelPage = await context.newPage();
+    const cancelContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const cancelPage = await cancelContext.newPage();
     await cancelPage.addInitScript(() => {
+      localStorage.setItem("damulab-biometric-enabled", "1");
       window.biometricAttempts = 0;
       navigator.credentials.get = async () => {
         window.biometricAttempts++;
@@ -86,6 +93,7 @@ fs.mkdirSync(outDir, { recursive: true });
     await cancelPage.waitForFunction(() => window.biometricAttempts === 2);
     await cancelPage.getByRole("link", { name: "Войти по паролю или через Google" }).click();
     await cancelPage.locator("#password").waitFor({ state: "visible" });
+    await cancelContext.close();
 
     // Эмулируем установленное PWA и возврат из фона, без зависимости от окон рабочего стола.
     await page.addInitScript(() => {
@@ -112,7 +120,7 @@ fs.mkdirSync(outDir, { recursive: true });
     await legacyEntry;
     await page.waitForURL("**/student");
     assert.deepEqual(errors, []);
-    console.log("PASS: enrollment, saved key, automatic login, expired session, cancellation, password fallback, PWA resume and legacy shortcut");
+    console.log("PASS: enrollment, 36-hour trusted session, expired session, cancellation, password fallback, PWA resume and legacy shortcut");
   } finally {
     await browser.close();
   }

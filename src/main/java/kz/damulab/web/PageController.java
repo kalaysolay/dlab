@@ -39,9 +39,12 @@ public class PageController {
         return "auth/login";
     }
 
-    /** PWA начинает с биометрии, даже когда cookie предыдущего входа ещё действует. */
+    /** Действующая доверенная сессия сразу открывает кабинет; после её истечения PWA просит биометрию. */
     @GetMapping("/app")
-    String appEntry() {
+    String appEntry(Authentication authentication) {
+        if (isAuthenticated(authentication)) {
+            return "redirect:/dashboard";
+        }
         return "auth/app-entry";
     }
 
@@ -98,5 +101,11 @@ public class PageController {
     private boolean hasRole(Authentication authentication, String role) {
         return authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals(role));
+    }
+
+    private boolean isAuthenticated(Authentication authentication) {
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 }
