@@ -6,6 +6,9 @@ public interface AiProvider {
 
     AiMiniLectureResult generateMiniLecture(MiniLectureGenerationRequest request);
 
+    /** Генерирует полную двуязычную лекцию и возвращает только прошедший порог качества результат. */
+    AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request);
+
     /** Переводит пользовательский текст без сохранения его в приложении. */
     AiTextResult translate(AiTranslationRequest request);
 

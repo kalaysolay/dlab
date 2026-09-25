@@ -94,6 +94,26 @@ public class AiProviderRouter implements AiProvider {
         };
     }
 
+    /** Полная лекция использует тот же независимый маршрут LECTURES и его модель из настроек. */
+    @Override
+    public AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request) {
+        AiRuntimeSelection selection = settings.resolve(AiUsageType.LECTURES);
+        log.info(
+                "AiProviderRouter: generateLecture provider={} model={} prompt=ai_prompts[LECTURE_GENERATE]",
+                selection.provider(),
+                selection.model()
+        );
+        if (selection.provider() == AiProviderCode.STUB) {
+            return stub.generateLecture(request);
+        }
+        ensureExternalProvidersEnabled(selection.provider());
+        return switch (selection.provider()) {
+            case OPENAI -> openAi.generateLecture(request, selection.model());
+            case DEEPSEEK -> deepSeek.generateLecture(request, selection.model());
+            case STUB -> throw new IllegalStateException("Stub route must be handled before external dispatch");
+        };
+    }
+
     /** Вызывает независимый маршрут TRANSLATIONS для пользовательского перевода. */
     @Override
     public AiTextResult translate(AiTranslationRequest request) {

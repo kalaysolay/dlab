@@ -18,12 +18,14 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
     private static final Logger log = LoggerFactory.getLogger(OpenAiProvider.class);
     private static final String OP_QUESTIONS = "openai_question_drafts";
     private static final String OP_MINI_LECTURE = "openai_mini_lecture";
+    private static final String OP_LECTURE = "openai_lecture";
     private static final String ENDPOINT = "/v1/responses";
     private static final int TRANSLATION_MAX_OUTPUT_TOKENS = 4096;
 
     private final AiProviderProperties properties;
     private final AiPromptBuilder promptBuilder;
     private final AiTranslationPromptService translationPrompts;
+    private final AiLecturePromptService lecturePrompts;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
 
@@ -31,6 +33,7 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
             AiProviderProperties properties,
             AiPromptBuilder promptBuilder,
             AiTranslationPromptService translationPrompts,
+            AiLecturePromptService lecturePrompts,
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
             AiDraftSchemaValidator validator
@@ -39,6 +42,7 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
         this.properties = properties;
         this.promptBuilder = promptBuilder;
         this.translationPrompts = translationPrompts;
+        this.lecturePrompts = lecturePrompts;
         this.restClientBuilder = restClientBuilder;
         this.objectMapper = objectMapper;
     }
@@ -158,6 +162,52 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
         throw lastQualityError == null
                 ? new AiProviderException("ai_mini_lecture_too_brief", "Mini-lecture quality check failed")
                 : lastQualityError;
+    }
+
+    /** Генерирует полный RU/KZ материал; ответы ниже 95 баллов автоматически запрашиваются повторно. */
+    public AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request, String model) {
+        AiProviderProperties.Provider openai = properties.getOpenai();
+        requireConfigured(openai.getApiKey(), "openai_api_key_missing");
+        AiRenderedPrompt prompt = lecturePrompts.render(request);
+        AiLectureQualityException lastQualityError = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            String userPrompt = attempt == 1
+                    ? prompt.userPrompt()
+                    : prompt.userPrompt() + AiLectureQualityValidator.retrySuffix(lastQualityError.getReport());
+            AiCallLogger.logOutbound(
+                    log, OP_LECTURE, "openai", model, "ai_prompts[LECTURE_GENERATE]",
+                    ENDPOINT, attempt, 3, prompt.systemPrompt(), userPrompt
+            );
+            try {
+                Map<String, Object> body = Map.of(
+                        "model", model,
+                        "input", List.of(
+                                Map.of("role", "system", "content", prompt.systemPrompt()),
+                                Map.of("role", "user", "content", userPrompt)
+                        ),
+                        "max_output_tokens", 12000,
+                        "text", Map.of("format", Map.of(
+                                "type", "json_schema",
+                                "name", "damulab_bilingual_lecture",
+                                "strict", true,
+                                "schema", lectureStructuredJsonSchema()
+                        ))
+                );
+                JsonNode response = post(openai, body);
+                String outputJson = extractOpenAiText(response == null ? objectMapper.createObjectNode() : response);
+                return finalizeLecture(outputJson, request, "openai", model, OP_LECTURE, attempt);
+            } catch (AiLectureQualityException ex) {
+                lastQualityError = ex;
+                log.warn("OpenAI lecture: качество {}/100, attempt={}/3", ex.getReport().score(), attempt, 3);
+                if (attempt == 3) {
+                    throw ex;
+                }
+            } catch (RestClientException ex) {
+                log.error("OpenAI lecture: HTTP/сеть — {}", ex.getMessage(), ex);
+                throw new AiProviderException("openai_request_failed", ex.getMessage());
+            }
+        }
+        throw lastQualityError;
     }
 
     /** Перевод через Responses API с актуальным промптом из БД. */

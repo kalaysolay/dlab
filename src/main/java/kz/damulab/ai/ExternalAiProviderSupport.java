@@ -45,6 +45,62 @@ abstract class ExternalAiProviderSupport {
         return MiniLectureHtmlComposer.toResult(payload);
     }
 
+    /** Разбирает, валидирует и только после оценки 95+ собирает безопасный HTML лекции. */
+    protected AiLectureGenerationResult finalizeLecture(
+            String outputJson,
+            AiLectureGenerationRequest request,
+            String provider,
+            String model,
+            String operation,
+            int attempt
+    ) {
+        AiCallLogger.logInboundRaw(log, operation, model, attempt, outputJson);
+        AiLectureStructuredPayload payload = parseLectureStructured(outputJson);
+        AiLectureQualityReport report = AiLectureQualityValidator.requireAccepted(payload, request);
+        return new AiLectureGenerationResult(
+                provider,
+                model,
+                payload.ru().title().trim(),
+                payload.kz().title().trim(),
+                AiLectureHtmlComposer.toHtml(payload.ru()),
+                AiLectureHtmlComposer.toHtml(payload.kz()),
+                report
+        );
+    }
+
+    protected AiLectureStructuredPayload parseLectureStructured(String json) {
+        try {
+            return objectMapper.readValue(unwrapJsonPayload(json), AiLectureStructuredPayload.class);
+        } catch (JsonProcessingException ex) {
+            throw new AiProviderException("ai_schema_invalid", ex.getMessage());
+        }
+    }
+
+    /** Strict schema OpenAI; DeepSeek получает ту же схему текстом в user prompt. */
+    protected Map<String, Object> lectureStructuredJsonSchema() {
+        Map<String, Object> section = objectSchema(Map.of(
+                "heading", stringSchema(),
+                "paragraphs", arraySchema(stringSchema()),
+                "formulas", arraySchema(stringSchema())
+        ), List.of("heading", "paragraphs", "formulas"));
+        Map<String, Object> language = objectSchema(Map.of(
+                "title", stringSchema(),
+                "introduction", stringSchema(),
+                "sections", arraySchema(section),
+                "conclusion", stringSchema()
+        ), List.of("title", "introduction", "sections", "conclusion"));
+        return objectSchema(Map.of("ru", language, "kz", language), List.of("ru", "kz"));
+    }
+
+    protected String lectureSchemaPromptAppendix() {
+        try {
+            return "\n\nВерни только JSON без markdown fences по этой схеме:\n"
+                    + objectMapper.writeValueAsString(lectureStructuredJsonSchema());
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize lecture JSON schema", ex);
+        }
+    }
+
     protected static boolean isMiniLectureQualityFailure(AiProviderException ex) {
         return "ai_mini_lecture_too_brief".equals(ex.getCode());
     }

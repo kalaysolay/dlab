@@ -18,15 +18,18 @@ public class AdminAiSettingsPageController {
 
     private final AiRuntimeSettingsService settings;
     private final AiTranslationPromptService translationPrompts;
+    private final AiLecturePromptService lecturePrompts;
     private final AiProviderProperties providerProperties;
 
     public AdminAiSettingsPageController(
             AiRuntimeSettingsService settings,
             AiTranslationPromptService translationPrompts,
+            AiLecturePromptService lecturePrompts,
             AiProviderProperties providerProperties
     ) {
         this.settings = settings;
         this.translationPrompts = translationPrompts;
+        this.lecturePrompts = lecturePrompts;
         this.providerProperties = providerProperties;
     }
 
@@ -37,6 +40,9 @@ public class AdminAiSettingsPageController {
         }
         if (!model.containsAttribute("aiTranslationPromptForm")) {
             model.addAttribute("aiTranslationPromptForm", translationPrompts.currentForm());
+        }
+        if (!model.containsAttribute("aiLecturePromptForm")) {
+            model.addAttribute("aiLecturePromptForm", lecturePrompts.currentForm());
         }
         addReferenceModel(model);
         return "admin/ai-settings";
@@ -51,6 +57,7 @@ public class AdminAiSettingsPageController {
     ) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("aiTranslationPromptForm", translationPrompts.currentForm());
+            model.addAttribute("aiLecturePromptForm", lecturePrompts.currentForm());
             addReferenceModel(model);
             return "admin/ai-settings";
         }
@@ -73,6 +80,7 @@ public class AdminAiSettingsPageController {
         translationPrompts.validate(form, bindingResult);
         if (bindingResult.hasErrors()) {
             model.addAttribute("aiSettingsForm", settings.currentForm());
+            model.addAttribute("aiLecturePromptForm", lecturePrompts.currentForm());
             addReferenceModel(model);
             return "admin/ai-settings";
         }
@@ -80,6 +88,29 @@ public class AdminAiSettingsPageController {
         redirectAttributes.addFlashAttribute(
                 "successMessage",
                 "Промпты переводчика сохранены и применятся к следующему запросу"
+        );
+        return "redirect:/admin/settings/ai";
+    }
+
+    /** Сохраняет новую активную версию промпта лекций в общем каталоге ai_prompts. */
+    @PostMapping("/admin/settings/ai/lecture-prompt")
+    String updateLecturePrompt(
+            @Valid @ModelAttribute("aiLecturePromptForm") AiLecturePromptForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes
+    ) {
+        lecturePrompts.validate(form, bindingResult);
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("aiSettingsForm", settings.currentForm());
+            model.addAttribute("aiTranslationPromptForm", translationPrompts.currentForm());
+            addReferenceModel(model);
+            return "admin/ai-settings";
+        }
+        lecturePrompts.update(form);
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Промпт генерации лекций сохранён и применится к следующему запросу"
         );
         return "redirect:/admin/settings/ai";
     }

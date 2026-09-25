@@ -7,6 +7,10 @@ import java.util.Set;
  * в БД, а допустимые переменные остаются в коде рядом с формированием данных.
  */
 public enum AiPromptCode {
+    LECTURE_GENERATE(Set.of(
+            "subjectTitleRu", "subjectTitleKk", "gradeNo", "gradeTitleRu", "gradeTitleKk",
+            "topicTitleRu", "topicTitleKk", "methodistInstruction"
+    )),
     TRANSLATION_TRANSLATE(Set.of("sourceLanguage", "targetLanguage", "textJson")),
     TRANSLATION_EXPLAIN(Set.of(
             "sourceLanguage", "targetLanguage", "explanationLanguage",

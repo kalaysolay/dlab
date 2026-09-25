@@ -15,16 +15,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import kz.damulab.ai.AiLectureGenerationResult;
+
 @RestController
 @RequestMapping("/api/admin/lectures")
 public class AdminLectureApiController {
 
     private final LectureService lectureService;
     private final LectureImportService lectureImportService;
+    private final LectureAiGenerationService aiGenerationService;
 
-    public AdminLectureApiController(LectureService lectureService, LectureImportService lectureImportService) {
+    public AdminLectureApiController(
+            LectureService lectureService,
+            LectureImportService lectureImportService,
+            LectureAiGenerationService aiGenerationService
+    ) {
         this.lectureService = lectureService;
         this.lectureImportService = lectureImportService;
+        this.aiGenerationService = aiGenerationService;
     }
 
     @GetMapping
@@ -45,6 +53,12 @@ public class AdminLectureApiController {
     ResponseEntity<LectureResponse> createLecture(@Valid @RequestBody LectureForm form) {
         LectureResponse created = lectureService.createLecture(form);
         return ResponseEntity.created(URI.create("/api/admin/lectures/" + created.id())).body(created);
+    }
+
+    /** Возвращает только прошедший серверный порог 95/100 черновик и не сохраняет его до submit формы. */
+    @PostMapping("/generate")
+    AiLectureGenerationResult generateLecture(@Valid @RequestBody LectureAiGenerationForm form) {
+        return aiGenerationService.generate(form);
     }
 
     /** Импортирует агентский batch и всегда создаёт лекции в статусе draft. */
