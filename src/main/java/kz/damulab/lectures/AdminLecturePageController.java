@@ -24,6 +24,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import kz.damulab.content.ContentGraphService;
 import kz.damulab.content.ReferenceOption;
 import kz.damulab.content.TopicRepository;
+import kz.damulab.ai.AiRuntimeSettingsService;
+import kz.damulab.ai.AiUsageType;
 
 @Controller
 public class AdminLecturePageController {
@@ -34,17 +36,20 @@ public class AdminLecturePageController {
     private final StudentLectureService studentLectureService;
     private final ContentGraphService contentGraph;
     private final TopicRepository topics;
+    private final AiRuntimeSettingsService aiSettings;
 
     public AdminLecturePageController(
             LectureService lectureService,
             StudentLectureService studentLectureService,
             ContentGraphService contentGraph,
-            TopicRepository topics
+            TopicRepository topics,
+            AiRuntimeSettingsService aiSettings
     ) {
         this.lectureService = lectureService;
         this.studentLectureService = studentLectureService;
         this.contentGraph = contentGraph;
         this.topics = topics;
+        this.aiSettings = aiSettings;
     }
 
     @GetMapping("/admin/lectures")
@@ -224,6 +229,8 @@ public class AdminLecturePageController {
         model.addAttribute("selectedGradeId", gradeId);
         model.addAttribute("lectureStatuses", LectureStatus.values());
         model.addAttribute("controlModes", LectureControlMode.values());
+        model.addAttribute("lectureQualityThreshold",
+                aiSettings.resolve(AiUsageType.LECTURES).qualityThreshold());
     }
 
     private LectureForm defaultForm() {

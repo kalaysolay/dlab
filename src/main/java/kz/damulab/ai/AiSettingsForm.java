@@ -2,6 +2,8 @@ package kz.damulab.ai;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -23,6 +25,11 @@ public class AiSettingsForm {
     @Size(max = 128)
     @Pattern(regexp = "[A-Za-z0-9][A-Za-z0-9._:/-]*", message = "Используйте идентификатор модели без пробелов")
     private String lecturesModel;
+
+    @NotNull
+    @Min(value = 0, message = "Порог должен быть от 0 до 100")
+    @Max(value = 100, message = "Порог должен быть от 0 до 100")
+    private Integer lectureQualityThreshold = AiLectureQualityValidator.DEFAULT_MINIMUM_SCORE;
 
     @NotNull
     private AiProviderCode translationsProvider;
@@ -62,6 +69,14 @@ public class AiSettingsForm {
 
     public void setLecturesModel(String lecturesModel) {
         this.lecturesModel = lecturesModel;
+    }
+
+    public Integer getLectureQualityThreshold() {
+        return lectureQualityThreshold;
+    }
+
+    public void setLectureQualityThreshold(Integer lectureQualityThreshold) {
+        this.lectureQualityThreshold = lectureQualityThreshold;
     }
 
     public AiProviderCode getTranslationsProvider() {

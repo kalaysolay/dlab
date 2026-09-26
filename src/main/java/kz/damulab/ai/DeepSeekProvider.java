@@ -183,8 +183,12 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
                 : lastQualityError;
     }
 
-    /** DeepSeek получает ту же JSON-схему текстом и проходит тот же серверный порог 95/100. */
-    public AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request, String model) {
+    /** DeepSeek получает ту же JSON-схему и проходит выбранный в настройках серверный порог. */
+    public AiLectureGenerationResult generateLecture(
+            AiLectureGenerationRequest request,
+            String model,
+            int qualityThreshold
+    ) {
         AiProviderProperties.Provider deepseek = properties.getDeepseek();
         requireConfigured(deepseek.getApiKey(), "deepseek_api_key_missing");
         AiRenderedPrompt prompt = lecturePrompts.render(request);
@@ -211,7 +215,15 @@ public class DeepSeekProvider extends ExternalAiProviderSupport {
                 );
                 JsonNode response = post(deepseek, body);
                 String outputJson = extractDeepSeekText(response == null ? objectMapper.createObjectNode() : response);
-                return finalizeLecture(outputJson, request, "deepseek", model, OP_LECTURE, attempt);
+                return finalizeLecture(
+                        outputJson,
+                        request,
+                        "deepseek",
+                        model,
+                        OP_LECTURE,
+                        attempt,
+                        qualityThreshold
+                );
             } catch (AiLectureQualityException ex) {
                 lastQualityError = ex;
                 log.warn("DeepSeek lecture: качество {}/100, attempt={}/3", ex.getReport().score(), attempt, 3);

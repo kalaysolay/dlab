@@ -25,7 +25,7 @@ import kz.damulab.ai.AiRuntimeSettingRepository;
 import kz.damulab.ai.AiUsageType;
 import kz.damulab.content.TopicRepository;
 
-/** Проверяет пользовательский сценарий кнопки: topicId -> RU/KZ HTML -> отчёт не ниже 95. */
+/** Проверяет пользовательский сценарий кнопки: topicId -> RU/KZ HTML -> настраиваемый порог. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -44,6 +44,7 @@ class LectureAiGenerationIntegrationTest {
     void useDeterministicProvider() {
         AiRuntimeSetting lectures = settings.findById(AiUsageType.LECTURES).orElseThrow();
         lectures.update(AiProviderCode.STUB, "stub", "test");
+        lectures.updateQualityThreshold(90);
         settings.save(lectures);
     }
 
@@ -55,7 +56,8 @@ class LectureAiGenerationIntegrationTest {
                         .with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Сгенерировать лекцию RU + KZ")))
-                .andExpect(content().string(containsString("Отчёт валидатора")));
+                .andExpect(content().string(containsString("Отчёт валидатора")))
+                .andExpect(content().string(containsString("проверки 90/100")));
 
         mockMvc.perform(post("/api/admin/lectures/generate")
                         .with(user("admin@damulab.kz").roles("ADMIN"))
@@ -69,8 +71,8 @@ class LectureAiGenerationIntegrationTest {
                 .andExpect(jsonPath("$.titleKk").isNotEmpty())
                 .andExpect(jsonPath("$.contentRu", containsString("class=\"ql-formula\"")))
                 .andExpect(jsonPath("$.contentKk", containsString("class=\"ql-formula\"")))
-                .andExpect(jsonPath("$.quality.score", greaterThanOrEqualTo(95)))
-                .andExpect(jsonPath("$.quality.minimumScore").value(95));
+                .andExpect(jsonPath("$.quality.score", greaterThanOrEqualTo(90)))
+                .andExpect(jsonPath("$.quality.minimumScore").value(90));
     }
 
     @Test

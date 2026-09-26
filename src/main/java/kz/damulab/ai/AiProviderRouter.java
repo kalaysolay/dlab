@@ -99,17 +99,19 @@ public class AiProviderRouter implements AiProvider {
     public AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request) {
         AiRuntimeSelection selection = settings.resolve(AiUsageType.LECTURES);
         log.info(
-                "AiProviderRouter: generateLecture provider={} model={} prompt=ai_prompts[LECTURE_GENERATE]",
+                "AiProviderRouter: generateLecture provider={} model={} qualityThreshold={} "
+                        + "prompt=ai_prompts[LECTURE_GENERATE]",
                 selection.provider(),
-                selection.model()
+                selection.model(),
+                selection.qualityThreshold()
         );
         if (selection.provider() == AiProviderCode.STUB) {
-            return stub.generateLecture(request);
+            return stub.generateLecture(request, selection.qualityThreshold());
         }
         ensureExternalProvidersEnabled(selection.provider());
         return switch (selection.provider()) {
-            case OPENAI -> openAi.generateLecture(request, selection.model());
-            case DEEPSEEK -> deepSeek.generateLecture(request, selection.model());
+            case OPENAI -> openAi.generateLecture(request, selection.model(), selection.qualityThreshold());
+            case DEEPSEEK -> deepSeek.generateLecture(request, selection.model(), selection.qualityThreshold());
             case STUB -> throw new IllegalStateException("Stub route must be handled before external dispatch");
         };
     }

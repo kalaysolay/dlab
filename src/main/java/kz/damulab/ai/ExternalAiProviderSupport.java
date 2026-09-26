@@ -45,18 +45,23 @@ abstract class ExternalAiProviderSupport {
         return MiniLectureHtmlComposer.toResult(payload);
     }
 
-    /** Разбирает, валидирует и только после оценки 95+ собирает безопасный HTML лекции. */
+    /** Разбирает, валидирует по снимку runtime-порога и собирает безопасный HTML лекции. */
     protected AiLectureGenerationResult finalizeLecture(
             String outputJson,
             AiLectureGenerationRequest request,
             String provider,
             String model,
             String operation,
-            int attempt
+            int attempt,
+            int qualityThreshold
     ) {
         AiCallLogger.logInboundRaw(log, operation, model, attempt, outputJson);
         AiLectureStructuredPayload payload = parseLectureStructured(outputJson);
-        AiLectureQualityReport report = AiLectureQualityValidator.requireAccepted(payload, request);
+        AiLectureQualityReport report = AiLectureQualityValidator.requireAccepted(
+                payload,
+                request,
+                qualityThreshold
+        );
         return new AiLectureGenerationResult(
                 provider,
                 model,

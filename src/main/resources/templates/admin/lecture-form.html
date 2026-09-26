@@ -90,7 +90,10 @@
                     <div class="page-head compact-head">
                         <div>
                             <h2 class="section-title">Контент лекции (Quill + KaTeX)</h2>
-                            <p class="muted-line" th:if="${mode == 'create'}">AI создаёт обе языковые версии и заполняет редакторы только после проверки 95/100.</p>
+                            <p class="muted-line" th:if="${mode == 'create'}"
+                               th:text="${'AI создаёт обе языковые версии и заполняет редакторы только после проверки ' + lectureQualityThreshold + '/100.'}">
+                                AI создаёт обе языковые версии после проверки качества.
+                            </p>
                         </div>
                         <div class="type-tabs compact-tabs" aria-label="Язык лекции">
                             <button class="type-tab active" type="button" data-lecture-tab="ru">RU</button>
@@ -98,7 +101,8 @@
                         </div>
                     </div>
 
-                    <div class="ai-lecture-generator" th:if="${mode == 'create'}">
+                    <div id="lecture-ai-generator" class="ai-lecture-generator" th:if="${mode == 'create'}"
+                         th:attr="data-quality-threshold=${lectureQualityThreshold}">
                         <label class="field">
                             <span>Дополнительная инструкция для генерации (необязательно)</span>
                             <textarea id="lecture-ai-instruction" rows="3" maxlength="2000"
@@ -110,7 +114,10 @@
                         </div>
                         <div id="lecture-ai-progress" class="ai-gen-progress" hidden aria-live="polite">
                             <span class="ai-gen-spinner" aria-hidden="true"></span>
-                            <span class="ai-gen-progress-text">Генерируем и проверяем лекцию. При оценке ниже 95 запрос повторится автоматически…</span>
+                            <span class="ai-gen-progress-text"
+                                  th:text="${'Генерируем и проверяем лекцию. При оценке ниже ' + lectureQualityThreshold + ' запрос повторится автоматически…'}">
+                                Генерируем и проверяем лекцию…
+                            </span>
                         </div>
                         <div id="lecture-ai-error" class="alert error" hidden></div>
                         <section id="lecture-ai-quality" class="lecture-ai-quality" hidden aria-live="polite">
@@ -326,6 +333,8 @@
     const formulaError = document.getElementById('lecture-formula-error');
     const formulaInsert = document.getElementById('lecture-formula-insert');
     const aiGenerateButton = document.getElementById('lecture-ai-generate');
+    const aiGenerator = document.getElementById('lecture-ai-generator');
+    const aiQualityThreshold = Number(aiGenerator?.dataset.qualityThreshold || 90);
     const aiInstruction = document.getElementById('lecture-ai-instruction');
     const aiProgress = document.getElementById('lecture-ai-progress');
     const aiError = document.getElementById('lecture-ai-error');
@@ -893,12 +902,13 @@
     }
 
     function aiErrorMessage(payload) {
+        const minimumScore = payload?.quality?.minimumScore ?? aiQualityThreshold;
         const messages = {
             ai_provider_disabled: 'Внешние AI-провайдеры отключены на сервере.',
             openai_api_key_missing: 'На сервере не настроен ключ OpenAI.',
             deepseek_api_key_missing: 'На сервере не настроен ключ DeepSeek.',
             ai_schema_invalid: 'Модель вернула ответ неправильного формата. Повторите генерацию.',
-            ai_lecture_quality_below_threshold: 'После трёх попыток качество осталось ниже 95/100.',
+            ai_lecture_quality_below_threshold: 'После трёх попыток качество осталось ниже ' + minimumScore + '/100.',
             topic_not_found: 'Выбранная тема не найдена.'
         };
         return messages[payload?.error] || payload?.message || 'Не удалось сгенерировать лекцию.';

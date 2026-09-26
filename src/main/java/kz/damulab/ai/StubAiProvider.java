@@ -58,8 +58,17 @@ public class StubAiProvider implements AiProvider {
     /** Детерминированный двуязычный материал позволяет проверять UI и валидатор без внешнего API. */
     @Override
     public AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request) {
+        return generateLecture(request, AiLectureQualityValidator.DEFAULT_MINIMUM_SCORE);
+    }
+
+    /** Проверяет stub тем же снимком порога, который router передаёт внешним провайдерам. */
+    AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request, int qualityThreshold) {
         AiLectureStructuredPayload payload = stubLecturePayload(request);
-        AiLectureQualityReport report = AiLectureQualityValidator.requireAccepted(payload, request);
+        AiLectureQualityReport report = AiLectureQualityValidator.requireAccepted(
+                payload,
+                request,
+                qualityThreshold
+        );
         return new AiLectureGenerationResult(
                 "stub",
                 "stub",

@@ -30,6 +30,9 @@ public class AiRuntimeSetting {
     @Column(name = "model_name", nullable = false, length = 128)
     private String modelName;
 
+    @Column(name = "quality_threshold", nullable = false)
+    private int qualityThreshold = AiLectureQualityValidator.DEFAULT_MINIMUM_SCORE;
+
     @Column(name = "updated_by", nullable = false, length = 320)
     private String updatedBy;
 
@@ -52,6 +55,11 @@ public class AiRuntimeSetting {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    /** Меняет серверный порог лекций; значение используется следующим запуском генерации. */
+    public void updateQualityThreshold(int qualityThreshold) {
+        this.qualityThreshold = qualityThreshold;
+    }
+
     public AiUsageType getUsageType() {
         return usageType;
     }
@@ -62,6 +70,10 @@ public class AiRuntimeSetting {
 
     public String getModelName() {
         return modelName;
+    }
+
+    public int getQualityThreshold() {
+        return qualityThreshold;
     }
 
     public String getUpdatedBy() {

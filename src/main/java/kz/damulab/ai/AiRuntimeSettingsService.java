@@ -27,7 +27,11 @@ public class AiRuntimeSettingsService {
     public AiRuntimeSelection resolve(AiUsageType usageType) {
         AiRuntimeSetting setting = settings.findById(usageType)
                 .orElseThrow(() -> new IllegalStateException("AI setting is missing: " + usageType));
-        return new AiRuntimeSelection(setting.getProvider(), setting.getModelName());
+        return new AiRuntimeSelection(
+                setting.getProvider(),
+                setting.getModelName(),
+                setting.getQualityThreshold()
+        );
     }
 
     /** Собирает все строки БД в форму редактирования. */
@@ -41,6 +45,7 @@ public class AiRuntimeSettingsService {
         form.setQuestionsModel(questions.model());
         form.setLecturesProvider(lectures.provider());
         form.setLecturesModel(lectures.model());
+        form.setLectureQualityThreshold(lectures.qualityThreshold());
         form.setTranslationsProvider(translations.provider());
         form.setTranslationsModel(translations.model());
         return form;
@@ -56,6 +61,16 @@ public class AiRuntimeSettingsService {
         updateOne(AiUsageType.QUESTIONS, form.getQuestionsProvider(), form.getQuestionsModel(), actor);
         updateOne(AiUsageType.LECTURES, form.getLecturesProvider(), form.getLecturesModel(), actor);
         updateOne(AiUsageType.TRANSLATIONS, form.getTranslationsProvider(), form.getTranslationsModel(), actor);
+        AiRuntimeSetting lectures = settings.findById(AiUsageType.LECTURES)
+                .orElseThrow(() -> new IllegalStateException("AI setting is missing: LECTURES"));
+        lectures.updateQualityThreshold(form.getLectureQualityThreshold());
+        settings.save(lectures);
+        audit.record(
+                "ai_lecture_quality_threshold_updated",
+                "AiRuntimeSetting",
+                (long) AiUsageType.LECTURES.ordinal() + 1,
+                "LECTURES:qualityThreshold=" + form.getLectureQualityThreshold()
+        );
     }
 
     private void updateOne(

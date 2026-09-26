@@ -77,6 +77,8 @@ class AiRuntimeSettingsIntegrationTest {
                 .andExpect(model().attributeExists("aiTranslationPromptForm"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Настройки AI")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Промпты переводчика")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Минимальное качество лекции, %")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("не менее 900 символов")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("deepseek-v4-pro")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("deepseek-v4-flash")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("gpt-5.6")));
@@ -96,6 +98,7 @@ class AiRuntimeSettingsIntegrationTest {
                         .param("questionsModel", "deepseek-v4-pro")
                         .param("lecturesProvider", "OPENAI")
                         .param("lecturesModel", "gpt-5.6")
+                        .param("lectureQualityThreshold", "90")
                         .param("translationsProvider", "OPENAI")
                         .param("translationsModel", "gpt-5.6"))
                 .andExpect(status().is3xxRedirection())
@@ -111,6 +114,7 @@ class AiRuntimeSettingsIntegrationTest {
                         .param("questionsModel", "deepseek-v4-pro")
                         .param("lecturesProvider", "OPENAI")
                         .param("lecturesModel", "gpt-5.6")
+                        .param("lectureQualityThreshold", "87")
                         .param("translationsProvider", "DEEPSEEK")
                         .param("translationsModel", "deepseek-v4-flash"))
                 .andExpect(status().is3xxRedirection())
@@ -123,6 +127,7 @@ class AiRuntimeSettingsIntegrationTest {
         assertThat(questions.model()).isEqualTo("deepseek-v4-pro");
         assertThat(lectures.provider()).isEqualTo(AiProviderCode.OPENAI);
         assertThat(lectures.model()).isEqualTo("gpt-5.6");
+        assertThat(lectures.qualityThreshold()).isEqualTo(87);
         assertThat(translations.provider()).isEqualTo(AiProviderCode.DEEPSEEK);
         assertThat(translations.model()).isEqualTo("deepseek-v4-flash");
         assertThat(repository.findById(AiUsageType.QUESTIONS).orElseThrow().getUpdatedBy())
@@ -138,6 +143,7 @@ class AiRuntimeSettingsIntegrationTest {
                         .param("questionsModel", "")
                         .param("lecturesProvider", "OPENAI")
                         .param("lecturesModel", "gpt-5.6")
+                        .param("lectureQualityThreshold", "90")
                         .param("translationsProvider", "DEEPSEEK")
                         .param("translationsModel", "deepseek-v4-flash"))
                 .andExpect(status().isOk())
@@ -233,6 +239,33 @@ class AiRuntimeSettingsIntegrationTest {
     private void update(AiUsageType usageType, AiProviderCode provider, String model) {
         AiRuntimeSetting setting = repository.findById(usageType).orElseThrow();
         setting.update(provider, model, "test");
+        if (usageType == AiUsageType.LECTURES) {
+            setting.updateQualityThreshold(90);
+        }
         repository.save(setting);
+    }
+
+    @Test
+    void invalidLectureQualityThresholdDoesNotChangeSettings() throws Exception {
+        mockMvc.perform(post("/admin/settings/ai")
+                        .with(user("admin@damulab.kz").roles("ADMIN"))
+                        .with(csrf())
+                        .param("questionsProvider", "STUB")
+                        .param("questionsModel", "stub")
+                        .param("lecturesProvider", "OPENAI")
+                        .param("lecturesModel", "gpt-5.6")
+                        .param("lectureQualityThreshold", "101")
+                        .param("translationsProvider", "DEEPSEEK")
+                        .param("translationsModel", "deepseek-v4-flash"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/ai-settings"))
+                .andExpect(model().attributeHasFieldErrors(
+                        "aiSettingsForm",
+                        "lectureQualityThreshold"
+                ));
+
+        AiRuntimeSelection lectures = settings.resolve(AiUsageType.LECTURES);
+        assertThat(lectures.provider()).isEqualTo(AiProviderCode.STUB);
+        assertThat(lectures.qualityThreshold()).isEqualTo(90);
     }
 }

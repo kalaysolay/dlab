@@ -164,8 +164,12 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
                 : lastQualityError;
     }
 
-    /** Генерирует полный RU/KZ материал; ответы ниже 95 баллов автоматически запрашиваются повторно. */
-    public AiLectureGenerationResult generateLecture(AiLectureGenerationRequest request, String model) {
+    /** Генерирует RU/KZ материал; ответы ниже настроенного порога запрашиваются повторно. */
+    public AiLectureGenerationResult generateLecture(
+            AiLectureGenerationRequest request,
+            String model,
+            int qualityThreshold
+    ) {
         AiProviderProperties.Provider openai = properties.getOpenai();
         requireConfigured(openai.getApiKey(), "openai_api_key_missing");
         AiRenderedPrompt prompt = lecturePrompts.render(request);
@@ -195,7 +199,15 @@ public class OpenAiProvider extends ExternalAiProviderSupport {
                 );
                 JsonNode response = post(openai, body);
                 String outputJson = extractOpenAiText(response == null ? objectMapper.createObjectNode() : response);
-                return finalizeLecture(outputJson, request, "openai", model, OP_LECTURE, attempt);
+                return finalizeLecture(
+                        outputJson,
+                        request,
+                        "openai",
+                        model,
+                        OP_LECTURE,
+                        attempt,
+                        qualityThreshold
+                );
             } catch (AiLectureQualityException ex) {
                 lastQualityError = ex;
                 log.warn("OpenAI lecture: качество {}/100, attempt={}/3", ex.getReport().score(), attempt, 3);

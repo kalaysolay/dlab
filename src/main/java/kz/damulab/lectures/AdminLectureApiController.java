@@ -55,7 +55,7 @@ public class AdminLectureApiController {
         return ResponseEntity.created(URI.create("/api/admin/lectures/" + created.id())).body(created);
     }
 
-    /** Возвращает только прошедший серверный порог 95/100 черновик и не сохраняет его до submit формы. */
+    /** Возвращает черновик выше настроенного серверного порога и не сохраняет его до submit формы. */
     @PostMapping("/generate")
     AiLectureGenerationResult generateLecture(@Valid @RequestBody LectureAiGenerationForm form) {
         return aiGenerationService.generate(form);

@@ -8,13 +8,12 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Детерминированно оценивает ответ модели до передачи в браузер. Порог 95 означает,
- * что неполная языковая версия, слабая структура, уход от темы или небезопасная формула
- * всегда приводят к повторной генерации, а не к выдаче сомнительного черновика.
+ * Детерминированно оценивает ответ модели до передачи в браузер. Порог приходит из
+ * {@code ai_runtime_settings}, поэтому администратор может менять его без перезапуска.
  */
 public final class AiLectureQualityValidator {
 
-    public static final int MINIMUM_SCORE = 95;
+    public static final int DEFAULT_MINIMUM_SCORE = 90;
     private static final int MIN_LANGUAGE_CHARS = 650;
     private static final int MIN_PARAGRAPHS = 7;
     private static final Pattern CYRILLIC = Pattern.compile(".*[А-Яа-яӘәҒғҚқҢңӨөҰұҮүҺһІі].*", Pattern.DOTALL);
@@ -27,10 +26,19 @@ public final class AiLectureQualityValidator {
     private AiLectureQualityValidator() {
     }
 
-    /** Возвращает полный отчёт; результат ниже 95 вызывающий код обязан отклонить. */
+    /** Возвращает отчёт с порогом по умолчанию; применяется в изолированных unit-тестах. */
     public static AiLectureQualityReport evaluate(
             AiLectureStructuredPayload payload,
             AiLectureGenerationRequest request
+    ) {
+        return evaluate(payload, request, DEFAULT_MINIMUM_SCORE);
+    }
+
+    /** Возвращает полный отчёт для порога, зафиксированного в начале AI-запроса. */
+    public static AiLectureQualityReport evaluate(
+            AiLectureStructuredPayload payload,
+            AiLectureGenerationRequest request,
+            int minimumScore
     ) {
         List<AiLectureQualityCheck> checks = new ArrayList<>();
         boolean bilingual = payload != null && payload.ru() != null && payload.kz() != null
@@ -74,11 +82,11 @@ public final class AiLectureQualityValidator {
 
         int score = checks.stream().filter(AiLectureQualityCheck::passed)
                 .mapToInt(AiLectureQualityCheck::points).sum();
-        String summary = score >= MINIMUM_SCORE
+        String summary = score >= minimumScore
                 ? "Лекция прошла проверку качества: %d из 100.".formatted(score)
                 : "Лекция отклонена валидатором: %d из 100, требуется не менее %d."
-                        .formatted(score, MINIMUM_SCORE);
-        return new AiLectureQualityReport(score, MINIMUM_SCORE, summary, List.copyOf(checks));
+                        .formatted(score, minimumScore);
+        return new AiLectureQualityReport(score, minimumScore, summary, List.copyOf(checks));
     }
 
     /** Проверяет порог и несёт отчёт в исключении для ретрая/ответа API. */
@@ -86,7 +94,16 @@ public final class AiLectureQualityValidator {
             AiLectureStructuredPayload payload,
             AiLectureGenerationRequest request
     ) {
-        AiLectureQualityReport report = evaluate(payload, request);
+        return requireAccepted(payload, request, DEFAULT_MINIMUM_SCORE);
+    }
+
+    /** Отклоняет результат ниже порога, выбранного администратором для текущего запуска. */
+    public static AiLectureQualityReport requireAccepted(
+            AiLectureStructuredPayload payload,
+            AiLectureGenerationRequest request,
+            int minimumScore
+    ) {
+        AiLectureQualityReport report = evaluate(payload, request, minimumScore);
         if (report.score() < report.minimumScore()) {
             throw new AiLectureQualityException(report);
         }
