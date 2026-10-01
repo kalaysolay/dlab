@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Викторины — Damulab Admin</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside class="sidebar" aria-label="Админ-навигация">
+            <div class="admin-brand"><div class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></div><div><h1>Damulab Admin</h1><p>Admin Console</p></div></div>
+            <nav class="admin-nav" aria-label="Разделы админ-панели">
+                <a href="#">Обзор</a><a href="#">Предметы</a><a href="#">Темы</a><a href="#">Вопросы</a>
+                <a class="active" href="admin-quizzes.html">Викторины</a><a href="admin-word-bank.html">Банк слов</a>
+                <a href="#">AI генерация</a><a href="#">Эталоны для ИИ</a><a href="#">Настройки AI</a><a href="#">Качество вопросов</a><a href="#">Импорт вопросов</a><a href="#">Лекции</a><a href="#">Push</a><a href="#">Push-кампании</a>
+            </nav>
+        </aside>
+
+        <section class="panel quiz-admin-page" data-admin-games-list>
+            <div class="page-head">
+                <div><h1 class="page-title">Викторины</h1><p class="lede">Готовые игры, которые ученик видит карточками в каталоге.</p></div>
+                <div class="row-actions"><a class="button" href="index.html">Каталог ученика</a><a class="button primary" href="admin-quiz-edit.html?mode=new">Создать игру</a></div>
+            </div>
+
+            <div class="meta-grid quiz-admin-metrics">
+                <div class="metric"><strong>4</strong><span>Всего игр</span></div><div class="metric"><strong>3</strong><span>Опубликованы</span></div><div class="metric"><strong>1</strong><span>Черновик</span></div><div class="metric"><strong>0</strong><span>Заблокированы</span></div>
+            </div>
+
+            <form class="filter-bar" data-game-filter>
+                <label class="field compact"><span>Тип</span><select name="type"><option value="">Любой</option><option value="words">Слова</option><option value="subject">По предмету</option><option value="facts">Верю / не верю</option></select></label>
+                <label class="field compact"><span>Статус</span><select name="status"><option value="">Любой</option><option value="published">Опубликована</option><option value="draft">Черновик</option><option value="hidden">Скрыта</option></select></label>
+                <label class="field compact"><span>Поиск</span><input name="query" placeholder="Название игры"></label>
+                <button class="button" type="submit">Показать</button><button class="button" type="button" data-reset-filter>Сбросить</button>
+            </form>
+
+            <div class="empty-state" data-game-empty hidden><strong>Игры не найдены</strong><span>Сбросьте фильтры или создайте новую игру.</span></div>
+            <div class="table-wrap" data-game-table>
+                <table class="data-table quiz-games-table">
+                    <thead><tr><th>Игра</th><th>Тип</th><th>Контент</th><th>Класс</th><th>Игроки</th><th>Статус</th><th>Действия</th></tr></thead>
+                    <tbody>
+                    <tr data-game-row data-type="words" data-status="published" data-search="english слова английский"><td><strong>English: слова</strong><span class="muted-line">Обновлена сегодня, 09:40</span></td><td><span class="badge">Слова</span></td><td><strong>62</strong><span class="muted-line">проверенных слова</span></td><td><span class="badge">Не используется</span></td><td>1–8</td><td><span class="badge success">Опубликована</span></td><td class="row-actions"><a class="button" href="admin-quiz-edit.html?game=english">Настроить</a><a class="button" href="admin-quiz-content.html?game=english">Контент</a><a class="button" href="admin-quiz-publish.html?game=english">Проверить</a></td></tr>
+                    <tr data-game-row data-type="words" data-status="published" data-search="қазақша слова казахский"><td><strong>Қазақша: слова</strong><span class="muted-line">Обновлена вчера</span></td><td><span class="badge">Слова</span></td><td><strong>48</strong><span class="muted-line">проверенных слов</span></td><td><span class="badge">Не используется</span></td><td>1–8</td><td><span class="badge success">Опубликована</span></td><td class="row-actions"><a class="button" href="admin-quiz-edit.html?game=kazakh">Настроить</a><a class="button" href="admin-quiz-content.html?game=kazakh">Контент</a><a class="button" href="admin-quiz-publish.html?game=kazakh">Проверить</a></td></tr>
+                    <tr data-game-row data-type="subject" data-status="published" data-search="математика предмет"><td><strong>Математика</strong><span class="muted-line">Обновлена 28 сентября</span></td><td><span class="badge">По предмету</span></td><td><strong>84</strong><span class="muted-line">опубликованных вопроса</span></td><td><span class="badge success">Обязателен</span></td><td>1–16</td><td><span class="badge success">Опубликована</span></td><td class="row-actions"><a class="button" href="admin-quiz-edit.html?game=math">Настроить</a><a class="button" href="admin-quiz-content.html?game=math">Контент</a><a class="button" href="admin-quiz-publish.html?game=math">Проверить</a></td></tr>
+                    <tr data-game-row data-type="facts" data-status="draft" data-search="удивительные факты верю не верю"><td><strong>Удивительные факты</strong><span class="muted-line">Обновлена 26 сентября</span></td><td><span class="badge">Верю / не верю</span></td><td><strong>18</strong><span class="muted-line">2 требуют проверки</span></td><td><span class="badge">Не используется</span></td><td>1–8</td><td><span class="badge warning">Черновик</span></td><td class="row-actions"><a class="button" href="admin-quiz-edit.html?game=facts">Настроить</a><a class="button" href="admin-quiz-content.html?game=facts">Контент</a><a class="button primary" href="admin-quiz-publish.html?game=facts">Подготовить</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

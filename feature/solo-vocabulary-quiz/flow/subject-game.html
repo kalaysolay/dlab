@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Игра: предмет — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header">
+        <div class="student-header-row">
+            <a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+            <a class="button" href="index.html">Выйти из игры</a>
+        </div>
+    </header>
+
+    <main class="page quiz-flow-page">
+        <section class="panel game-shell" data-game="subjects">
+            <header class="game-topbar">
+                <div class="game-label"><strong>По предметам</strong><span data-game-label>Математика · 5 класс</span></div>
+                <div class="game-progress-track" aria-label="Прогресс"><span data-game-progress></span></div>
+                <span class="game-progress-copy" data-game-progress-copy>1 из 10</span>
+            </header>
+
+            <div class="game-question-stage">
+                <div>
+                    <div class="game-meta"><span class="game-tag" data-game-topic>Проценты</span></div>
+                    <h1 class="game-question subject-question" data-game-question>Чему равно 25% от числа 80?</h1>
+                </div>
+                <div class="game-timer" data-game-timer><div><strong>20</strong><span>секунд</span></div></div>
+            </div>
+
+            <div class="game-answer-grid" data-game-answers></div>
+            <div class="game-feedback" data-game-feedback hidden></div>
+            <footer class="game-footer">
+                <span class="game-footer-copy">Выберите один ответ. До отправки его можно изменить.</span>
+                <div class="actions"><button class="button" type="button" data-game-skip>Пропустить</button><button class="button primary" type="button" data-game-submit disabled>Ответить</button></div>
+            </footer>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

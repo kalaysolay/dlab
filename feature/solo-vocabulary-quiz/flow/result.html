@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Результат игры — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header">
+        <div class="student-header-row">
+            <a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+            <div class="student-header-actions"><a class="button" href="index.html">Все игры</a><button class="student-user-button" type="button" aria-label="Профиль"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></button></div>
+        </div>
+    </header>
+
+    <main class="page quiz-flow-page" data-result-page>
+        <section class="panel flow-intro">
+            <div><span class="flow-kicker">Готово</span><h1 class="page-title">Хорошая тренировка!</h1><p class="lede">Ошибки собраны ниже — их можно повторить одним нажатием.</p></div>
+            <div class="actions"><a class="button" href="index.html">Другая игра</a><a class="button primary" href="room.html?game=english">Играть ещё</a></div>
+        </section>
+
+        <section class="result-grid">
+            <article class="result-metric"><strong data-result-score>8/10</strong><span>Правильных ответов</span></article>
+            <article class="result-metric"><strong data-result-percent>80%</strong><span>Точность</span></article>
+            <article class="result-metric"><strong>6,4 сек.</strong><span>Среднее время</span></article>
+        </section>
+
+        <section class="panel">
+            <h2 class="flow-section-title">Нужно повторить</h2>
+            <p class="flow-section-copy">Показываем только ошибки, а не длинный отчёт по всем вопросам.</p>
+            <div class="review-list" data-review-list>
+                <div class="review-row"><strong>careful</strong><span>Ваш ответ: «быстрый» · Верно: «осторожный»</span><span class="review-status wrong">Повторить</span></div>
+                <div class="review-row"><strong>knowledge</strong><span>Время вышло · Верно: «знание»</span><span class="review-status wrong">Повторить</span></div>
+            </div>
+            <div class="actions"><a class="button primary" href="word-game.html?pair=en-ru&count=2&seconds=15" data-repeat-link>Повторить 2 ошибки</a></div>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Состояния игр — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header"><div class="student-header-row"><a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a><a class="button" href="index.html">К макету</a></div></header>
+    <main class="page quiz-flow-page">
+        <a class="flow-back" href="index.html">← Все игры</a>
+        <section class="panel flow-intro"><div><span class="flow-kicker">Сценарии макета</span><h1 class="page-title">Проверяем разные ситуации</h1><p class="lede">Каждое состояние открывается отдельной ссылкой, чтобы его можно было обсудить.</p></div></section>
+        <section class="state-grid">
+            <article class="panel state-card"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></span><h2 class="section-title">Начать одному</h2><p>Комната уже есть, но ребёнку не нужно разбираться в этом. Можно сразу нажать «Начать игру».</p><a class="button primary" href="room.html?game=english">Открыть комнату</a></article>
+            <article class="panel state-card"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#route"></use></svg></span><h2 class="section-title">Войти по коду</h2><p>Приглашённый ребёнок выполняет только одну задачу: вводит шестизначный код.</p><a class="button" href="join.html">Ввести код</a></article>
+            <article class="panel state-card"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#trophy"></use></svg></span><h2 class="section-title">Гость ждёт запуска</h2><p>Настройки заблокированы. Гость видит игроков и понимает, что игру начнёт организатор.</p><a class="button" href="room.html?game=english&amp;mode=guest&amp;code=QZ7K2M">Открыть ожидание</a></article>
+            <article class="panel state-card"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg></span><h2 class="section-title">Игра без класса</h2><p>В «Верю / не верю» нет поля класса: остаются только количество фактов и таймер.</p><a class="button primary" href="room.html?game=facts">Открыть игру</a></article>
+            <article class="panel state-card"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></span><h2 class="section-title">Нет подходящего контента</h2><p>Игру не публикуем, пока банк не прошёл проверку. Ребёнок не попадает в тупик.</p><a class="button" href="admin-quizzes.html">Посмотреть статусы</a></article>
+            <article class="panel state-card"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg></span><h2 class="section-title">Игра требует класс</h2><p>Только предметная игра показывает класс, уже заполненный из профиля ученика.</p><a class="button" href="room.html?game=math">Открыть математику</a></article>
+        </section>
+    </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Викторина «Слова» — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header">
+        <div class="student-header-row">
+            <a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+            <div class="student-header-actions"><button class="button" type="button"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg> Русский</button><button class="student-user-button" type="button" aria-label="Профиль"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></button></div>
+        </div>
+        <nav class="student-nav-grid" aria-label="Навигация ученика">
+            <a href="#"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#home"></use></svg><span>Главная</span></a><a href="#"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#clipboard-check"></use></svg><span>Тесты</span></a><a href="#"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg><span>Аналитика</span></a><a class="active" href="index.html"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg><span>Викторина</span></a><button type="button"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#trophy"></use></svg><span>Достижения</span></button>
+        </nav>
+    </header>
+
+    <main class="page quiz-flow-page" data-words-setup>
+        <a class="flow-back" href="index.html">← Все викторины</a>
+        <section class="panel flow-intro">
+            <div><span class="flow-kicker">Слова</span><h1 class="page-title">Какой язык тренируем?</h1><p class="lede">Выберите одну плитку — и можно играть.</p></div>
+        </section>
+
+        <section class="panel">
+            <h2 class="flow-section-title">Язык вопроса</h2>
+            <p class="flow-section-copy">Варианты ответа будут на русском.</p>
+            <div class="selection-grid" data-select-group="pair" role="radiogroup" aria-label="Языковая пара">
+                <button class="selection-card" type="button" data-value="en-ru" data-label="Английский → Русский" role="radio" aria-checked="false">
+                    <span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg></span>
+                    <span><strong>English</strong><small>Увидите английское слово и выберете перевод.</small><em>62 слова для 5 класса</em></span>
+                </button>
+                <button class="selection-card" type="button" data-value="kk-ru" data-label="Қазақша → Русский" role="radio" aria-checked="false">
+                    <span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#book-open-check"></use></svg></span>
+                    <span><strong>Қазақша</strong><small>Увидите слово на казахском и выберете перевод.</small><em>48 слов для 5 класса</em></span>
+                </button>
+            </div>
+            <p class="safe-note"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg><span>Показываем только проверенные слова из набора для 5 класса.</span></p>
+
+            <details class="compact-settings">
+                <summary>Настроить количество и таймер</summary>
+                <div class="compact-settings-grid">
+                    <label class="field"><span>Слов</span><select name="wordCount"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option></select></label>
+                    <label class="field"><span>Секунд на слово</span><select name="wordSeconds"><option value="10">10</option><option value="15" selected>15</option><option value="20">20</option></select></label>
+                </div>
+            </details>
+        </section>
+
+        <div class="flow-start-bar">
+            <div class="flow-start-summary" data-start-summary><strong>Выберите язык</strong><span>Затем можно сразу начинать.</span></div>
+            <a class="button primary" href="#" aria-disabled="true" data-play-link>Играть</a>
+        </div>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

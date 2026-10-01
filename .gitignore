@@ -42,6 +42,7 @@ coverage/
 uploads/
 tmp/
 temp/
+backups/
 
 .run-logs/
 admin-mockups
@@ -57,6 +58,7 @@ AGENTS.md
 !/docs/LESSON_IMPORT_FORMAT.md
 !/docs/lesson-import-example.json
 !/docs/QUESTION_GENERATION_AGENT_RULES.md
+!/docs/LOCAL_PROD_REFERENCE_DB.md
 
 # Local audit files (not for repo)
 GAME_AUDIT.md

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Контент викторины — Damulab Admin</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css"><link rel="stylesheet" href="../../../src/main/resources/static/css/app.css"><link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside class="sidebar" aria-label="Админ-навигация">
+            <div class="admin-brand"><div class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></div><div><h1>Damulab Admin</h1><p>Admin Console</p></div></div>
+            <nav class="admin-nav"><a href="#">Обзор</a><a href="#">Предметы</a><a href="#">Темы</a><a href="#">Вопросы</a><a class="active" href="admin-quizzes.html">Викторины</a><a href="admin-word-bank.html">Банк слов</a><a href="#">AI генерация</a><a href="#">Эталоны для ИИ</a><a href="#">Настройки AI</a><a href="#">Качество вопросов</a><a href="#">Импорт вопросов</a><a href="#">Лекции</a></nav>
+        </aside>
+
+        <section class="panel quiz-admin-page" data-quiz-content>
+            <div class="page-head">
+                <div><div class="quiz-admin-title-line"><h1 class="page-title" data-content-title>English: слова</h1><span class="badge success">Контент подключён</span></div><p class="lede">Определите, из какого проверенного банка собирать вопросы для каждого запуска.</p></div>
+                <div class="row-actions"><a class="button" href="admin-quizzes.html">К списку</a><button class="button primary" type="button" data-save-demo>Сохранить правила</button></div>
+            </div>
+
+            <nav class="quiz-admin-tabs"><a href="admin-quiz-edit.html?game=english" data-tab-link="edit">Основное и правила</a><a class="active" href="admin-quiz-content.html?game=english" data-tab-link="content">Контент</a><a href="admin-quiz-publish.html?game=english" data-tab-link="publish">Проверка и публикация</a></nav>
+            <div class="notice success" data-save-notice hidden><strong>Правила выборки сохранены</strong><span>Новая комната будет собирать вопросы по этим правилам.</span></div>
+
+            <div class="quiz-content-layout">
+                <form class="form wide-form quiz-content-rules">
+                    <div class="quiz-section-head"><div><h2 class="section-title">Источник контента</h2><p class="muted-line">Игра не хранит копии слов или вопросов — она ссылается на опубликованный банк.</p></div><span class="badge" data-source-type>Банк слов</span></div>
+                    <div class="form-grid quiz-basic-grid">
+                        <label class="field full-width"><span>Банк</span><select data-source-bank><option selected>English A1 · базовый словарь</option><option>English A2 · расширенный словарь</option></select></label>
+                        <label class="field" data-language-direction><span>Направление</span><select><option selected>Английский → Русский</option><option>Русский → Английский</option></select></label>
+                        <label class="field"><span>Статусы контента</span><select><option selected>Только опубликованный</option><option>Опубликованный + review</option></select></label>
+                        <label class="field"><span>Уровень сложности</span><select><option selected>Любой подходящий</option><option>Только базовый</option><option>Только продвинутый</option></select></label>
+                        <label class="field" data-eligibility-field><span data-eligibility-label>Возрастная группа</span><select data-eligibility-select><option selected>10–12 лет</option><option>7–9 лет</option><option>13–15 лет</option></select></label>
+                    </div>
+                    <div class="notice"><strong>Безопасная выборка</strong><span>В комнату попадут только опубликованные элементы, разрешённые для выбранного возраста и класса.</span></div>
+                    <div class="actions"><a class="button" href="admin-word-bank.html" data-open-source>Открыть банк слов</a><button class="button primary" type="button" data-save-demo>Сохранить правила</button></div>
+                </form>
+
+                <aside class="quiz-content-summary">
+                    <div class="subpanel"><h2 class="section-title">Покрытие</h2><div class="quiz-coverage-number"><strong data-content-count>62</strong><span>подходящих элемента</span></div><div class="quiz-coverage-row"><span>Опубликованы</span><strong data-content-published>58</strong></div><div class="quiz-coverage-row"><span>На проверке</span><strong data-content-review>4</strong></div><div class="quiz-coverage-row"><span>Исключены правилами</span><strong data-content-excluded>11</strong></div></div>
+                    <div class="subpanel"><h2 class="section-title">Хватит на игру?</h2><p class="quiz-readiness-ok"><span class="status-dot"></span> Да, запас достаточный</p><p class="muted-line">Для раунда из 10 вопросов рекомендуем минимум 30 подходящих элементов.</p></div>
+                </aside>
+            </div>
+
+            <section class="quiz-content-preview">
+                <div class="quiz-section-head"><div><h2 class="section-title">Пример выборки</h2><p class="muted-line">Первые элементы, которые соответствуют текущим правилам.</p></div><button class="button" type="button" data-refresh-sample>Обновить пример</button></div>
+                <div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th data-preview-main-column>Слово</th><th>Правильный ответ</th><th>Возраст / класс</th><th>Статус</th></tr></thead><tbody data-content-sample><tr><td>W-104</td><td><strong>discover</strong><span class="muted-line">/dɪˈskʌvə/</span></td><td>обнаружить</td><td>10–12 лет</td><td><span class="badge success">published</span></td></tr><tr><td>W-118</td><td><strong>journey</strong><span class="muted-line">/ˈdʒɜːni/</span></td><td>путешествие</td><td>10–12 лет</td><td><span class="badge success">published</span></td></tr><tr><td>W-127</td><td><strong>careful</strong><span class="muted-line">/ˈkeəfəl/</span></td><td>осторожный</td><td>10–12 лет</td><td><span class="badge success">published</span></td></tr></tbody></table></div>
+            </section>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

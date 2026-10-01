@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Викторина по предметам — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header">
+        <div class="student-header-row">
+            <a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+            <div class="student-header-actions"><button class="button" type="button"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg> Русский</button><button class="student-user-button" type="button" aria-label="Профиль"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></button></div>
+        </div>
+        <nav class="student-nav-grid" aria-label="Навигация ученика">
+            <a href="#"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#home"></use></svg><span>Главная</span></a><a href="#"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#clipboard-check"></use></svg><span>Тесты</span></a><a href="#"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg><span>Аналитика</span></a><a class="active" href="index.html"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg><span>Викторина</span></a><button type="button"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#trophy"></use></svg><span>Достижения</span></button>
+        </nav>
+    </header>
+
+    <main class="page quiz-flow-page" data-subjects-setup>
+        <a class="flow-back" href="index.html">← Все викторины</a>
+        <section class="panel flow-intro">
+            <div><span class="flow-kicker">По предметам</span><h1 class="page-title">Выберите предмет</h1><p class="lede">Мы уже выбрали класс из профиля. Если нужно, его можно поменять.</p></div>
+        </section>
+
+        <section class="panel">
+            <h2 class="flow-section-title">Класс</h2>
+            <p class="flow-section-copy">По умолчанию выбран ваш класс.</p>
+            <div class="grade-row" data-select-group="grade" role="radiogroup" aria-label="Класс">
+                <button class="grade-chip" type="button" data-value="3" data-label="3 класс" role="radio" aria-checked="false">3</button>
+                <button class="grade-chip" type="button" data-value="4" data-label="4 класс" role="radio" aria-checked="false">4</button>
+                <button class="grade-chip is-selected" type="button" data-value="5" data-label="5 класс" role="radio" aria-checked="true">5<span class="profile-mark">ваш</span></button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="flow-section-title">Предмет</h2>
+            <p class="flow-section-copy">Недоступные для выбранного класса предметы не запускаются.</p>
+            <div class="selection-grid subjects" data-select-group="subject" role="radiogroup" aria-label="Предмет">
+                <button class="selection-card" type="button" data-value="math" data-label="Математика" data-grades="3,4,5" role="radio" aria-checked="false"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg></span><span><strong>Математика</strong><small>Дроби, проценты и задачи.</small><em>84 вопроса</em></span></button>
+                <button class="selection-card" type="button" data-value="kazakh" data-label="Казахский язык" data-grades="3,4,5" role="radio" aria-checked="false"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#book-open-check"></use></svg></span><span><strong>Казахский язык</strong><small>Лексика и грамматика.</small><em>57 вопросов</em></span></button>
+                <button class="selection-card" type="button" data-value="world" data-label="Познание мира" data-grades="3,4" role="radio" aria-checked="false"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#map"></use></svg></span><span><strong>Познание мира</strong><small>Природа, человек и общество.</small><em>Для 3–4 классов</em></span></button>
+                <button class="selection-card" type="button" data-value="science" data-label="Естествознание" data-grades="5" role="radio" aria-checked="false"><span class="flow-icon-box"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span><strong>Естествознание</strong><small>Вещества, измерения и природа.</small><em>36 вопросов</em></span></button>
+            </div>
+
+            <details class="compact-settings">
+                <summary>Настроить количество и таймер</summary>
+                <div class="compact-settings-grid">
+                    <label class="field"><span>Вопросов</span><select name="questionCount"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option></select></label>
+                    <label class="field"><span>Секунд на вопрос</span><select name="questionSeconds"><option value="15">15</option><option value="20" selected>20</option><option value="30">30</option></select></label>
+                </div>
+            </details>
+        </section>
+
+        <div class="flow-start-bar">
+            <div class="flow-start-summary" data-start-summary><strong>5 класс</strong><span>Выберите предмет.</span></div>
+            <a class="button primary" href="#" aria-disabled="true" data-play-link>Играть</a>
+        </div>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

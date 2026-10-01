@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Слово — Damulab Admin</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css"><link rel="stylesheet" href="../../../src/main/resources/static/css/app.css"><link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside class="sidebar" aria-label="Админ-навигация">
+            <div class="admin-brand"><div class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></div><div><h1>Damulab Admin</h1><p>Admin Console</p></div></div>
+            <nav class="admin-nav"><a href="#">Обзор</a><a href="#">Предметы</a><a href="#">Темы</a><a href="#">Вопросы</a><a href="admin-quizzes.html">Викторины</a><a class="active" href="admin-word-bank.html">Банк слов</a><a href="#">AI генерация</a><a href="#">Эталоны для ИИ</a><a href="#">Настройки AI</a><a href="#">Качество вопросов</a><a href="#">Импорт вопросов</a></nav>
+        </aside>
+
+        <section class="panel quiz-admin-page" data-word-editor>
+            <div class="page-head"><div><div class="quiz-admin-title-line"><h1 class="page-title" data-word-editor-title>Новое слово</h1><span class="badge warning" data-word-editor-status>Черновик</span></div><p class="lede">Слово попадёт в игру только после проверки перевода и возрастной группы.</p></div><div class="row-actions"><a class="button" href="admin-word-bank.html">К списку</a><button class="button primary" type="button" data-save-word>Сохранить</button></div></div>
+            <div class="notice success" data-word-save-notice hidden><strong>Слово сохранено</strong><span>Черновик можно отправить на проверку после заполнения обязательных полей.</span></div>
+
+            <form class="form wide-form word-editor-form">
+                <h2 class="section-title">Слово и язык</h2>
+                <div class="form-grid quiz-basic-grid"><label class="field"><span>Язык слова</span><select data-word-language><option value="en" selected>English</option><option value="kk">Қазақша</option></select></label><label class="field"><span>Слово</span><input data-word-value placeholder="discover"></label><label class="field"><span>Транскрипция</span><input data-word-pronunciation placeholder="/dɪˈskʌvə/"></label><label class="field"><span>Часть речи</span><select><option>Существительное</option><option selected>Глагол</option><option>Прилагательное</option><option>Другое</option></select></label></div>
+
+                <hr class="divider">
+                <div class="quiz-section-head"><div><h2 class="section-title">Варианты перевода</h2><p class="muted-line">Первый перевод считается основным правильным ответом. Остальные тоже принимаются как верные.</p></div><button class="button" type="button" data-add-translation>Добавить перевод</button></div>
+                <div class="translation-list" data-translation-list>
+                    <div class="translation-row"><span class="option-label">1</span><label class="field"><span>Перевод на русском</span><input value="обнаружить"></label><label class="field"><span>Комментарий</span><input value="Основное значение"></label><button class="button danger translation-delete" type="button" data-delete-translation aria-label="Удалить перевод">Удалить</button></div>
+                    <div class="translation-row"><span class="option-label">2</span><label class="field"><span>Перевод на русском</span><input value="открыть"></label><label class="field"><span>Комментарий</span><input value="Допустимо по контексту"></label><button class="button danger translation-delete" type="button" data-delete-translation>Удалить</button></div>
+                </div>
+
+                <hr class="divider">
+                <h2 class="section-title">Допуск для детей</h2>
+                <div class="form-grid quiz-rules-grid"><label class="field"><span>Минимальный возраст</span><select><option>7 лет</option><option selected>10 лет</option><option>13 лет</option><option>16 лет</option></select></label><label class="field"><span>Максимальный возраст</span><select><option>9 лет</option><option selected>12 лет</option><option>15 лет</option><option>18 лет</option></select></label><label class="field"><span>Тематика</span><select><option selected>Учёба</option><option>Путешествия</option><option>Природа</option><option>Общение</option></select></label><label class="field"><span>Сложность</span><select><option selected>Базовая</option><option>Средняя</option><option>Продвинутая</option></select></label></div>
+                <div class="notice"><strong>Почему возраст обязателен</strong><span>Игра не должна случайно показывать младшим ученикам взрослую или неподходящую лексику.</span></div>
+
+                <hr class="divider">
+                <h2 class="section-title">Источник и модерация</h2>
+                <div class="form-grid quiz-basic-grid"><label class="field"><span>Источник</span><input data-word-source value="Oxford 3000" placeholder="Учебник, словарь, страница"></label><label class="field"><span>Статус после сохранения</span><select><option selected>Черновик</option><option>Отправить на проверку</option></select></label><label class="field full-width"><span>Заметка редактора</span><textarea rows="3" placeholder="Почему слово подходит для этой возрастной группы"></textarea></label></div>
+                <div class="actions"><button class="button primary" type="button" data-save-word>Сохранить</button><a class="button" href="admin-word-bank.html">Отмена</a></div>
+            </form>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

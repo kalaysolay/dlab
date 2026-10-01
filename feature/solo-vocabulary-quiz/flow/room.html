@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Подготовка к игре — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header compact-student-header">
+        <div class="student-header-row">
+            <a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+            <a class="button" href="index.html">Все игры</a>
+        </div>
+    </header>
+
+    <main class="page quiz-flow-page room-page" data-room>
+        <a class="flow-back" href="index.html">← Назад к играм</a>
+
+        <section class="room-hero panel">
+            <span class="room-game-icon" data-room-icon><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg></span>
+            <div class="room-game-copy">
+                <span class="flow-kicker" data-room-type>Слова</span>
+                <h1 class="page-title" data-room-title>English: слова</h1>
+                <p class="lede" data-room-description>Выбирайте правильный перевод английских слов.</p>
+            </div>
+            <span class="room-status"><span class="status-dot"></span> Можно начинать</span>
+        </section>
+
+        <div class="room-layout">
+            <section class="panel room-settings">
+                <div class="section-heading-row">
+                    <div><h2 class="flow-section-title">Перед игрой</h2><p class="flow-section-copy">Мы уже выставили подходящие настройки.</p></div>
+                    <span class="settings-ready">Готово</span>
+                </div>
+
+                <div class="room-setting-grid">
+                    <label class="field room-grade-field" data-grade-field>
+                        <span>Класс</span>
+                        <select name="roomGrade">
+                            <option value="3">3 класс</option>
+                            <option value="4">4 класс</option>
+                            <option value="5" selected>5 класс — ваш</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span data-count-label>Вопросов</span>
+                        <select name="roomCount">
+                            <option value="5">5 — быстро</option>
+                            <option value="10" selected>10 — обычно</option>
+                            <option value="15">15 — подольше</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span data-seconds-label>Время на вопрос</span>
+                        <select name="roomSeconds">
+                            <option value="10">10 секунд</option>
+                            <option value="15" selected>15 секунд</option>
+                            <option value="20">20 секунд</option>
+                            <option value="30">30 секунд</option>
+                        </select>
+                    </label>
+                </div>
+
+                <p class="safe-note" data-content-note><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg><span>В игре используются только проверенные слова подходящего уровня.</span></p>
+            </section>
+
+            <aside class="panel room-people">
+                <div class="section-heading-row">
+                    <div><h2 class="flow-section-title">Игроки</h2><p class="flow-section-copy" data-people-copy>Вы пока один — можно начинать.</p></div>
+                    <span class="people-count" data-people-count>1</span>
+                </div>
+
+                <div class="player-list" data-player-list>
+                    <div class="player-row">
+                        <span class="player-avatar">А</span>
+                        <span><strong>Айдар</strong><small>Организатор · вы</small></span>
+                        <span class="ready-mark">Готов</span>
+                    </div>
+                </div>
+
+                <button class="button room-invite-button" type="button" data-invite-toggle>
+                    <svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg>
+                    Пригласить друзей
+                </button>
+
+                <div class="invite-box" data-invite-box hidden>
+                    <span>Код комнаты</span>
+                    <div class="room-code-row"><strong data-room-code>QZ7K2M</strong><button class="button" type="button" data-copy-code>Копировать</button></div>
+                    <small>Друзья вводят код на странице «Войти по коду».</small>
+                    <button class="prototype-text-button" type="button" data-simulate-friend>Показать, как друг присоединится</button>
+                </div>
+            </aside>
+        </div>
+
+        <section class="room-start-card">
+            <div>
+                <strong data-start-question>Запускаем игру?</strong>
+                <span data-start-summary>10 вопросов · 15 секунд · сейчас играет 1 человек</span>
+            </div>
+            <a class="button primary room-start-button" href="word-game.html" data-room-start>Начать игру</a>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>
