@@ -35,6 +35,7 @@ import kz.damulab.auth.RegisterForm;
 import kz.damulab.auth.RegistrationService;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.content.SubjectRepository;
+import kz.damulab.config.DamulabQuizProperties;
 import kz.damulab.users.AppUserRepository;
 import kz.damulab.users.RoleCode;
 
@@ -65,6 +66,9 @@ class QuizArenaIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private DamulabQuizProperties quizProperties;
 
     @Autowired
     private MutableTestClock clock;
@@ -182,6 +186,9 @@ class QuizArenaIntegrationTest {
 
     @Test
     void studentQuizPagesAreServerRendered() throws Exception {
+        // CFG-01 не меняет старый портал: флаг связан с конфигурацией и выключен в test-профиле.
+        org.assertj.core.api.Assertions.assertThat(quizProperties.isGameCatalogEnabled()).isFalse();
+
         mockMvc.perform(get("/student/quiz")
                         .with(user(HOST).roles("STUDENT")))
                 .andExpect(status().isOk())

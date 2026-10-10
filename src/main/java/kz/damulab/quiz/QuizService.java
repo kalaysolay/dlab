@@ -273,6 +273,8 @@ public class QuizService {
     public void enforceActiveRoomTimeouts() {
         OffsetDateTime now = now();
         for (QuizRoom room : rooms.findByStatus(QuizRoomStatus.ACTIVE)) {
+            // Новые игры обслуживаются QuizRoomService: legacy grace/checker не должен менять их историю.
+            if (room.getGameVersion() != null) continue;
             boolean finished = enforceTimeoutsLocked(room, now);
             if (finished) {
                 eventPublisher.publish("room.finished", room);
@@ -575,8 +577,10 @@ public class QuizService {
     }
 
     private QuizRoom findRoom(String code) {
-        return rooms.findByCodeIgnoreCase(normalizeCode(code))
+        QuizRoom room = rooms.findByCodeIgnoreCase(normalizeCode(code))
                 .orElseThrow(() -> new QuizException("room_not_found"));
+        if (room.getGameVersion() != null) throw new QuizException("game_room_requires_new_api");
+        return room;
     }
 
     private QuizParticipant findParticipant(QuizRoom room, String studentEmail) {
@@ -604,10 +608,7 @@ public class QuizService {
     }
 
     private String normalizeCode(String code) {
-        if (code == null || code.isBlank()) {
-            throw new QuizException("room_code_required");
-        }
-        return code.trim().toUpperCase(Locale.ROOT);
+        return QuizRoomCode.normalize(code);
     }
 
     private String generateCode() {

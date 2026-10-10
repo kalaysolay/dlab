@@ -14,6 +14,7 @@
         </aside>
 
         <section class="panel quiz-admin-page" data-quiz-editor>
+            <div class="notice"><strong>Контракт этапа 3</strong><span>Числа ниже — статический пример. Сервер различает публикацию, новый черновик и видимость; <a href="GAME_ADMIN_CONTRACT.md">полный контракт</a>.</span></div>
             <div class="page-head">
                 <div><div class="quiz-admin-title-line"><h1 class="page-title" data-quiz-title>English: слова</h1><span class="badge success" data-quiz-status>Опубликована</span></div><p class="lede">Настройте карточку, правила комнаты и значения по умолчанию.</p></div>
                 <div class="row-actions"><a class="button" href="admin-quizzes.html">К списку</a><a class="button" href="admin-quiz-publish.html?game=english" data-preview-link>Проверить</a><button class="button primary" type="button" data-save-demo>Сохранить</button></div>
@@ -40,7 +41,8 @@
                     <div class="quiz-section-head"><div><h2 class="section-title">Класс и доступность</h2><p class="muted-line">Класс не является обязательным для всех типов игр.</p></div><span class="badge">Шаг 2</span></div>
                     <div class="form-grid quiz-basic-grid">
                         <label class="field"><span>Как использовать класс</span><select data-quiz-grade-policy><option value="none" selected>Не использовать</option><option value="profile">Взять из профиля, можно изменить</option><option value="required">Попросить выбрать обязательно</option></select></label>
-                        <label class="field" data-quiz-grades hidden><span>Разрешённые классы</span><div class="quiz-checkbox-row"><label><input type="checkbox" checked> 3 класс</label><label><input type="checkbox" checked> 4 класс</label><label><input type="checkbox" checked> 5 класс</label></div></label>
+                        <label class="field"><span>Политика аудитории (отдельно от выбора класса)</span><select><option>UNIVERSAL — явная универсальность</option><option>PARTICIPANT_GRADES — все профили</option><option>ROOM_GRADE — выбранный класс</option><option>FIXED_GRADES — ограниченный список</option></select></label>
+                        <label class="field" data-quiz-grades><span>Разрешённые классы</span><div class="quiz-checkbox-row"><label><input type="checkbox" checked> 3 класс</label><label><input type="checkbox" checked> 4 класс</label><label><input type="checkbox" checked> 5 класс</label></div></label>
                     </div>
                     <div class="notice"><strong data-grade-example-title>Поле класса не появится</strong><span data-grade-example>Ученик сразу увидит остальные настройки комнаты.</span></div>
                 </section>
@@ -51,10 +53,10 @@
                     <div class="form-grid quiz-rules-grid">
                         <label class="field"><span>Вопросов по умолчанию</span><select data-default-count><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
                         <label class="field"><span>Секунд на вопрос</span><select data-default-seconds><option>10</option><option selected>15</option><option>20</option><option>30</option></select></label>
-                        <label class="field"><span>Минимум игроков</span><select><option selected>1 — можно одному</option><option>2 — нужно ждать</option></select></label>
-                        <label class="field"><span>Максимум игроков</span><select><option>4</option><option selected>8</option><option>16</option><option>32</option></select></label>
-                        <label class="field"><span>Порядок вопросов</span><select><option selected>Случайный для комнаты</option><option>По порядку банка</option></select></label>
-                        <label class="field"><span>Вход после старта</span><select><option selected>Запрещён</option><option>Разрешён до второго вопроса</option></select></label>
+                        <label class="field"><span>Минимум игроков</span><select><option selected>1 — можно одному (фиксировано)</option></select></label>
+                        <label class="field"><span>Максимум игроков</span><select><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label>
+                        <label class="field"><span>Порядок вопросов</span><select><option selected>Случайный для комнаты</option></select></label>
+                        <label class="field"><span>Вход после старта</span><select><option selected>Запрещён (фиксировано)</option></select></label>
                     </div>
                 </section>
 
@@ -63,6 +65,6 @@
         </section>
     </main>
 </div>
-<script src="prototype.js"></script>
+<!-- Административные действия и счётчики реализует сервер; демонстрационный JS здесь отключён. -->
 </body>
 </html>

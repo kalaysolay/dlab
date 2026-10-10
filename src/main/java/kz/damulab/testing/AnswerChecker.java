@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import kz.damulab.questions.QuestionType;
 import kz.damulab.questions.QuestionVersion;
 
+/** Существующая предметная проверка; перегрузка с type/key обслуживает неизменяемые игровые снимки без JPA-источника. */
 @Component
 public class AnswerChecker {
 
@@ -34,19 +35,25 @@ public class AnswerChecker {
         this.objectMapper = objectMapper;
     }
 
+    /** Проверяет прежнюю предметную версию; семантика старых тестов и викторин сохраняется. */
     public AnswerCheckResult check(QuestionVersion version, JsonNode answer, BigDecimal points) {
-        boolean correct = switch (version.getType()) {
-            case SCQ -> checkChoice(version, answer, true);
-            case MCQ -> checkChoice(version, answer, false);
-            case MATCHING -> checkMatching(version, answer);
-            case FILL_IN -> checkFillIn(version, answer);
+        return check(version.getType(), version.getAnswerKeyJson(), answer, points);
+    }
+
+    /** Проверяет предметный снимок без обращения к изменяемому банку и без фиктивной JPA-версии. */
+    public AnswerCheckResult check(QuestionType type, String keyJson, JsonNode answer, BigDecimal points) {
+        boolean correct = switch (type) {
+            case SCQ -> checkChoice(keyJson, answer, true);
+            case MCQ -> checkChoice(keyJson, answer, false);
+            case MATCHING -> checkMatching(keyJson, answer);
+            case FILL_IN -> checkFillIn(keyJson, answer);
         };
         BigDecimal awarded = correct ? points : BigDecimal.ZERO;
         return new AnswerCheckResult(correct, awarded, detailsJson(correct, awarded));
     }
 
-    private boolean checkChoice(QuestionVersion version, JsonNode answer, boolean single) {
-        Set<String> expected = new HashSet<>(read(version.getAnswerKeyJson(), STRING_LIST));
+    private boolean checkChoice(String keyJson, JsonNode answer, boolean single) {
+        Set<String> expected = new HashSet<>(read(keyJson, STRING_LIST));
         Set<String> submitted = new HashSet<>();
         JsonNode selected = answer.path("selected");
         if (selected.isArray()) {
@@ -57,9 +64,9 @@ public class AnswerChecker {
         return (!single || submitted.size() == 1) && submitted.equals(expected);
     }
 
-    private boolean checkMatching(QuestionVersion version, JsonNode answer) {
+    private boolean checkMatching(String keyJson, JsonNode answer) {
         Map<String, String> expected = new LinkedHashMap<>();
-        JsonNode pairs = readTree(version.getAnswerKeyJson()).path("pairs");
+        JsonNode pairs = readTree(keyJson).path("pairs");
         pairs.forEach(pair -> expected.put(normalize(pair.path("left").asText()), normalize(pair.path("right").asText())));
 
         Map<String, String> submitted = new LinkedHashMap<>();
@@ -74,8 +81,8 @@ public class AnswerChecker {
         return submitted.equals(expected);
     }
 
-    private boolean checkFillIn(QuestionVersion version, JsonNode answer) {
-        Map<String, Map<String, String>> expected = read(version.getAnswerKeyJson(), FILL_KEY);
+    private boolean checkFillIn(String keyJson, JsonNode answer) {
+        Map<String, Map<String, String>> expected = read(keyJson, FILL_KEY);
         JsonNode submittedAnswers = answer.path("answers");
         if (!submittedAnswers.isObject()) {
             return false;

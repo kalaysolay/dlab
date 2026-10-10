@@ -396,12 +396,12 @@
         const applyWordFilter = () => {
             const formData = new FormData(wordFilter);
             const language = String(formData.get("language") || "");
-            const age = String(formData.get("age") || "");
+            const grade = String(formData.get("grade") || "");
             const status = String(formData.get("status") || "");
             const query = String(formData.get("query") || "").trim().toLowerCase();
             let visible = 0;
             document.querySelectorAll("[data-word-row]").forEach((row) => {
-                const matches = (!language || row.dataset.language === language) && (!age || row.dataset.age === age) && (!status || row.dataset.status === status) && (!query || row.dataset.search.includes(query));
+                const matches = (!language || row.dataset.language === language) && (!grade || row.dataset.grade === grade) && (!status || row.dataset.status === status) && (!query || row.dataset.search.includes(query));
                 row.hidden = !matches;
                 if (matches) visible += 1;
             });

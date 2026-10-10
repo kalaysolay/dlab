@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Администрирование игр</title>
+<th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block><link rel="stylesheet" th:href="@{/css/app.css}"></head>
+<body><div class="app-shell admin-shell"><main class="page admin-layout">
+<aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside><section class="panel">
+<div class="alert danger" role="alert" th:each="error : ${formErrors}" th:text="${error}"></div>
+<div class="alert success" role="status" th:if="${successMessage}" th:text="${successMessage}"></div>
+<div class="page-head"><div><h1 class="page-title">Игры</h1><p class="lede">Редакции, источники и публикация. Ученический каталог управляется отдельным флагом.</p></div><a class="button primary" th:href="@{/admin/quiz-games/new}">Создать игру</a></div>
+<form class="filter-bar" method="get" th:action="@{/admin/quiz-games}">
+<label class="field"><span>Поиск</span><input name="query" th:value="${query}"></label>
+<label class="field"><span>Тип</span><select name="type"><option value="">Любой</option><option th:each="type : ${gameTypes}" th:value="${type}" th:text="${type}" th:selected="${type == selectedType}"></option></select></label>
+<label class="field"><span>Статус</span><select name="status"><option value="">Любой</option><option th:each="status : ${statuses}" th:value="${status}" th:text="${status}" th:selected="${status == selectedStatus}"></option></select></label>
+<label class="field"><span>Перевод названия</span><select name="language"><option value="">Любой</option><option value="ru" th:selected="${selectedLanguage == 'ru'}">RU</option><option value="kk" th:selected="${selectedLanguage == 'kk'}">KK</option></select></label>
+<label class="field"><span>Ошибки публикации</span><select name="hasErrors"><option value="">Любые</option><option value="true" th:selected="${selectedHasErrors == true}">Есть</option><option value="false" th:selected="${selectedHasErrors == false}">Нет</option></select></label>
+<button class="button" type="submit">Показать</button><a class="button" th:href="@{/admin/quiz-games}">Сбросить</a></form>
+<p class="empty-state" th:if="${#lists.isEmpty(games)}">Игры не найдены. Создайте игру или измените фильтры.</p>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Игра / код / тип</th><th>Редакции и видимость</th><th>Источник / пригодно</th><th>Политики</th><th>Изменение</th><th>Действия</th></tr></thead><tbody>
+<tr th:each="item : ${games}"><td><strong th:text="${item.form.titleRu}"></strong><span class="muted-line" th:text="${item.game.code}"></span><span th:text="${item.form.gameType}"></span></td>
+<td><span th:text="${item.game.status}"></span><span class="muted-line" th:text="${item.game.catalogVisible ? 'Видима' : 'Скрыта'}"></span><span class="muted-line" th:text="${item.game.publishedVersion == null ? 'Публикации нет' : 'Публикация v' + item.game.publishedVersion.versionNo}"></span><span class="muted-line" th:if="${item.game.draftVersion != null}" th:text="${'Черновик v' + item.game.draftVersion.versionNo + ': ' + item.game.draftVersion.status}"></span></td>
+<td><a th:href="${item.content.bankUrl}" th:text="${item.content.source}"></a><span class="muted-line" th:text="${'Пригодно: ' + item.content.worst.playable}"></span><span class="muted-line" th:text="${'Ошибок: ' + #lists.size(item.errors)}"></span></td>
+<td><span th:text="${item.form.gradeSelectionMode}"></span><span class="muted-line" th:text="${item.form.audiencePolicy}"></span></td>
+<td><span th:text="${item.game.updatedAt}"></span><span class="muted-line" th:text="${'Автор редакции: ' + item.version.createdBy}"></span></td>
+<td><nav th:replace="~{fragments/quiz-game-admin :: tabs(${item})}"></nav></td></tr></tbody></table></div>
+</section></main></div></body></html>

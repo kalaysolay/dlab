@@ -71,6 +71,14 @@ damulab:
   parent-link-invitations:
     token-ttl: ${PARENT_LINK_INVITATION_TOKEN_TTL:24h}
     resend-cooldown: ${PARENT_LINK_INVITATION_RESEND_COOLDOWN:1m}
+  quiz:
+    # CFG-01: безопасная конфигурационная основа; переключение маршрута добавляется в COMP-03.
+    # Выключение каталога не отключает уже созданные комнаты и timeout scheduler.
+    game-catalog-enabled: ${QUIZ_GAME_CATALOG_ENABLED:false}
+    # DEC-01: аудит автора/проверяющего всегда сохраняется; строгий запрет opt-in.
+    strict-self-review: ${QUIZ_STRICT_SELF_REVIEW:false}
+    # ROOM-06: срок ожидающей комнаты; ACTIVE продолжает собственное серверное расписание.
+    waiting-timeout: ${QUIZ_WAITING_TIMEOUT:30m}
   testing:
     default-question-count: 12
     max-question-count: 20

@@ -16,6 +16,9 @@
         <a th:classappend="${activeAdminNav == 'subjects'} ? 'active'" th:href="@{/admin/subjects}" th:text="#{admin.nav.subjects}">Предметы</a>
         <a th:classappend="${activeAdminNav == 'topics'} ? 'active'" th:href="@{/admin/topics}" th:text="#{admin.nav.topics}">Темы</a>
         <a th:classappend="${activeAdminNav == 'questions'} ? 'active'" th:href="@{/admin/questions}" th:text="#{admin.nav.questions}">Вопросы</a>
+        <a th:classappend="${activeAdminNav == 'quizGames'} ? 'active'" th:href="@{/admin/quiz-games}" th:text="#{admin.nav.quizGames}">Игры</a>
+        <a th:classappend="${activeAdminNav == 'vocabulary'} ? 'active'" th:href="@{/admin/vocabulary}" th:text="#{admin.nav.vocabulary}">Банк слов</a>
+        <a th:classappend="${activeAdminNav == 'facts'} ? 'active'" th:href="@{/admin/facts}" th:text="#{admin.nav.facts}">Банк утверждений</a>
         <a th:classappend="${activeAdminNav == 'question-ai'} ? 'active'" th:href="@{/admin/questions/ai-generate}" th:text="#{admin.nav.questionAi}">AI генерация</a>
         <a th:classappend="${activeAdminNav == 'ai-examples'} ? 'active'" th:href="@{/admin/ai-examples}" th:text="#{admin.nav.aiExamples}">Эталоны для ИИ</a>
         <a th:classappend="${activeAdminNav == 'ai-settings'} ? 'active'" th:href="@{/admin/settings/ai}" th:text="#{admin.nav.aiSettings}">Настройки AI</a>

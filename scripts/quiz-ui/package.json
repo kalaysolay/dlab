@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Изолированные DOM regression-тесты игрового UI",
+  "scripts": { "test": "node --test ../quiz-game-ui.test.cjs ../quiz-game-dom.test.cjs" },
+  "devDependencies": { "jsdom": "26.1.0" }
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Администрирование игр</title>
+<th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block><link rel="stylesheet" th:href="@{/css/app.css}"></head>
+<body><div class="app-shell admin-shell"><main class="page admin-layout">
+<aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside><section class="panel">
+<div class="alert danger" role="alert" th:each="error : ${formErrors}" th:text="${error}"></div>
+<div class="alert success" role="status" th:if="${successMessage}" th:text="${successMessage}"></div>
+<div class="page-head"><div><h1 class="page-title" th:text="${gameId == null ? 'Новая игра' : 'Настройки игры'}"></h1><p class="lede">Сохранение создаёт черновую редакцию; опубликованная версия продолжает работать.</p></div><a class="button" th:href="@{/admin/quiz-games}">К списку</a></div>
+<th:block th:if="${item != null}"><nav th:replace="~{fragments/quiz-game-admin :: tabs(${item})}"></nav><div th:replace="~{fragments/quiz-game-admin :: status(${item})}"></div></th:block>
+<form class="form wide-form" method="post" th:object="${gameForm}" th:action="${gameId == null} ? @{/admin/quiz-games} : @{/admin/quiz-games/{id}(id=${gameId})}">
+<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><input type="hidden" th:field="*{expectedRevision}">
+<fieldset class="subpanel"><legend>Карточка</legend><div class="form-grid">
+<label class="field"><span>Код</span><input th:field="*{code}" maxlength="96" required th:readonly="${item != null and item.game.publishedVersion != null}"></label>
+<label class="field"><span>Тип игры</span><select data-game-type th:field="*{gameType}" th:disabled="${item != null and item.game.publishedVersion != null}"><option th:each="type : ${gameTypes}" th:value="${type}" th:text="${type}"></option></select></label>
+<input th:if="${item != null and item.game.publishedVersion != null}" type="hidden" th:field="*{gameType}">
+<label class="field"><span>Название RU</span><input th:field="*{titleRu}" maxlength="255"></label><label class="field"><span>Название KK</span><input th:field="*{titleKk}" maxlength="255"></label>
+<label class="field"><span>Описание RU</span><textarea th:field="*{descriptionRu}" rows="3"></textarea></label><label class="field"><span>Описание KK</span><textarea th:field="*{descriptionKk}" rows="3"></textarea></label>
+<label class="field"><span>Подпись механики RU</span><input th:field="*{mechanicLabelRu}" maxlength="128"></label><label class="field"><span>Подпись механики KK</span><input th:field="*{mechanicLabelKk}" maxlength="128"></label>
+<label class="field"><span>Стиль карточки</span><select th:field="*{cardStyle}"><option th:each="style : ${cardStyles}" th:value="${style}" th:text="${style}"></option></select></label><label class="field"><span>Порядок в каталоге</span><input type="number" th:field="*{catalogOrder}"></label>
+</div></fieldset>
+<fieldset class="subpanel"><legend>Класс и аудитория</legend><div class="form-grid">
+<label class="field"><span>Политика выбора класса</span><select th:field="*{gradeSelectionMode}"><option th:each="mode : ${gradeModes}" th:value="${mode}" th:text="${mode}"></option></select></label>
+<label class="field"><span>Политика безопасной аудитории</span><select th:field="*{audiencePolicy}"><option th:each="policy : ${audiencePolicies}" th:value="${policy}" th:text="${policy}"></option></select></label>
+</div><p>ROOM_GRADE требует выбора класса; PARTICIPANT_GRADES использует все профили и NONE. Пустой список классов не означает универсальность.</p>
+<label th:each="grade : ${grades}"><input type="checkbox" th:field="*{gradeIds}" th:value="${grade.id}"> <span th:text="${grade.titleRu}"></span> </label></fieldset>
+<fieldset class="subpanel"><legend>Комната и раунды</legend><p>Минимум участников всегда 1, вход после старта запрещён.</p><div class="form-grid">
+<label class="field"><span>Раундов: минимум</span><input type="number" min="1" th:field="*{minQuestionCount}"></label><label class="field"><span>Раундов: по умолчанию</span><input type="number" min="1" th:field="*{defaultQuestionCount}"></label><label class="field"><span>Раундов: максимум</span><input type="number" min="1" th:field="*{maxQuestionCount}"></label>
+<label class="field"><span>Секунд: минимум</span><input type="number" min="1" th:field="*{minRoundSeconds}"></label><label class="field"><span>Секунд: по умолчанию</span><input type="number" min="1" th:field="*{defaultRoundSeconds}"></label><label class="field"><span>Секунд: максимум</span><input type="number" min="1" th:field="*{maxRoundSeconds}"></label>
+<label class="field"><span>Максимум игроков</span><input type="number" min="1" max="4" th:field="*{maxPlayers}"></label></div>
+<label><input type="checkbox" th:field="*{questionCountEditable}"> Организатор может менять число раундов в диапазоне</label>
+<label><input type="checkbox" th:field="*{roundSecondsEditable}"> Организатор может менять секунды в диапазоне</label></fieldset>
+<fieldset class="subpanel"><legend>Источник выбранного типа</legend><p>Сохраняются настройки только выбранного типа. Межнаборные дистракторы разрешаются явно в опубликованной редакции словарного набора.</p>
+<div data-game-source="WORD_TRANSLATION"><h2>Перевод слов</h2><label class="field"><span>Словарный набор</span><select th:field="*{vocabularySetId}"><option value="">Выберите</option><option th:each="set : ${wordSets}" th:value="${set.id}" th:text="${set.code + ' (' + set.sourceLanguage + ' → ' + set.targetLanguage + ')'}"></option></select></label>
+<div class="form-grid"><label class="field"><span>Исходный язык</span><select th:field="*{sourceLanguage}"><option value="en">en</option><option value="kk">kk</option><option value="ru">ru</option></select></label><label class="field"><span>Целевой язык</span><select th:field="*{targetLanguage}"><option value="ru">ru</option><option value="kk">kk</option></select></label></div>
+</div><div data-game-source="SUBJECT_QUIZ"><h2>Предметная викторина</h2><label class="field"><span>Предмет</span><select th:field="*{subjectId}"><option value="">Выберите</option><option th:each="subject : ${subjects}" th:value="${subject.id}" th:text="${subject.titleRu}"></option></select></label>
+<label class="field"><span>Сложность (пусто — любая)</span><input type="number" min="1" max="5" th:field="*{difficulty}"></label>
+<label th:each="type : ${questionTypes}"><input type="checkbox" th:field="*{questionTypes}" th:value="${type}"> <span th:text="${type}"></span> </label>
+</div><div data-game-source="TRUE_FALSE"><h2>Верю / не верю</h2><label class="field"><span>Набор утверждений</span><select th:field="*{factSetId}"><option value="">Выберите</option><option th:each="set : ${factSets}" th:value="${set.id}" th:text="${set.titleRu}"></option></select></label></div></fieldset>
+<div class="actions"><button class="button primary" type="submit" th:disabled="${item != null and item.game.status.name() == 'ARCHIVED'}">Сохранить черновую редакцию</button><a class="button" th:href="@{/admin/quiz-games}">Отмена</a></div>
+</form>
+</section></main></div><script th:src="@{/js/quiz-game-admin.js}" defer></script></body></html>

@@ -1,7 +1,10 @@
 package kz.damulab.quiz;
 
+/** Состояния комнаты; отмена и истечение не удаляют её историю. */
 public enum QuizRoomStatus {
     WAITING,
     ACTIVE,
-    FINISHED
+    FINISHED,
+    CANCELLED,
+    EXPIRED
 }

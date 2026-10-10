@@ -1,9 +1,10 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:damulab;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    # PostgreSQL-прогон использует только явно заданную изолированную тестовую БД.
+    url: ${QUIZ_TEST_DB_URL:jdbc:h2:mem:damulab;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    driver-class-name: ${QUIZ_TEST_DB_DRIVER:org.h2.Driver}
+    username: ${QUIZ_TEST_DB_USER:sa}
+    password: ${QUIZ_TEST_DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,6 +23,9 @@ damulab:
     max-topic-share-percent: 40
     mastery-stale-after-days: 30
   quiz:
+    # Регрессия старого портала не зависит от QUIZ_GAME_CATALOG_ENABLED машины разработчика.
+    game-catalog-enabled: false
+    strict-self-review: false
     timeout-worker-enabled: false
   subjects:
     icons:

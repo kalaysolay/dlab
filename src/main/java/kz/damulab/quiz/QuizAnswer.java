@@ -1,5 +1,9 @@
 package kz.damulab.quiz;
 
+import kz.damulab.quiz.catalog.*;
+import jakarta.persistence.*;
+import java.util.*;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
@@ -15,7 +19,18 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "quiz_answers")
+/** Компонент комнаты: nullable-поля сохраняют legacy, новые механики опираются на версию и снимки. */
 public class QuizAnswer {
+
+    @Column(name = "response_ms")
+    private Long responseMs;
+
+    @Column(name = "timed_out")
+    private boolean timedOut;
+
+    @Column(name = "skipped")
+    private boolean skipped;
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,6 +56,31 @@ public class QuizAnswer {
     @Column(name = "answered_at", nullable = false)
     private OffsetDateTime answeredAt = OffsetDateTime.now();
 
+    /** Возвращает responseMs. */
+    public Long getResponseMs() { return responseMs; }
+
+    /** Возвращает timedOut. */
+    public boolean isTimedOut() { return timedOut; }
+
+    /** Возвращает skipped. */
+    public boolean isSkipped() { return skipped; }
+
+    /** Однократно фиксирует время и skip/timeout; legacy-время остаётся null. */
+    public void recordTiming(long responseMs, boolean timedOut, boolean skipped) {
+        recordTiming(responseMs, timedOut, skipped, answeredAt);
+    }
+
+    /** Записывает серверную метку принятия отдельно от вклада skip/timeout в разрешение ничьей. */
+    public void recordTiming(long responseMs, boolean timedOut, boolean skipped, OffsetDateTime acceptedAt) {
+        if (this.responseMs != null) throw new IllegalStateException("Ответ уже зафиксирован");
+        if (responseMs < 0 || (timedOut && skipped)) throw new IllegalArgumentException("Некорректные параметры времени");
+        if ((timedOut || skipped) && (correct || pointsAwarded.signum() != 0))
+            throw new IllegalArgumentException("Пропуск и таймаут не приносят баллов");
+        Objects.requireNonNull(acceptedAt);
+        this.responseMs = responseMs; this.timedOut = timedOut; this.skipped = skipped;
+        this.answeredAt = acceptedAt;
+    }
+
     protected QuizAnswer() {
     }
 
@@ -58,7 +98,9 @@ public class QuizAnswer {
         this.pointsAwarded = pointsAwarded == null ? BigDecimal.ZERO : pointsAwarded;
     }
 
+    /** Legacy допускает исправление; в новой игре первый ответ окончателен. */
     public void replace(String answerJson, boolean correct, BigDecimal pointsAwarded) {
+        if (round.getRoom().getGameVersion() != null) throw new IllegalStateException("Ответ новой игры окончателен");
         this.answerJson = answerJson;
         this.correct = correct;
         this.pointsAwarded = pointsAwarded == null ? BigDecimal.ZERO : pointsAwarded;

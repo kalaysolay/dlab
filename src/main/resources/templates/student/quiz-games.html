@@ -1,0 +1,30 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/quiz-ui-head :: head}"></head><body><div class="app-shell">
+<header th:replace="~{fragments/student-header :: studentHeader}"></header>
+<main class="page qg-page" data-quiz-catalog>
+    <section class="qg-heading"><div><h1 class="page-title" th:text="#{quiz.ui.catalog}"></h1><p class="lede" th:text="#{quiz.ui.intro}"></p></div>
+        <a class="button" th:href="@{/student/quiz/join}" th:text="#{quiz.ui.join}"></a></section>
+    <p class="alert error" role="alert" th:if="${error}" th:text="${error}"></p>
+    <section class="panel" th:if="${cards.isEmpty()}"><h2 th:text="#{quiz.ui.empty}"></h2><a class="button" th:href="@{/student}" th:text="#{quiz.ui.back}"></a></section>
+    <section class="qg-catalog" th:aria-label="#{quiz.ui.catalog}">
+        <form th:each="card : ${cards}" class="qg-card panel" th:attr="data-card-style=${card.style}" th:action="@{/student/quiz/games/rooms}" method="post" data-create-game>
+            <input type="hidden" name="gameCode" th:value="${card.code}"><input type="hidden" name="idempotencyKey" th:value="${card.key}">
+            <label class="field" th:if="${card.gradeMode != 'NONE'}"><span th:text="#{quiz.ui.grade}"></span>
+                <select name="gradeId" required th:aria-describedby="${'reason-'+card.code}">
+                    <option value="" th:text="#{quiz.ui.chooseGrade}"></option>
+                    <option th:each="grade : ${card.grades}" th:value="${grade.id}" th:text="${grade.title}"
+                            th:selected="${grade.id == card.selectedGradeId}" th:disabled="${grade.blocker != null}"></option>
+                </select></label>
+            <!-- Вся содержательная карточка — одна submit-кнопка: мышь и клавиатура запускают один POST. -->
+            <button type="submit" class="qg-card-action" th:disabled="${card.blocker != null}" th:aria-describedby="${'reason-'+card.code}">
+                <span class="badge" th:text="${quizLabels[card.type]}"></span><strong th:text="${card.title}"></strong>
+                <span class="qg-description" th:text="${card.description}"></span><span th:if="${!#strings.isEmpty(card.mechanic)}" th:text="${card.mechanic}"></span>
+                <span class="qg-meta"><span th:text="${quizLabels['rounds'] + ': ' + card.count}"></span><span th:text="${quizLabels['seconds'] + ': ' + card.seconds}"></span>
+                    <span th:text="${quizLabels['players'] + ': 1–' + card.maxPlayers}"></span></span>
+                <span class="qg-play" th:text="#{quiz.ui.play}"></span>
+            </button>
+            <p th:id="${'reason-'+card.code}" class="qg-reason" th:text="${card.blocker == null ? '' : quizLabels[card.blocker]}"></p>
+            <a th:if="${card.blocker == 'PROFILE_GRADE_REQUIRED' or card.blocker == 'INVALID_GRADE'}" th:href="@{/student/profile}" th:text="#{quiz.ui.profile}"></a>
+        </form>
+    </section>
+</main></div></body></html>

@@ -21,17 +21,24 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import kz.damulab.testing.TestType;
 
+/** Ученические SSR-маршруты: legacy-формы сохранены, новые комнаты используют безопасные оболочки по типу комнаты. */
 @Controller
 public class QuizPageController {
 
     private final QuizService quizService;
+    private final QuizRoomService gameRooms;
+    private final QuizStudentPageController gamePages;
+    private final kz.damulab.config.DamulabQuizProperties properties;
 
-    public QuizPageController(QuizService quizService) {
+    /** Подключает оба режима; damulab.quiz.game-catalog-enabled переключает только вход, сохраняя доступ к истории. */
+    public QuizPageController(QuizService quizService,QuizRoomService gameRooms,QuizStudentPageController gamePages,kz.damulab.config.DamulabQuizProperties properties) {
         this.quizService = quizService;
+        this.gameRooms=gameRooms; this.gamePages=gamePages; this.properties=properties;
     }
 
     @GetMapping("/student/quiz")
-    String hub(Model model, Locale locale) {
+    String hub(Principal principal, Model model, Locale locale) {
+        if (properties.isGameCatalogEnabled()) return gamePages.hub(principal,model,locale);
         populateHub(model, locale);
         if (!model.containsAttribute("createQuizRoomRequest")) {
             CreateQuizRoomRequest form = new CreateQuizRoomRequest();
@@ -78,7 +85,8 @@ public class QuizPageController {
     }
 
     @GetMapping("/student/quiz/rooms/{code}")
-    String room(Principal principal, @PathVariable String code, Model model) {
+    String room(Principal principal, @PathVariable String code, Model model,Locale locale) {
+        if (gameRooms.isGameRoom(code)) return gamePages.room(principal,code,model,locale);
         model.addAttribute("room", quizService.room(code, principal.getName()));
         return "student/quiz-room";
     }
@@ -112,7 +120,11 @@ public class QuizPageController {
     }
 
     @GetMapping("/student/quiz/rooms/{code}/results")
-    String results(Principal principal, @PathVariable String code, Model model) {
+    String results(Principal principal, @PathVariable String code, Model model,Locale locale) {
+        if (gameRooms.isGameRoom(code)) {
+            gameRooms.results(code,principal.getName());
+            return gamePages.room(principal,code,model,locale);
+        }
         model.addAttribute("results", quizService.results(code, principal.getName()));
         return "student/quiz-results";
     }

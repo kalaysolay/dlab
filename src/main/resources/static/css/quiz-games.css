@@ -1,0 +1,44 @@
+/* Общая оболочка новых игр использует цвета и компоненты app.css; legacy-страницы не затрагиваются. */
+.qg-page { max-width:1100px; margin-inline:auto; }
+.qg-page [hidden] { display:none !important; }
+.qg-heading { display:flex; gap:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.qg-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:1rem; }
+.qg-card { display:flex; flex-direction:column; gap:.6rem; padding:1.2rem; }
+/* Только разрешённые коды публикации выбирают существующие цвета; редактор не передаёт CSS. */
+.qg-card[data-card-style="english"],.qg-card[data-card-style="math"] { border-top:4px solid var(--primary); }
+.qg-card[data-card-style="kazakh"] { border-top:4px solid var(--success); }
+.qg-card[data-card-style="facts"] { border-top:4px solid var(--text); }
+.qg-card-action { display:flex; flex-direction:column; text-align:start; align-items:start; gap:.8rem; width:100%; flex:1; border:0; background:transparent; color:var(--text); cursor:pointer; padding:.6rem; font:inherit; border-radius:16px; }
+.qg-card-action strong { font-size:1.5rem; }
+.qg-card-action:disabled { cursor:default; color:var(--muted); }
+.qg-card-action:not(:disabled):hover { background:var(--surface-muted); }
+.qg-description { overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.qg-meta { display:flex; gap:.8rem; flex-wrap:wrap; color:var(--muted); font-size:.9rem; }
+.qg-play { font-weight:800; color:var(--primary); }
+.qg-page button,.qg-page input,.qg-page select,.qg-page .button { min-height:44px; min-width:44px; }
+.qg-page a:not(.button) { display:inline-flex; align-items:center; min-height:44px; min-width:44px; }
+.qg-page input,.qg-page select { max-width:100%; font:inherit; }
+.qg-page :focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
+.qg-reason,.qg-error { color:var(--danger); overflow-wrap:anywhere; }
+.qg-error:empty { display:none; }
+.qg-status { min-height:1.5rem; }
+.qg-narrow { max-width:640px; margin-inline:auto; }
+.qg-settings { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:1rem; margin-block:1rem; }
+.qg-participants { display:flex; flex-wrap:wrap; gap:.8rem; margin-block:1rem; }
+.qg-participant { padding:.6rem 1rem; border:1px solid var(--line); border-radius:16px; }
+.qg-actions { flex-wrap:wrap; gap:.7rem; margin-block:1rem; }
+.qg-active { max-width:850px; margin-inline:auto; }
+.qg-active h2 { font-size:clamp(1.3rem,4vw,2rem); white-space:pre-wrap; overflow-wrap:anywhere; }
+.qg-active fieldset { border:0; padding:0; min-width:0; }
+.qg-choice { display:flex; gap:.7rem; align-items:center; padding:1rem; margin-block:.7rem; border:2px solid var(--line); border-radius:16px; cursor:pointer; overflow-wrap:anywhere; }
+.qg-choice:has(input:checked) { border-color:var(--primary); background:var(--surface-muted); }
+.qg-choice input { flex:none; width:22px; min-width:22px; min-height:22px; }
+.qg-timer { font-variant-numeric:tabular-nums; }
+.qg-review-row { border-top:1px solid var(--line); padding-block:1.2rem; overflow-wrap:anywhere; }
+.qg-review-row h4,.qg-review-row p { white-space:pre-wrap; }
+.qg-table-wrap { overflow:auto; }
+.qg-table { border-collapse:collapse; width:100%; }
+.qg-table th,.qg-table td { text-align:start; padding:.7rem; border-bottom:1px solid var(--line); }
+.qg-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:480px) { .qg-page { padding-inline:12px; } .qg-page .panel { padding:16px; } .qg-actions .button { flex:1 1 130px; } }
+@media(prefers-reduced-motion:reduce) { .qg-page *, .qg-page *::before,.qg-page *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
