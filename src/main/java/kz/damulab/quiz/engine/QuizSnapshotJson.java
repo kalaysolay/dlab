@@ -36,6 +36,6 @@ public class QuizSnapshotJson {
         String preferred = "kk".equals(locale) ? kk : ru;
         if (preferred != null && !preferred.isBlank()) return preferred;
         if (ru != null && !ru.isBlank()) return ru;
-        return kk == null ? "" : kk;
+        return kk == null || kk.isBlank() ? "" : kk;
     }
 }

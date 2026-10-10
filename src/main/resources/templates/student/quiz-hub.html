@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Викторины Damulab.kz</title>
+    <title th:text="#{quiz.legacy.hubTitle}">Викторины Damulab.kz</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
@@ -14,8 +14,8 @@
         <section class="panel quiz-hero-panel">
             <div>
                 <span class="section-kicker">Quiz Arena</span>
-                <h1 class="page-title">Собери комнату и сыграй с друзьями</h1>
-                <p class="lede">Короткие раунды по таймеру: победа зависит от точности и скорости ответа.</p>
+                <h1 class="page-title" th:text="#{quiz.legacy.hubHeading}">Собери комнату и сыграй с друзьями</h1>
+                <p class="lede" th:text="#{quiz.legacy.hubLead}">Короткие раунды по таймеру: победа зависит от точности и скорости ответа.</p>
             </div>
         </section>
 
@@ -23,26 +23,26 @@
 
         <section class="quiz-hub-cards">
             <article class="panel">
-                <h2 class="section-title">Быстрая комната</h2>
-                <p class="muted-line">2-4 игрока, выбранные фильтры и старт от хоста.</p>
+                <h2 class="section-title" th:text="#{quiz.legacy.quick}">Быстрая комната</h2>
+                <p class="muted-line" th:text="#{quiz.legacy.quickLead}">2-4 игрока, выбранные фильтры и старт от хоста.</p>
             </article>
             <article class="panel">
-                <h2 class="section-title">Вход по коду</h2>
-                <p class="muted-line">Код комнаты выглядит как <strong>QZ7K2M</strong>.</p>
+                <h2 class="section-title" th:text="#{quiz.ui.join}">Вход по коду</h2>
+                <p class="muted-line"><span th:text="#{quiz.legacy.codeExample}">Код комнаты выглядит как QZ7K2M.</span></p>
             </article>
             <article class="panel">
-                <h2 class="section-title">Мой рейтинг</h2>
-                <p class="muted-line">После завершения комнаты результат попадает в таблицу.</p>
+                <h2 class="section-title" th:text="#{quiz.legacy.myRating}">Мой рейтинг</h2>
+                <p class="muted-line" th:text="#{quiz.legacy.ratingLead}">После завершения комнаты результат попадает в таблицу.</p>
             </article>
         </section>
 
         <section class="quiz-workbench">
             <article class="panel quiz-setup-panel">
-                <h2 class="section-title">Создать комнату</h2>
-                <p class="muted-line">Сейчас доступны школьные предметы. Позже здесь появятся готовые шаблоны: слова, познавательные темы и другие наборы.</p>
+                <h2 class="section-title" th:text="#{quiz.legacy.create}">Создать комнату</h2>
+                <p class="muted-line" th:text="#{quiz.legacy.schoolLead}">Сейчас доступны школьные предметы. Позже здесь появятся готовые шаблоны: слова, познавательные темы и другие наборы.</p>
                 <div class="notice" th:if="${quizSetupCatalog.subjects().isEmpty()}">
-                    <strong>Пока нет доступных викторин</strong>
-                    <span>Опубликуйте вопросы в банке вопросов, и они появятся в мастере создания комнаты.</span>
+                    <strong th:text="#{quiz.legacy.empty}">Пока нет доступных викторин</strong>
+                    <span th:text="#{quiz.legacy.emptyLead}">Опубликуйте вопросы в банке вопросов, и они появятся в мастере создания комнаты.</span>
                 </div>
                 <form class="form wide-form quiz-setup-form"
                       th:if="${!quizSetupCatalog.subjects().isEmpty()}"
@@ -57,30 +57,30 @@
                         <label class="field quiz-setup-step">
                             <span class="quiz-step-index">1</span>
                             <span>
-                                <strong>Выберите предмет</strong>
-                                <small>Показываем только предметы с опубликованными вопросами.</small>
+                                <strong th:text="#{quiz.legacy.subject}">Выберите предмет</strong>
+                                <small th:text="#{quiz.legacy.subjectLead}">Показываем только предметы с опубликованными вопросами.</small>
                             </span>
                             <select id="quizSubjectSelect" name="subjectId" th:field="*{subjectId}" required>
-                                <option value="">Выберите предмет</option>
+                                <option value="" th:text="#{quiz.legacy.subject}">Выберите предмет</option>
                                 <option th:each="subject : ${quizSetupCatalog.subjects()}"
                                         th:value="${subject.id()}"
                                         th:attr="data-title-ru=${subject.titleRu()},data-title-kk=${subject.titleKk()},data-question-count=${subject.questionCount()}"
-                                        th:text="${#locale.language == 'kk' ? subject.titleKk() : subject.titleRu()}">Математика</option>
+                                        th:text="${T(kz.damulab.quiz.engine.QuizSnapshotJson).localized(subject.titleRu(), subject.titleKk(), #locale.language)}">Математика</option>
                             </select>
                         </label>
                         <label class="field quiz-setup-step" id="quizGradeStep" hidden>
                             <span class="quiz-step-index">2</span>
                             <span>
-                                <strong>Выберите класс</strong>
-                                <small>Классы зависят от выбранного предмета.</small>
+                                <strong th:text="#{quiz.legacy.grade}">Выберите класс</strong>
+                                <small th:text="#{quiz.legacy.gradeLead}">Классы зависят от выбранного предмета.</small>
                             </span>
                             <select id="quizGradeSelect" name="gradeId" th:attr="data-selected=${createQuizRoomRequest.gradeId}" required></select>
                         </label>
                         <label class="field quiz-setup-step" id="quizLanguageStep" hidden>
                             <span class="quiz-step-index">3</span>
                             <span>
-                                <strong>Язык обучения</strong>
-                                <small>По умолчанию выбран текущий язык сайта.</small>
+                                <strong th:text="#{quiz.legacy.language}">Язык обучения</strong>
+                                <small th:text="#{quiz.legacy.languageLead}">По умолчанию выбран текущий язык сайта.</small>
                             </span>
                             <select id="quizLanguageSelect" th:field="*{language}">
                                 <option value="ru">Русский</option>
@@ -92,32 +92,32 @@
                     <div class="form-grid two-col quiz-setup-options">
                         <input type="hidden" th:field="*{difficulty}" value="">
                         <label class="field">
-                            <span>Вопросов</span>
+                            <span th:text="#{quiz.legacy.questionCount}">Вопросов</span>
                             <input type="number" min="1" max="12" th:field="*{questionCount}">
                         </label>
                         <label class="field">
-                            <span>Секунд на раунд</span>
+                            <span th:text="#{quiz.legacy.seconds}">Секунд на раунд</span>
                             <input type="number" min="5" max="120" th:field="*{roundSeconds}">
                         </label>
                         <input type="hidden" th:field="*{maxPlayers}" value="4">
                     </div>
                     <div class="actions">
-                        <button class="button primary" type="submit">Создать комнату</button>
+                        <button class="button primary" type="submit" th:text="#{quiz.legacy.create}">Создать комнату</button>
                     </div>
                 </form>
             </article>
 
             <article class="panel">
-                <h2 class="section-title">Войти по коду</h2>
-                <p class="muted-line">Присоединение доступно, пока комната ожидает игроков.</p>
+                <h2 class="section-title" th:text="#{quiz.ui.join}">Войти по коду</h2>
+                <p class="muted-line" th:text="#{quiz.legacy.joinLead}">Присоединение доступно, пока комната ожидает игроков.</p>
                 <form class="form wide-form" th:action="@{/student/quiz/rooms/join}" method="post">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <label class="field">
-                        <span>Код комнаты</span>
+                        <span th:text="#{quiz.ui.code}">Код комнаты</span>
                         <input name="code" th:value="${joinCode}" placeholder="QZ7K2M" maxlength="16" autocomplete="off">
                     </label>
                     <div class="actions">
-                        <button class="button primary" type="submit">Войти</button>
+                        <button class="button primary" type="submit" th:text="#{quiz.legacy.join}">Войти</button>
                     </div>
                 </form>
             </article>
@@ -131,6 +131,8 @@
             return;
         }
         const catalog = /*[[${quizSetupCatalog}]]*/ {"subjects":[]};
+        const selectGrade = /*[[#{quiz.legacy.grade}]]*/ "Выберите класс";
+        const summaryLabel = /*[[#{quiz.legacy.summary}]]*/ "Доступно вопросов: {count}. Язык комнаты: {language}.";
         const locale = form.dataset.defaultLanguage === "kk" ? "kk" : "ru";
         const subjectSelect = form.querySelector("[name='subjectId']");
         const gradeSelect = form.querySelector("[name='gradeId']");
@@ -144,7 +146,7 @@
         }
 
         function title(item) {
-            return locale === "kk" && item.titleKk ? item.titleKk : item.titleRu;
+            return (locale === "kk" ? item.titleKk : item.titleRu)?.trim() || item.titleRu?.trim() || item.titleKk?.trim() || "";
         }
 
         function selectedSubject() {
@@ -163,7 +165,7 @@
             }
             const placeholder = document.createElement("option");
             placeholder.value = "";
-            placeholder.textContent = "Выберите класс";
+            placeholder.textContent = selectGrade;
             gradeSelect.appendChild(placeholder);
             (subject?.grades || []).forEach((grade) => {
                 const option = document.createElement("option");
@@ -186,8 +188,8 @@
                 summary.hidden = true;
                 return;
             }
-            const language = languageSelect?.value === "kk" ? "казахском" : "русском";
-            summary.textContent = `${title(subject)}, ${title(grade)}: доступно ${grade.questionCount} вопросов. Комната будет на ${language} языке.`;
+            const language = languageSelect?.selectedOptions[0]?.textContent || "";
+            summary.textContent = `${title(subject)}, ${title(grade)}: ` + summaryLabel.replace("{count}", grade.questionCount).replace("{language}", language);
             summary.hidden = false;
         }
 

@@ -39,12 +39,14 @@ public class QuizExceptionHandler {
     }
 
     @ExceptionHandler(QuizException.class)
-    ResponseEntity<Map<String, String>> quiz(QuizException ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    ResponseEntity<Map<String, String>> quiz(QuizException ex, java.util.Locale locale) {
+        // Прежний error остаётся стабильным для клиентов; перевод добавляется отдельным полем.
+        String message=messages.getMessage("quiz.legacy.error."+ex.getMessage(),null,messages.getMessage("quiz.legacy.error",null,locale),locale);
+        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage(), "message", message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    ResponseEntity<Map<String, String>> validation(MethodArgumentNotValidException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "validation_failed"));
+    ResponseEntity<Map<String, String>> validation(MethodArgumentNotValidException ex, java.util.Locale locale) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "validation_failed", "message", messages.getMessage("quiz.legacy.invalid",null,locale)));
     }
 }

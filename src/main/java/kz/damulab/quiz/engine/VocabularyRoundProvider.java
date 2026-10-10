@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 /** Словарный провайдер использует общую policy дистракторов и фиксирует четыре варианта один раз на комнату. */
 @Component
 public class VocabularyRoundProvider implements QuizRoundProvider {
+    private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(VocabularyRoundProvider.class);
     private final QuizWordGameConfigRepository configs;
     private final VocabularyDistractorService distractors;
     private final QuizSnapshotJson json;
@@ -25,12 +26,13 @@ public class VocabularyRoundProvider implements QuizRoundProvider {
                 || !Objects.equals(set.getSourceLanguage(), config.getSourceLanguage()) || !Objects.equals(set.getTargetLanguage(), config.getTargetLanguage()))
             throw new QuizEngineException("SOURCE_UNAVAILABLE");
         var data = distractors.prepareForGame(set); List<Source> result = new ArrayList<>();
+        int rejectedDistractors=0;
         for (var v : data.versions()) {
             if (!v.getItem().getSet().getId().equals(set.getId()) || !QuizContentEligibility.audience(v.isUniversalAudience(), v.getGradeIds(), required)) continue;
             var answers = data.answers().getOrDefault(v.getId(), List.of());
             if (!QuizContentEligibility.wordComplete(v, answers)) continue;
             var diagnosis = distractors.diagnose(v, required, data);
-            if (!diagnosis.playable()) continue;
+            if (!diagnosis.playable()) { rejectedDistractors++; continue; }
             String primary = answers.stream().filter(VocabularyItemAnswer::isPrimary).findFirst().orElseThrow().getAnswerText();
             result.add(new Source(v.getId(), (order, random) -> {
                 List<String> texts = new ArrayList<>(); texts.add(primary);
@@ -52,6 +54,8 @@ public class VocabularyRoundProvider implements QuizRoundProvider {
                 return round;
             }));
         }
+        // Один итог на проверку банка: слова, переводы и правильные варианты не журналируются.
+        if(rejectedDistractors>0) log.warn("quiz_distractors_rejected room={} count={}",room.getCode(),rejectedDistractors);
         return List.copyOf(result);
     }
 }

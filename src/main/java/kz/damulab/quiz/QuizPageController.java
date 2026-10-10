@@ -29,11 +29,13 @@ public class QuizPageController {
     private final QuizRoomService gameRooms;
     private final QuizStudentPageController gamePages;
     private final kz.damulab.config.DamulabQuizProperties properties;
+    private final org.springframework.context.MessageSource messages;
 
     /** Подключает оба режима; damulab.quiz.game-catalog-enabled переключает только вход, сохраняя доступ к истории. */
-    public QuizPageController(QuizService quizService,QuizRoomService gameRooms,QuizStudentPageController gamePages,kz.damulab.config.DamulabQuizProperties properties) {
+    public QuizPageController(QuizService quizService,QuizRoomService gameRooms,QuizStudentPageController gamePages,kz.damulab.config.DamulabQuizProperties properties, org.springframework.context.MessageSource messages) {
         this.quizService = quizService;
         this.gameRooms=gameRooms; this.gamePages=gamePages; this.properties=properties;
+        this.messages=messages;
     }
 
     @GetMapping("/student/quiz")
@@ -58,6 +60,7 @@ public class QuizPageController {
     ) {
         if (bindingResult.hasErrors()) {
             populateHub(model, locale);
+            model.addAttribute("error", messages.getMessage("quiz.legacy.invalid",null,locale));
             return "student/quiz-hub";
         }
         try {
@@ -65,7 +68,7 @@ public class QuizPageController {
             return "redirect:/student/quiz/rooms/" + room.code();
         } catch (QuizException ex) {
             populateHub(model, locale);
-            model.addAttribute("error", ex.getMessage());
+            model.addAttribute("error", legacyError(ex,locale));
             return "student/quiz-hub";
         }
     }
@@ -78,7 +81,7 @@ public class QuizPageController {
             return "redirect:/student/quiz/rooms/" + room.code();
         } catch (QuizException ex) {
             populateHub(model, locale);
-            model.addAttribute("error", ex.getMessage());
+            model.addAttribute("error", legacyError(ex,locale));
             model.addAttribute("joinCode", code);
             return "student/quiz-hub";
         }
@@ -130,9 +133,26 @@ public class QuizPageController {
     }
 
     private void populateHub(Model model, Locale locale) {
+        // При ошибке join форма создания также должна существовать: её поля рендерятся тем же hub.
+        if (!model.containsAttribute("createQuizRoomRequest")) {
+            var form=new CreateQuizRoomRequest(); form.setLanguage(defaultLanguage(locale));
+            model.addAttribute("createQuizRoomRequest",form);
+        }
         model.addAttribute("quizSetupCatalog", quizService.setupCatalog());
         model.addAttribute("defaultQuizLanguage", defaultLanguage(locale));
         model.addAttribute("testTypes", Arrays.stream(TestType.values()).toList());
+    }
+
+    private String legacyError(QuizException ex,Locale locale) {
+        return messages.getMessage("quiz.legacy.error."+ex.getMessage(),null,messages.getMessage("quiz.legacy.error",null,locale),locale);
+    }
+
+    /** Показывает локализованный отказ старой команды без выдачи кода/внутреннего исключения в HTML. */
+    @org.springframework.web.bind.annotation.ExceptionHandler(QuizException.class)
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+    String legacyFailure(QuizException ex,Model model,Locale locale) {
+        model.addAttribute("error",legacyError(ex,locale));
+        return "student/quiz-game-error";
     }
 
     private String defaultLanguage(Locale locale) {

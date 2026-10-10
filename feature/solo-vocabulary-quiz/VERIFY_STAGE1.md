@@ -275,3 +275,108 @@ UI-01..09 / TEST-UI-01 DONE; UI-10 и UX-03 IN_PROGRESS до речевого с
 
 Заключительный assemble i18nVerify — BUILD SUCCESSFUL (26s), 424 ключа;
 bootJar/jar обновлены с последними CSS и комментариями.
+
+## Этап 7: отдельные схемы, starter-v1 и конкретный binary rollback
+
+К целевой PostgreSQL-маске добавлен `--tests kz.damulab.QuizCompatibilityIntegrationTest`.
+Этот класс сначала создаёт собственную случайную quiz_compat_* схему, V46 с контролируемой
+историей, затем запускает приложение/Flyway до V53. Рабочая/production-БД не используется.
+Устанавливается настоящий ресурс quiz/starter-v1.json через редакционные сервисы
+двух синтетических ADMIN при strict-self-review=true; обычный startup его не загружает.
+
+14 исполнений: 4 игры × solo/4 игрока, источник/объяснение/итог; flag on→off,
+preview/join/ready/start/answer/expiry/scheduler/results, старый JSON create со
+сформированными при create раундами, сохранённый рейтинг и nullable время,
+RU/KK legacy-вход/комната/ошибки, blank/missing fallback без ослабления публикации,
+права/коллизии import и достаточность банков/дистракторов/аудитории.
+QUIZ_UI_SMOKE обязательно отсутствует. При смене H2/PostgreSQL запускать test принудительно.
+
+Binary matrix не входит в обычный build/test: опциональный JavaExec quizBinaryRollback
+из scripts/quiz-rollback.init.gradle запускает конкретный старый JAR отдельным JVM.
+Команды, SHA-256, 2 собственные quiz_binary_* схемы и все отрицательные ячейки — ROLLBACK.md.
+Данные/схемы не удаляются, V1–V53 не редактируются. Flag off на текущей версии
+и возврат на старый артефакт проверяются раздельно; после новых записей cb97aac запрещён.
+
+Контент, sources, переводы и границы аудитории — STARTER_CONTENT.md. Отдельный предмет
+для проверенного арифметического набора остаётся новым продуктовым решением пользователя.
+Независимая поставка 7 допускается при открытой речевой UI-10-приёмке; этап 6/UX-03
+не объявляются DONE. Каталог по умолчанию false, этап 8 не начинается.
+
+Проверка итогов 2026-10-11: полный H2 build i18nVerify --rerun-tasks завершился
+успешно (7m 1s): 430/73, failures/errors/skipped=0, 512 ключей, bootJar/jar.
+Отчёты .run-logs/quiz-stage7-h2-reports/test и html. В 430 входят 3 проверки
+добавленного пользователем BasicVocabularyPackageTest; они не подтверждают
+лингвистическую приёмку DRAFT-файлов basic-vocabulary.
+PostgreSQL: основной 180/20, финальный compatibility+legacy 21/2 после локализации;
+все PASS, без skipped. Отчёты .run-logs/quiz-stage7-pg-reports и
+.run-logs/quiz-stage7-pg-final-i18n-reports. Клиент — 23 PASS.
+
+## Этап 8: отдельная локальная QA
+
+Дополнительный `-I scripts/quiz-stage8-test.init.gradle` направляет Gradle build output
+в ignored `.run-logs/quiz-stage8-build`, сохраняя обычный `build/` пользователя.
+Это тот же код/полный test suite, без исключений тестов. Перед переключением БД
+test обязательно принудительный; `QUIZ_UI_SMOKE` в обычных прогонах отсутствует.
+
+PostgreSQL 2026-10-11: **169 тестов / 20 классов**, failures/errors/skipped=0,
+BUILD SUCCESSFUL (3m 54s). Отчёты `.run-logs/quiz-stage8-pg-reports/{test,html}`.
+Набор: quiz.catalog.*, quiz.engine.*, QuizFoundationMigrationTest,
+QuizFoundationUpgradeStartupTest, QuizGameFoundationSchemaTest,
+QuizCompatibilityIntegrationTest, QuizArenaIntegrationTest. Использовался только
+dlab-quiz-stage1-pg, подтверждённый label, фактический порт 50272.
+
+QuizReleaseQueryTest: смешанный каталог **16 SQL для 3 и 15 карточек**;
+5000 собственных временных комнат PostgreSQL, EXPLAIN ANALYZE BUFFERS.
+После V55 lower(code)/проверка отсутствующего кода — Index Scan;
+expiry — Index Scan по прежнему idx_quiz_rooms_status_expiry. Планы сохранены в
+`.run-logs/quiz-stage8-query-plans.txt`. Данные теста откатываются транзакцией.
+Измерение блокировки CREATE INDEX на реальной копии относится к QA-06.
+
+Node/jsdom — **23 PASS**, skipped=0; JS syntax и git diff --check PASS.
+Пробные прогоны до изоляции build output не являются итоговой приёмкой:
+первый выявил ошибку собственной фикстуры subject description, второй был нарушен
+внешним удалением build/classes. Исправлено; итоговый PostgreSQL выше успешен.
+
+Браузерная фикстура используется только явно:
+
+```powershell
+$env:QUIZ_TEST_DB_URL=$null
+$env:QUIZ_TEST_DB_DRIVER=$null
+$env:QUIZ_TEST_DB_USER=$null
+$env:QUIZ_TEST_DB_PASSWORD=$null
+$env:QUIZ_UI_SMOKE='1'
+.\gradlew.bat test --tests kz.damulab.quiz.catalog.QuizStudentUiIntegrationTest.allGameTypesHaveRealServerPagesAndOptionalBrowserAcceptance --rerun --no-daemon --max-workers=1 '-Dorg.gradle.jvmargs=-Xmx256m -Xms64m -XX:MaxMetaspaceSize=192m -XX:ActiveProcessorCount=2 -XX:ReservedCodeCacheSize=64m' -I scripts/quiz-foundation-test.init.gradle -I scripts/quiz-stage8-test.init.gradle --console=plain
+```
+
+`.run-logs/quiz-ui-smoke-info.json` содержит только синтетические host/guest,
+port/run/game codes и legacyRoom. Пароль этих созданных тестом профилей — quiz-ui-test.
+Marker `quiz-ui-smoke-time` с `run:offsetSeconds` ускоряет тестовые часы;
+`quiz-ui-smoke-flag` с `run:true/false` переключает только этот H2 test-runtime.
+Завершение: `quiz-ui-smoke-done` с точным run. После завершения очистить process env
+QUIZ_UI_SMOKE; тест архивирует только собственные игровые фикстуры, историю не удаляет.
+Фикстура не заменяет проверенный starter, production smoke или речевой UI-10.
+
+Фактический браузерный протокол 2026-10-11 —
+`.run-logs/quiz-stage8-browser-protocol.json`: independent host/guest, solo false,
+word/skip/replay, legacy RU/KK, 360×800 и 1280×800, flag off WAITING/ACTIVE/results.
+Скриншоты проверены в чате, отдельные PNG не сохранялись. Desktop crash завершил
+опциональный test JVM после ручного прохода; его отдельный Gradle smoke не имеет
+BUILD SUCCESSFUL и не считается автоматическим PASS. Обычная проверка без opt-in
+входит в финальный полный suite. Дополнительно PG V54 — 3 PASS (40s), отчёт
+`.run-logs/quiz-stage8-pg-v54-reports/test`. Контейнер сохранён и остановлен по проверенному label.
+
+Заключительный обычный H2 `build i18nVerify --rerun-tasks` — **438 тестов / 75 классов**,
+failures/errors/skipped=0; BUILD SUCCESSFUL (3m 54s), **512** ключей. Использован только
+quiz-foundation-test.init.gradle, обычный build/; второй агент уже приостановлен.
+Отчёты `.run-logs/quiz-stage8-h2-reports/{test,html}` и log
+`.run-logs/quiz-stage8-h2-build.log`. Первый полный 437 PASS был повторён после
+последних правок журналирования; финальные 438 включают новый afterCommit/no-STOMP
+контракт repeatedStart. Игра/SQL после PostgreSQL-прогона не менялись.
+
+Manifest исходников до/после финального build совпадает, git diff --check PASS.
+bootJar SHA-256 `fa932a856a20532d245e8b2bf59d73ddc35b9300fc32055ccbcbf0bf1ef4d9e8`;
+jar/bootJar содержат V54/V55 и JSON-ресурсы. Архивы не развёртывались.
+Контейнер повторно проверен по имени/label, остановлен и сохранён.
+Остатки приёмки: реальная речь UI-10; SEED-01 — предметная таксономия;
+I18N-01 — итог SEED-01 и визуальный проход последних legacy-переводов.
+Этап 7 целиком не DONE, каталог false, этап 8 не начат.

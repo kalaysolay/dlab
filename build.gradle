@@ -37,11 +37,16 @@ flyway {
     url = System.getenv('DB_URL') ?: 'jdbc:postgresql://localhost:5432/damulab'
     user = System.getenv('DB_USERNAME') ?: 'postgres'
     password = System.getenv('DB_PASSWORD') ?: '123qweasd'
-    // Читаем миграции прямо из исходников, без сборки resources.
-    locations = ['filesystem:src/main/resources/db/migration']
+    // Общий classpath содержит SQL и Java-миграцию V54 с её версионными JSON-данными.
+    locations = ['classpath:db/migration']
     // ВНИМАНИЕ: включает flywayClean (в Flyway 10 по умолчанию запрещён). Оставляем доступным
     // только потому, что блок нацелен на локальную дев-БД. Для боевой БД clean не запускать.
     cleanDisabled = false
+}
+
+// Java-миграции должны быть собраны до поиска и выполнения через Gradle Flyway.
+tasks.matching { it.name in ['flywayMigrate', 'flywayInfo', 'flywayValidate'] }.configureEach {
+    dependsOn tasks.named('classes')
 }
 
 dependencies {

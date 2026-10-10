@@ -36,6 +36,7 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
     @Autowired MockMvc mvc;
     @Autowired QuizStudentCatalog catalog;
     @Autowired QuizRoomService rooms;
+    @Autowired QuizService legacy;
     @Autowired QuizRoomRepository roomRepository;
     @Autowired StudentProfileRepository profiles;
     @Autowired RoleRepository roles;
@@ -147,11 +148,18 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
             // Опционально удерживает этот же изолированный test-сервер для реальной браузерной приёмки.
             // После marker/тайм-аута обычный @AfterEach архивирует только свои банки и игры.
             String run=UUID.randomUUID().toString(), guest=profile(5,"kk");
-            Path info=Path.of(".run-logs/quiz-ui-smoke-info.json"), done=Path.of(".run-logs/quiz-ui-smoke-done"), time=Path.of(".run-logs/quiz-ui-smoke-time");
-            Files.createDirectories(info.getParent()); Files.writeString(info,mapper.writeValueAsString(Map.of("run",run,"port",port,"host",host,"guest",guest,"games",codes)));
+            // Legacy-страницы проверяются на том же синтетическом предмете; история не очищается.
+            Long subjectId=tx(()->entityManager.createQuery("select c.subject.id from QuizSubjectGameConfig c where c.gameVersion.game.code=:code",Long.class).setParameter("code",codes.get("SCQ")).getSingleResult());
+            Long gradeId=tx(()->grades.findAllByOrderByGradeNoAsc().stream().filter(g->g.getGradeNo()==5).findFirst().orElseThrow().getId());
+            var request=new CreateQuizRoomRequest(); request.setSubjectId(subjectId); request.setGradeId(gradeId); request.setLanguage("kk"); request.setQuestionCount(1); request.setRoundSeconds(120);
+            var legacyRoom=legacy.createRoom(host,request);
+            Path info=Path.of(".run-logs/quiz-ui-smoke-info.json"), done=Path.of(".run-logs/quiz-ui-smoke-done"), time=Path.of(".run-logs/quiz-ui-smoke-time"), flag=Path.of(".run-logs/quiz-ui-smoke-flag");
+            Files.createDirectories(info.getParent()); Files.writeString(info,mapper.writeValueAsString(Map.of("run",run,"port",port,"host",host,"guest",guest,"games",codes,"legacyRoom",legacyRoom.code())));
             long deadline=System.nanoTime()+Duration.ofMinutes(30).toNanos();
             while(System.nanoTime()<deadline && !(Files.exists(done)&&Files.readString(done).trim().equals(run))) {
                 if(Files.exists(time)){var parts=Files.readString(time).trim().split(":"); if(parts.length==2&&parts[0].equals(run)) clock.offset=Long.parseLong(parts[1]);}
+                // Явный test-only marker переключает флаг лишь этого H2-сервера, не production-конфигурацию.
+                if(Files.exists(flag)){var parts=Files.readString(flag).trim().split(":"); if(parts.length==2&&parts[0].equals(run)) properties.setGameCatalogEnabled(Boolean.parseBoolean(parts[1]));}
                 Thread.sleep(500);
             }
         }

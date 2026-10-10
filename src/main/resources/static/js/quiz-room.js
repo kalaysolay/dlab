@@ -20,7 +20,8 @@
         stopped: false
     };
 
-    const labels = {
+    // SSR задаёт RU/KK; прежние значения оставлены для автономной legacy-оболочки.
+    const labels = window.quizLegacyMessages || {
         host: "Хост",
         ready: "Готов",
         waiting: "Ожидает",

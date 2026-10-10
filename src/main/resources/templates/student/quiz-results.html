@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Результаты викторины</title>
+    <title th:text="#{quiz.legacy.title}">Результаты викторины</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
@@ -13,15 +13,16 @@
     <main class="page quiz-results-page">
         <section class="panel result-summary">
             <div>
-                <span class="section-kicker">Комната <strong th:text="${results.code}">QZ7K2M</strong></span>
-                <h1 class="page-title">Итоги викторины</h1>
-                <p class="lede">Финальный рейтинг и очки рассчитываются сервером по ответам всех участников.</p>
+                <span class="section-kicker"><span th:text="#{quiz.ui.code}">Комната</span> <strong th:text="${results.code}">QZ7K2M</strong></span>
+                <h1 class="page-title" th:text="#{quiz.legacy.heading}">Итоги викторины</h1>
+                <p class="lede" th:text="#{quiz.legacy.rule}">Финальный рейтинг и очки рассчитываются сервером по ответам всех участников.</p>
+                <p class="lede" th:text="#{quiz.legacy.noTime}">Время ответа в старых играх не сохранялось.</p>
             </div>
-            <a class="button" th:href="@{/student/quiz}">Новая комната</a>
+            <a class="button" th:href="@{/student/quiz}" th:text="#{quiz.legacy.newRoom}">Новая комната</a>
         </section>
 
         <section class="panel">
-            <h2 class="section-title">Таблица результатов</h2>
+            <h2 class="section-title" th:text="#{quiz.legacy.table}">Таблица результатов</h2>
             <div class="quiz-results-cards">
                 <article class="quiz-result-card-mobile" th:each="row,rowStat : ${results.results}">
                     <div class="quiz-result-place">
@@ -29,12 +30,12 @@
                     </div>
                     <div class="quiz-result-player">
                         <strong th:text="${row.displayName}">Demo Student</strong>
-                        <span class="badge success" th:if="${row.currentStudent}">Это вы</span>
+                        <span class="badge success" th:if="${row.currentStudent}" th:text="#{quiz.legacy.you}">Это вы</span>
                     </div>
                     <div class="quiz-result-stats">
-                        <span><strong th:text="${row.score + '/' + row.maxScore}">8/10</strong><small>очки</small></span>
-                        <span><strong th:text="${row.correctAnswers + '/' + row.totalQuestions}">8/10</strong><small>верно</small></span>
-                        <span><strong th:text="${row.percent + '%'}">80%</strong><small>точность</small></span>
+                        <span><strong th:text="${row.score + '/' + row.maxScore}">8/10</strong><small th:text="#{quiz.legacy.points}">очки</small></span>
+                        <span><strong th:text="${row.correctAnswers + '/' + row.totalQuestions}">8/10</strong><small th:text="#{quiz.legacy.correct}">верно</small></span>
+                        <span><strong th:text="${row.percent + '%'}">80%</strong><small th:text="#{quiz.legacy.accuracy}">точность</small></span>
                     </div>
                 </article>
             </div>
@@ -42,11 +43,11 @@
                 <table class="data-table">
                     <thead>
                     <tr>
-                        <th>Место</th>
-                        <th>Игрок</th>
-                        <th>Очки</th>
-                        <th>Верно</th>
-                        <th>Точность</th>
+                        <th th:text="#{quiz.legacy.place}">Место</th>
+                        <th th:text="#{quiz.legacy.player}">Игрок</th>
+                        <th th:text="#{quiz.legacy.points}">Очки</th>
+                        <th th:text="#{quiz.legacy.correct}">Верно</th>
+                        <th th:text="#{quiz.legacy.accuracy}">Точность</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -54,7 +55,7 @@
                         <td th:text="${rowStat.count}">1</td>
                         <td>
                             <strong th:text="${row.displayName}">Demo Student</strong>
-                            <span class="badge success" th:if="${row.currentStudent}">Это вы</span>
+                            <span class="badge success" th:if="${row.currentStudent}" th:text="#{quiz.legacy.you}">Это вы</span>
                         </td>
                         <td th:text="${row.score + '/' + row.maxScore}">8/10</td>
                         <td th:text="${row.correctAnswers + '/' + row.totalQuestions}">8/10</td>

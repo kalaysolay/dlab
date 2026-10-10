@@ -24,6 +24,20 @@ class QuizContentBankIntegrationTest {
     @Autowired AppUserRepository users;
 
     @Test
+    void russianToEnglishSetCanBeEditedAndPublishedThroughNormalWorkflow() {
+        Long admin = adminId();
+        VocabularySetForm form = setForm(false);
+        form.setSourceLanguage("ru"); form.setTargetLanguage("en");
+        VocabularySet set = vocabulary.createSet(form, admin);
+        vocabulary.saveSetDraft(set.getId(), form, admin);
+        vocabulary.submitSet(set.getId(), admin);
+        vocabulary.approveSet(set.getId(), admin);
+        vocabulary.publishSet(set.getId(), admin);
+        assertThat(vocabulary.requireSet(set.getId()).getPublishedVersion()).isNotNull();
+        assertThat(vocabulary.setForm(set.getId()).getTargetLanguage()).isEqualTo("en");
+    }
+
+    @Test
     void firstQualityWordPublishesWithoutExistingDistractorsAndNewDraftKeepsPublication() {
         Long admin = adminId(); VocabularySet set = publishedVocabularySet(admin, false);
         VocabularyItem item = vocabulary.createItem(wordForm(set.getId(), "  Discover  ", "обнаружить", "открыть", true), admin);

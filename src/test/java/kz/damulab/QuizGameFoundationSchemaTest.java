@@ -168,7 +168,8 @@ class QuizGameFoundationSchemaTest {
         Long other = vocabularySet("kk", "ru");
         Long version = setVersion(other);
         reject("update vocabulary_sets set published_version_id = ? where id = ?", version, set);
-        reject("update vocabulary_sets set source_language = 'ru', target_language = 'en' where id = ?", set);
+        reject("update vocabulary_sets set source_language = 'en', target_language = 'kk' where id = ?", set);
+        assertThat(vocabularySet("ru", "en")).isNotNull();
         Long gameVersion = createVersion(createGame(), 1, "WORD_TRANSLATION");
         reject("insert into quiz_word_game_configs(game_version_id, vocabulary_set_id, source_language, target_language) values (?, ?, 'kk', 'ru')", gameVersion, set);
         jdbc.update("insert into quiz_word_game_configs(game_version_id, vocabulary_set_id, source_language, target_language) values (?, ?, 'en', 'ru')", gameVersion, set);

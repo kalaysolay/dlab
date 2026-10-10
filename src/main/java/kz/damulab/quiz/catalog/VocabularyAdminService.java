@@ -222,8 +222,8 @@ public class VocabularyAdminService {
 
     private void validateSet(VocabularySetForm f) {
         if (safe(f.getCode()).isBlank() || !safe(f.getCode()).matches("[A-Za-z0-9_-]{2,96}")) throw new ContentValidationException("Код набора: 2–96 латинских букв, цифр, _ или -");
-        boolean direction = (Set.of("en", "kk").contains(f.getSourceLanguage()) && "ru".equals(f.getTargetLanguage())) || ("ru".equals(f.getSourceLanguage()) && "kk".equals(f.getTargetLanguage()));
-        if (!direction) throw new ContentValidationException("Поддерживаются направления en→ru, kk→ru и ru→kk");
+        boolean direction = (Set.of("en", "kk").contains(f.getSourceLanguage()) && "ru".equals(f.getTargetLanguage())) || ("ru".equals(f.getSourceLanguage()) && Set.of("en", "kk").contains(f.getTargetLanguage()));
+        if (!direction) throw new ContentValidationException("Поддерживаются направления en→ru, ru→en, kk→ru и ru→kk");
         if (safe(f.getTitleRu()).isBlank() || safe(f.getTitleKk()).isBlank() || safe(f.getSourceReference()).isBlank()) throw new ContentValidationException("Заполните оба названия и источник набора");
     }
     private void validateSetVersion(VocabularySetVersion v) { if (safe(v.getTitleRu()).isBlank() || safe(v.getTitleKk()).isBlank() || safe(v.getSourceReference()).isBlank()) throw new ContentValidationException("Заполните оба названия и источник набора"); }

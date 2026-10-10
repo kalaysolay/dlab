@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class QuizRoomService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(QuizRoomService.class);
     private final QuizRoomRepository rooms;
     private final QuizParticipantRepository participants;
     private final QuizRoundRepository rounds;
@@ -118,7 +119,15 @@ public class QuizRoomService {
 
     /** Проверяет только тип комнаты для переходного HTTP-фасада; состояние не выдаёт. */
     public boolean isGameRoom(String code) {
-        return transact(() -> find(code, false).getGameVersion() != null);
+        return transact(() -> {
+            // Сначала допускается только уже существующий legacy-код по прежнему trim/case-контракту.
+            // Новые команды и неизвестные коды по-прежнему проходят строгий QuizRoomCode.normalize.
+            if (code != null && !code.isBlank() && code.trim().length() <= 16) {
+                var existing=rooms.findByCodeIgnoreCase(code.trim());
+                if (existing.isPresent() && existing.get().getGameVersion()==null) return false;
+            }
+            return find(code, false).getGameVersion() != null;
+        });
     }
     /** Возвращает только разрешённые ID классов закреплённой версии после проверки membership текущего аккаунта. */
     public Set<Long> allowedGradeIds(String code, String email) {
@@ -143,7 +152,7 @@ public class QuizRoomService {
     }
     /** Добавляет гостя один раз под lock; повтор существующего участия восстанавливает ACTIVE/FINISHED. */
     public QuizGameRoomResponse join(String code, String email) {
-        return command(code, email, (room, student) -> {
+        try { return command(code, email, (room, student) -> {
             if (participants.findByRoomIdAndStudentProfileId(room.getId(), student.getId()).isPresent()) {
                 advance(room, now()); return response(room, student);
             }
@@ -151,7 +160,11 @@ public class QuizRoomService {
             if (blocker != null) throw new QuizEngineException(blocker);
             participants.saveAndFlush(new QuizParticipant(room, student, student.getUser().getFullName(), false));
             events.publish("room.participant_joined", room); return response(room, student);
-        });
+        }); } catch (QuizEngineException ex) {
+            // Конфликт вместимости уже откатил транзакцию; чужой ввод и аккаунт не попадают в журнал.
+            if("ROOM_FULL".equals(ex.getCode())) log.warn("quiz_command_rejected action=join code=ROOM_FULL");
+            throw ex;
+        }
     }
     /** Гость подтверждает актуальную revision или снимает готовность; host всегда готов. */
     public QuizGameRoomResponse ready(String code, String email, QuizGameRoomRequest.Ready request) {
@@ -183,9 +196,11 @@ public class QuizRoomService {
     }
     /** Атомарно проверяет host/ready/аудиторию, создаёт все снимки и запускает общее расписание ровно один раз. */
     public QuizGameRoomResponse start(String code, String email) {
-        return command(code, email, (room, student) -> {
+        try { return command(code, email, (room, student) -> {
             requireHost(room, student);
-            if (room.getStatus() == QuizRoomStatus.ACTIVE || room.getStatus() == QuizRoomStatus.FINISHED) return response(room, student);
+            if (room.getStatus() == QuizRoomStatus.ACTIVE || room.getStatus() == QuizRoomStatus.FINISHED) {
+                events.repeatedStart(room); return response(room, student);
+            }
             requireWaiting(room);
             if (members(room).stream().anyMatch(p -> !p.isReady() || !Objects.equals(p.getReadyRevision(), room.getSettingsRevision())))
                 throw new QuizEngineException("PARTICIPANT_NOT_READY");
@@ -196,7 +211,11 @@ public class QuizRoomService {
             if (!startedAt.isBefore(room.getExpiresAt())) throw new QuizEngineException("ROOM_EXPIRED");
             room.start(startedAt);
             events.publish("room.started", room); return response(room, student);
-        });
+        }); } catch (QuizEngineException ex) {
+            // Только стабильный внешний код: исходный ввод, email, снимки и текст исключения не журналируются.
+            log.warn("quiz_command_rejected action=start code={}", externalCode(ex.getCode()));
+            throw ex;
+        }
     }
     /** Принимает первый ответ/skip; одинаковый canonical retry допустим и после закрытия окна, другой конфликтует. */
     public QuizGameRoomResponse answer(String code, String email, QuizGameRoomRequest.Answer request) {
@@ -250,7 +269,7 @@ public class QuizRoomService {
         });
         for (String code : codes) {
             try { tick(code); }
-            catch (QuizEngineException ex) { org.slf4j.LoggerFactory.getLogger(getClass()).warn("Quiz scheduler: room={}, code={}", code, ex.getCode()); }
+            catch (QuizEngineException ex) { log.warn("quiz_scheduler_rejected room={} code={}", code, externalCode(ex.getCode())); }
         }
     }
     /** Восстанавливает тайм-ауты/finish по сохранённому расписанию; повтор безопасен. */
@@ -276,12 +295,16 @@ public class QuizRoomService {
         }
         if (room.getStatus() != QuizRoomStatus.ACTIVE) return;
         var members = members(room); var snapshots = rounds.findByRoomIdOrderByOrderNoAsc(room.getId());
+        int timedOut = 0;
         for (var round : snapshots) if (!at.isBefore(QuizAnswerEvaluator.endsAt(round))) {
             for (var participant : members) if (answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).isEmpty()) {
                 answers.save(evaluator.timeout(round, participant, at));
+                timedOut++;
             }
         }
         answers.flush();
+        // Один безопасный сигнал на commit пачки timeout; повтор tick с сохранёнными ответами его не дублирует.
+        if (timedOut > 0) events.publish("room.answers_timed_out", room);
         // Ранние ответы всех игроков не открывают будущие условия и не сокращают общее расписание.
         if (!at.isBefore(room.getStartedAt().plusSeconds((long) room.getQuestionCount() * room.getRoundSeconds()))) {
             room.finish(at); results.save(room.getCode()); events.publish("room.finished", room);

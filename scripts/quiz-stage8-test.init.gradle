@@ -1,0 +1,5 @@
+// Изолирует результаты QA этапа 8 от параллельного clean/build пользователя.
+// Не меняет исходники, рабочую БД, обычный build/ или настройки приложения.
+allprojects {
+    layout.buildDirectory.set(file("${rootDir}/.run-logs/quiz-stage8-build"))
+}

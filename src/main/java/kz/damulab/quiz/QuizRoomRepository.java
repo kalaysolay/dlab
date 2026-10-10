@@ -26,9 +26,13 @@ public interface QuizRoomRepository extends JpaRepository<QuizRoom, Long> {
     @Query("select r from QuizRoom r where r.status = kz.damulab.quiz.QuizRoomStatus.WAITING and r.expiresAt <= :now order by r.expiresAt, r.id")
     java.util.List<QuizRoom> findExpiredWaiting(@Param("now") OffsetDateTime now, Pageable page);
 
-    Optional<QuizRoom> findByCodeIgnoreCase(String code);
+    /** Совпадает с выражением V55; прежние mixed-case коды продолжают читаться. */
+    @Query("select r from QuizRoom r where lower(r.code) = lower(:code)")
+    Optional<QuizRoom> findByCodeIgnoreCase(@Param("code") String code);
 
     java.util.List<QuizRoom> findByStatus(QuizRoomStatus status);
 
-    boolean existsByCodeIgnoreCase(String code);
+    /** Проверка коллизии использует тот же индекс, включая ещё не занятые коды. */
+    @Query("select count(r) > 0 from QuizRoom r where lower(r.code) = lower(:code)")
+    boolean existsByCodeIgnoreCase(@Param("code") String code);
 }

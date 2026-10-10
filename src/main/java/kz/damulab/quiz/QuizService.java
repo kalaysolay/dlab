@@ -31,6 +31,7 @@ import kz.damulab.testing.AnswerChecker;
 import kz.damulab.users.StudentProfile;
 import kz.damulab.users.StudentProfileRepository;
 
+/** Legacy-комнаты и история: прежние раунды, grace и рейтинг сохраняются отдельно от нового движка. */
 @Service
 public class QuizService {
 
@@ -243,6 +244,7 @@ public class QuizService {
         return toRoomResponse(room, current);
     }
 
+    /** Читает сохранённый legacy-рейтинг без пересчёта по новым правилам и без восстановления времени из answered_at. */
     @Transactional
     public QuizResultsResponse results(String code, String studentEmail) {
         QuizRoom room = findRoom(code);
@@ -263,7 +265,8 @@ public class QuizService {
                         result.getCorrectAnswers(),
                         result.getScore(),
                         result.getMaxScore(),
-                        result.getPercent()
+                        result.getPercent(),
+                        null // answered_at не является длительностью ответа; новый tie-break к истории неприменим.
                 ))
                 .toList();
         return new QuizResultsResponse(room.getCode(), room.getStatus().name().toLowerCase(Locale.ROOT), rows);
@@ -608,7 +611,9 @@ public class QuizService {
     }
 
     private String normalizeCode(String code) {
-        return QuizRoomCode.normalize(code);
+        // Исторический контракт поиска не требовал нового алфавита; существующие коды не переписываются.
+        if (code == null || code.isBlank()) throw new QuizException("room_code_required");
+        return code.trim().toUpperCase(Locale.ROOT);
     }
 
     private String generateCode() {
@@ -638,6 +643,6 @@ public class QuizService {
     }
 
     private String localized(String ru, String kk, String language) {
-        return "kk".equals(language) && kk != null && !kk.isBlank() ? kk : ru;
+        return kz.damulab.quiz.engine.QuizSnapshotJson.localized(ru, kk, language);
     }
 }

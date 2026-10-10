@@ -43,4 +43,44 @@ class QuizRoomEventContractTest {
         for (String code : java.util.List.of("QZ7 K2M", "QZ0000", "QZабвг", "QZABCD*", "QZABCD/", "QZABCDE", ""))
             assertThatThrownBy(() -> QuizRoomCode.normalize(code)).isInstanceOf(QuizEngineException.class).hasMessage("ROOM_CODE_INVALID");
     }
+    @Test void structuredLogContainsOnlyCommittedSafeMetadata() {
+        var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(QuizRoomEventPublisher.class);
+        var captured=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        captured.start(); logger.addAppender(captured);
+        var transport=mock(SimpMessagingTemplate.class);
+        var publisher=new QuizRoomEventPublisher(transport,Clock.systemUTC());
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            publisher.publish("room.answers_timed_out",new QuizRoom("QZABCD",null,null,null,"ru",null,1,20,4));
+            // Ни сообщение в лог, ни транспорт не подтверждают транзакцию раньше самой БД.
+            assertThat(captured.list).isEmpty();
+            TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+            assertThat(captured.list).extracting(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .containsExactly("quiz_event type=room.answers_timed_out room=QZABCD status=waiting");
+            captured.list.clear(); TransactionSynchronizationManager.clearSynchronization();
+            TransactionSynchronizationManager.initSynchronization();
+            publisher.publish("room.cancelled",new QuizRoom("QZABCD",null,null,null,"ru",null,1,20,4));
+            TransactionSynchronizationManager.getSynchronizations().forEach(s->s.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+            assertThat(captured.list).isEmpty();
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization(); logger.detachAppender(captured); captured.stop();
+        }
+    }
+    @Test void repeatedStartIsLoggedAfterCommitWithoutExtraTransportSignal() {
+        var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(QuizRoomEventPublisher.class);
+        var captured=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        captured.start(); logger.addAppender(captured);
+        var transport=mock(SimpMessagingTemplate.class); var publisher=new QuizRoomEventPublisher(transport,Clock.systemUTC());
+        var room=new QuizRoom("QZABCD",null,null,null,"ru",null,1,20,4); room.start(OffsetDateTime.now());
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            publisher.repeatedStart(room); assertThat(captured.list).isEmpty();
+            TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+            assertThat(captured.list).extracting(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .containsExactly("quiz_command_repeated action=start room=QZABCD status=active");
+            verifyNoInteractions(transport);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization(); logger.detachAppender(captured); captured.stop();
+        }
+    }
 }

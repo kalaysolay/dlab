@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 /** Публикует только безопасный сигнал перечитать HTTP; rollback не порождает событий. */
 @Component
 public class QuizRoomEventPublisher {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(QuizRoomEventPublisher.class);
 
     private final SimpMessagingTemplate messagingTemplate;
     private final Clock clock;
@@ -34,6 +35,8 @@ public class QuizRoomEventPublisher {
                         OffsetDateTime.now(clock)
                 );
         Runnable send = () -> {
+            // Наблюдаемость относится к уже зафиксированному состоянию. Ответы, снимки и аккаунты в лог не попадают.
+            log.info("quiz_event type={} room={} status={}", event.type(), event.code(), event.status());
             if ("room.started".equals(type)) announcedRounds.put(event.code(), 1);
             if ("room.finished".equals(type) || "room.cancelled".equals(type) || "room.expired".equals(type)) announcedRounds.remove(event.code());
             messagingTemplate.convertAndSend(destination, event);
@@ -48,6 +51,11 @@ public class QuizRoomEventPublisher {
             if (previous == null || previous != orderNo) messagingTemplate.convertAndSend("/topic/quiz.rooms." + code, event);
             return orderNo;
         }));
+    }
+    /** Журналирует идемпотентный повтор start после commit без лишнего WebSocket-сигнала. */
+    public void repeatedStart(QuizRoom room) {
+        String code=room.getCode(), status=room.getStatus().name().toLowerCase(Locale.ROOT);
+        afterCommit(()->log.info("quiz_command_repeated action=start room={} status={}",code,status));
     }
     private void afterCommit(Runnable send) {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
