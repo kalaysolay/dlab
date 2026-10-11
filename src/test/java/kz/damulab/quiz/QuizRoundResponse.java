@@ -1,5 +1,7 @@
 package kz.damulab.quiz;
 
+// Контракт предыдущего бинарника нужен только для операторской проверки отката, не для приложения.
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;

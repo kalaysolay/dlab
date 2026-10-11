@@ -183,9 +183,9 @@
         if (resultLoaded) return; resultLoaded = true;
         try {
             const result = await api(`${base}/results`), me = result.me;
-            text("qg-result-summary", `${labels.place}: ${me.place} · ${labels.score}: ${me.score}/${me.totalRounds} · ${labels.percent}: ${me.correctAnswers}/${me.totalRounds} (${me.percent}%)`);
+            text("qg-result-summary", `${labels.place}: ${me.place} · ${labels.score}: ${me.score}/${me.maxScore} · ${labels.percent}: ${me.correctAnswers}/${me.totalRounds} (${me.percent}%)`);
             byId("qg-ranking").replaceChildren(...result.leaderboard.map(p => {
-                const tr = node("tr"); [p.place,p.displayName,`${p.score}/${p.totalRounds}`,p.totalResponseMs == null ? "—" : `${(p.totalResponseMs/1000).toFixed(3)} ${labels.secondUnit}`].forEach(v=>tr.append(node("td",v))); return tr;
+                const tr = node("tr"); [p.place,p.displayName,`${p.score}/${p.maxScore}`,p.totalResponseMs == null ? "—" : `${(p.totalResponseMs/1000).toFixed(3)} ${labels.secondUnit}`].forEach(v=>tr.append(node("td",v))); return tr;
             }));
             byId("qg-review").replaceChildren(...result.review.map(r => {
                 const article = node("article",null,"qg-review-row"); article.append(node("h4",`${r.orderNo}. ${r.prompt}`));

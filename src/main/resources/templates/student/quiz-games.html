@@ -3,7 +3,8 @@
 <header th:replace="~{fragments/student-header :: studentHeader}"></header>
 <main class="page qg-page" data-quiz-catalog>
     <section class="qg-heading"><div><h1 class="page-title" th:text="#{quiz.ui.catalog}"></h1><p class="lede" th:text="#{quiz.ui.intro}"></p></div>
-        <a class="button" th:href="@{/student/quiz/join}" th:text="#{quiz.ui.join}"></a></section>
+        <div class="actions"><a class="button primary" th:href="@{/student/quiz/create}" th:text="#{quiz.custom.title}"></a>
+        <a class="button" th:href="@{/student/quiz/join}" th:text="#{quiz.ui.join}"></a></div></section>
     <p class="alert error" role="alert" th:if="${error}" th:text="${error}"></p>
     <section class="panel" th:if="${cards.isEmpty()}"><h2 th:text="#{quiz.ui.empty}"></h2><a class="button" th:href="@{/student}" th:text="#{quiz.ui.back}"></a></section>
     <section class="qg-catalog" th:aria-label="#{quiz.ui.catalog}">

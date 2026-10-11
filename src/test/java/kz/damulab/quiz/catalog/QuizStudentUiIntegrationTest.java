@@ -12,7 +12,6 @@ import kz.damulab.quiz.*;
 import kz.damulab.quiz.engine.*;
 import kz.damulab.questions.*;
 import kz.damulab.users.*;
-import kz.damulab.config.DamulabQuizProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -36,21 +35,19 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
     @Autowired MockMvc mvc;
     @Autowired QuizStudentCatalog catalog;
     @Autowired QuizRoomService rooms;
-    @Autowired QuizService legacy;
     @Autowired QuizRoomRepository roomRepository;
     @Autowired StudentProfileRepository profiles;
     @Autowired RoleRepository roles;
     @Autowired PasswordEncoder passwords;
     @Autowired PlatformTransactionManager manager;
-    @Autowired DamulabQuizProperties properties;
     @Autowired ObjectMapper mapper;
     @Autowired UiClock clock;
     @LocalServerPort int port;
     private final Set<Long> ownGames=new HashSet<>();
     private String host;
-    @BeforeEach void init() { clock.offset=0; properties.setGameCatalogEnabled(true); host=profile(5,"ru"); }
+    @BeforeEach void init() { clock.offset=0; host=profile(5,"ru"); }
     @AfterEach void cleanup() {
-        properties.setGameCatalogEnabled(true);
+
         tx(()->{
             for(var r:entityManager.createQuery("select r from QuizRoom r join r.hostStudentProfile p join p.user u where u.email=:email",QuizRoom.class).setParameter("email",host).getResultList())
                 if(r.getStatus()==QuizRoomStatus.WAITING) r.cancel(OffsetDateTime.now(clock));
@@ -94,10 +91,10 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         assertThat(cards.stream().filter(c->c.code().equals(universal.getCode())).findFirst().orElseThrow().blocker()).isNull();
         assertThat(cards.stream().filter(c->c.code().equals(restricted.getCode())).findFirst().orElseThrow().blocker()).isEqualTo("PROFILE_GRADE_REQUIRED");
     }
-    @Test void flagOffRetainsLegacyEntryAndNewRoomHistory() throws Exception {
-        var g=tx(()->publish(factForm(1))); var r=create(g.getCode()); properties.setGameCatalogEnabled(false);
-        mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(view().name("student/quiz-hub"));
-        mvc.perform(get("/student/quiz/games").with(user(host).roles("STUDENT"))).andExpect(status().isNotFound());
+    @Test void obsoleteFlagDoesNotSwitchUiOrRoomHistory() throws Exception {
+        var g=tx(()->publish(factForm(1))); var r=create(g.getCode());
+        mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(view().name("student/quiz-games"));
+        mvc.perform(get("/student/quiz/games").with(user(host).roles("STUDENT"))).andExpect(status().isOk());
         mvc.perform(get("/student/quiz/rooms/"+r.code()).with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(view().name("student/quiz-game-room"));
     }
     @Test void outsiderCannotReadRoomResultsOrPinnedGradeChoices() throws Exception {
@@ -128,6 +125,23 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         mvc.perform(get("/student/quiz/rooms/"+expired.code()).with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(model().attributeExists("room"));
         assertThat(rooms.state(expired.code(),host).status()).isEqualTo("expired");
     }
+    @ParameterizedTest @EnumSource(QuestionType.class)
+    void customRoomUsesAllExistingQuestionFormatsAndSelectedLanguage(QuestionType type) throws Exception {
+        var game=subject(type);
+        Long subjectId=tx(()->entityManager.createQuery("select c.subject.id from QuizSubjectGameConfig c where c.gameVersion.game.code=:code",Long.class).setParameter("code",game.getCode()).getSingleResult());
+        Long gradeId=tx(()->grades.findAllByOrderByGradeNoAsc().stream().filter(g->g.getGradeNo()==5).findFirst().orElseThrow().getId());
+        var room=rooms.createCustom(host,new QuizGameRoomRequest.CustomCreate(subjectId,gradeId,"kk",1,10,UUID.randomUUID().toString()));
+        var active=rooms.start(room.code(),host);
+        assertThat(active.gameCode()).isNull();
+        assertThat(active.currentRound().format()).isEqualTo(type.name());
+        assertThat(active.currentRound().locale()).isEqualTo("kk");
+        assertThat(active.currentRound().prompt()).startsWith("Сұрақ");
+        rooms.answer(room.code(),host,new QuizGameRoomRequest.Answer(active.activeRoundId(),null,true));
+        clock.offset=11;
+        assertThat(rooms.results(room.code(),host).review().getFirst().skipped()).isTrue();
+        mvc.perform(get("/student/quiz/rooms/"+room.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/student/quiz/create")));
+    }
     @Test void catalogUsesBoundedQueriesForMultipleCards() {
         var set=tx(()->factSet(1)); tx(()->{var f=form(QuizGameType.TRUE_FALSE); f.setFactSetId(set.getId()); publish(f); return null;});
         var stats=entityManager.getEntityManagerFactory().unwrap(org.hibernate.SessionFactory.class).getStatistics(); boolean previous=stats.isStatisticsEnabled(); stats.setStatisticsEnabled(true);
@@ -151,15 +165,12 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
             // Legacy-страницы проверяются на том же синтетическом предмете; история не очищается.
             Long subjectId=tx(()->entityManager.createQuery("select c.subject.id from QuizSubjectGameConfig c where c.gameVersion.game.code=:code",Long.class).setParameter("code",codes.get("SCQ")).getSingleResult());
             Long gradeId=tx(()->grades.findAllByOrderByGradeNoAsc().stream().filter(g->g.getGradeNo()==5).findFirst().orElseThrow().getId());
-            var request=new CreateQuizRoomRequest(); request.setSubjectId(subjectId); request.setGradeId(gradeId); request.setLanguage("kk"); request.setQuestionCount(1); request.setRoundSeconds(120);
-            var legacyRoom=legacy.createRoom(host,request);
+            var legacyRoom=rooms.createCustom(host,new QuizGameRoomRequest.CustomCreate(subjectId,gradeId,"kk",1,120,UUID.randomUUID().toString()));
             Path info=Path.of(".run-logs/quiz-ui-smoke-info.json"), done=Path.of(".run-logs/quiz-ui-smoke-done"), time=Path.of(".run-logs/quiz-ui-smoke-time"), flag=Path.of(".run-logs/quiz-ui-smoke-flag");
             Files.createDirectories(info.getParent()); Files.writeString(info,mapper.writeValueAsString(Map.of("run",run,"port",port,"host",host,"guest",guest,"games",codes,"legacyRoom",legacyRoom.code())));
             long deadline=System.nanoTime()+Duration.ofMinutes(30).toNanos();
             while(System.nanoTime()<deadline && !(Files.exists(done)&&Files.readString(done).trim().equals(run))) {
                 if(Files.exists(time)){var parts=Files.readString(time).trim().split(":"); if(parts.length==2&&parts[0].equals(run)) clock.offset=Long.parseLong(parts[1]);}
-                // Явный test-only marker переключает флаг лишь этого H2-сервера, не production-конфигурацию.
-                if(Files.exists(flag)){var parts=Files.readString(flag).trim().split(":"); if(parts.length==2&&parts[0].equals(run)) properties.setGameCatalogEnabled(Boolean.parseBoolean(parts[1]));}
                 Thread.sleep(500);
             }
         }

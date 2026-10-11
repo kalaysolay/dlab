@@ -1,197 +1,29 @@
 package kz.damulab.quiz;
 
 import java.security.Principal;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 
-import kz.damulab.testing.TestType;
-
-/** Ученические SSR-маршруты: legacy-формы сохранены, новые комнаты используют безопасные оболочки по типу комнаты. */
+/** Общие адреса комнат и результатов обслуживает единый движок, включая чтение сохранённой истории. */
 @Controller
 public class QuizPageController {
+    private final QuizStudentPageController pages;
+    private final QuizRoomService rooms;
 
-    private final QuizService quizService;
-    private final QuizRoomService gameRooms;
-    private final QuizStudentPageController gamePages;
-    private final kz.damulab.config.DamulabQuizProperties properties;
-    private final org.springframework.context.MessageSource messages;
-
-    /** Подключает оба режима; damulab.quiz.game-catalog-enabled переключает только вход, сохраняя доступ к истории. */
-    public QuizPageController(QuizService quizService,QuizRoomService gameRooms,QuizStudentPageController gamePages,kz.damulab.config.DamulabQuizProperties properties, org.springframework.context.MessageSource messages) {
-        this.quizService = quizService;
-        this.gameRooms=gameRooms; this.gamePages=gamePages; this.properties=properties;
-        this.messages=messages;
-    }
-
-    @GetMapping("/student/quiz")
-    String hub(Principal principal, Model model, Locale locale) {
-        if (properties.isGameCatalogEnabled()) return gamePages.hub(principal,model,locale);
-        populateHub(model, locale);
-        if (!model.containsAttribute("createQuizRoomRequest")) {
-            CreateQuizRoomRequest form = new CreateQuizRoomRequest();
-            form.setLanguage(defaultLanguage(locale));
-            model.addAttribute("createQuizRoomRequest", form);
-        }
-        return "student/quiz-hub";
-    }
-
-    @PostMapping("/student/quiz/rooms")
-    String create(
-            Principal principal,
-            @Valid @ModelAttribute("createQuizRoomRequest") CreateQuizRoomRequest form,
-            BindingResult bindingResult,
-            Model model,
-            Locale locale
-    ) {
-        if (bindingResult.hasErrors()) {
-            populateHub(model, locale);
-            model.addAttribute("error", messages.getMessage("quiz.legacy.invalid",null,locale));
-            return "student/quiz-hub";
-        }
-        try {
-            QuizRoomResponse room = quizService.createRoom(principal.getName(), form);
-            return "redirect:/student/quiz/rooms/" + room.code();
-        } catch (QuizException ex) {
-            populateHub(model, locale);
-            model.addAttribute("error", legacyError(ex,locale));
-            return "student/quiz-hub";
-        }
-    }
-
-    @PostMapping("/student/quiz/rooms/join")
-    String joinFromHub(Principal principal, HttpServletRequest request, Model model, Locale locale) {
-        String code = request.getParameter("code");
-        try {
-            QuizRoomResponse room = quizService.join(code, principal.getName());
-            return "redirect:/student/quiz/rooms/" + room.code();
-        } catch (QuizException ex) {
-            populateHub(model, locale);
-            model.addAttribute("error", legacyError(ex,locale));
-            model.addAttribute("joinCode", code);
-            return "student/quiz-hub";
-        }
+    public QuizPageController(QuizStudentPageController pages, QuizRoomService rooms) {
+        this.pages = pages; this.rooms = rooms;
     }
 
     @GetMapping("/student/quiz/rooms/{code}")
-    String room(Principal principal, @PathVariable String code, Model model,Locale locale) {
-        if (gameRooms.isGameRoom(code)) return gamePages.room(principal,code,model,locale);
-        model.addAttribute("room", quizService.room(code, principal.getName()));
-        return "student/quiz-room";
-    }
-
-    @PostMapping("/student/quiz/rooms/{code}/ready")
-    String ready(Principal principal, @PathVariable String code) {
-        quizService.ready(code, principal.getName());
-        return "redirect:/student/quiz/rooms/" + code;
-    }
-
-    @PostMapping("/student/quiz/rooms/{code}/start")
-    String start(Principal principal, @PathVariable String code) {
-        quizService.start(code, principal.getName());
-        return "redirect:/student/quiz/rooms/" + code;
-    }
-
-    @PostMapping("/student/quiz/rooms/{code}/answers")
-    String answer(Principal principal, @PathVariable String code, HttpServletRequest request) {
-        QuizRoomResponse room = quizService.room(code, principal.getName());
-        QuizRoundResponse activeRound = room.rounds().stream()
-                .filter(round -> round.id().equals(room.activeRoundId()))
-                .findFirst()
-                .orElseThrow(() -> new QuizException("round_not_open"));
-        JsonNode answer = answerFromRequest(activeRound, request);
-        quizService.submitAnswer(code, principal.getName(), new SubmitQuizAnswerRequest(activeRound.id(), answer));
-        QuizRoomResponse updated = quizService.room(code, principal.getName());
-        if ("finished".equals(updated.status())) {
-            return "redirect:/student/quiz/rooms/" + code + "/results";
-        }
-        return "redirect:/student/quiz/rooms/" + code;
+    String room(Principal principal, @PathVariable String code, Model model, Locale locale) {
+        return pages.room(principal, code, model, locale);
     }
 
     @GetMapping("/student/quiz/rooms/{code}/results")
-    String results(Principal principal, @PathVariable String code, Model model,Locale locale) {
-        if (gameRooms.isGameRoom(code)) {
-            gameRooms.results(code,principal.getName());
-            return gamePages.room(principal,code,model,locale);
-        }
-        model.addAttribute("results", quizService.results(code, principal.getName()));
-        return "student/quiz-results";
-    }
-
-    private void populateHub(Model model, Locale locale) {
-        // При ошибке join форма создания также должна существовать: её поля рендерятся тем же hub.
-        if (!model.containsAttribute("createQuizRoomRequest")) {
-            var form=new CreateQuizRoomRequest(); form.setLanguage(defaultLanguage(locale));
-            model.addAttribute("createQuizRoomRequest",form);
-        }
-        model.addAttribute("quizSetupCatalog", quizService.setupCatalog());
-        model.addAttribute("defaultQuizLanguage", defaultLanguage(locale));
-        model.addAttribute("testTypes", Arrays.stream(TestType.values()).toList());
-    }
-
-    private String legacyError(QuizException ex,Locale locale) {
-        return messages.getMessage("quiz.legacy.error."+ex.getMessage(),null,messages.getMessage("quiz.legacy.error",null,locale),locale);
-    }
-
-    /** Показывает локализованный отказ старой команды без выдачи кода/внутреннего исключения в HTML. */
-    @org.springframework.web.bind.annotation.ExceptionHandler(QuizException.class)
-    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
-    String legacyFailure(QuizException ex,Model model,Locale locale) {
-        model.addAttribute("error",legacyError(ex,locale));
-        return "student/quiz-game-error";
-    }
-
-    private String defaultLanguage(Locale locale) {
-        return locale != null && "kk".equals(locale.getLanguage()) ? "kk" : "ru";
-    }
-
-    private JsonNode answerFromRequest(QuizRoundResponse round, HttpServletRequest request) {
-        return switch (round.type()) {
-            case "SCQ", "MCQ" -> quizService.choiceAnswer(values(request, "answer_" + round.id()));
-            case "MATCHING" -> quizService.matchingAnswer(matchingValues(round, request));
-            case "FILL_IN" -> quizService.fillAnswer(fillValues(round, request));
-            default -> quizService.choiceAnswer(List.of());
-        };
-    }
-
-    private List<String> values(HttpServletRequest request, String name) {
-        String[] values = request.getParameterValues(name);
-        return values == null ? List.of() : Arrays.stream(values).filter(value -> !value.isBlank()).toList();
-    }
-
-    private Map<String, String> matchingValues(QuizRoundResponse round, HttpServletRequest request) {
-        Map<String, String> pairs = new LinkedHashMap<>();
-        for (int index = 0; index < round.matchingLeft().size(); index++) {
-            String right = request.getParameter("match_" + round.id() + "_" + index);
-            if (right != null && !right.isBlank()) {
-                pairs.put(round.matchingLeft().get(index).value(), right);
-            }
-        }
-        return pairs;
-    }
-
-    private Map<String, String> fillValues(QuizRoundResponse round, HttpServletRequest request) {
-        Map<String, String> answers = new LinkedHashMap<>();
-        for (int index = 0; index < round.fillPlaceholders().size(); index++) {
-            String value = request.getParameter("fill_" + round.id() + "_" + index);
-            if (value != null && !value.isBlank()) {
-                answers.put(round.fillPlaceholders().get(index), value);
-            }
-        }
-        return answers;
+    String results(Principal principal, @PathVariable String code, Model model, Locale locale) {
+        rooms.results(code, principal.getName());
+        return pages.room(principal, code, model, locale);
     }
 }

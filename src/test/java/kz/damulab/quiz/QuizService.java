@@ -1,3 +1,5 @@
+// Исторический тестовый fixture: воспроизводит прежний binary для проверок архива.
+// В поставляемом приложении этот класс отсутствует; действующие комнаты обслуживает QuizRoomService.
 package kz.damulab.quiz;
 
 import java.math.BigDecimal;
@@ -32,7 +34,6 @@ import kz.damulab.users.StudentProfile;
 import kz.damulab.users.StudentProfileRepository;
 
 /** Legacy-комнаты и история: прежние раунды, grace и рейтинг сохраняются отдельно от нового движка. */
-@Service
 public class QuizService {
 
     private static final int DEFAULT_QUESTION_COUNT = 5;

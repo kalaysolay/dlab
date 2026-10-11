@@ -19,14 +19,14 @@ public class QuizCurrentRoundReader {
     public QuizCurrentRoundReader(QuizRoomRepository rooms, QuizParticipantRepository participants, QuizRoundRepository rounds, QuizAnswerRepository answers, QuizSnapshotJson json) {
         this.rooms = rooms; this.participants = participants; this.rounds = rounds; this.answers = answers; this.json = json;
     }
-    /** Читает состояние участника; outsider и legacy направляются к своим контрактам, будущий раунд не возвращается. */
+    /** Проверяет участие; выдаёт только текущее окно, архив читается без новых снимков. */
     @Transactional(readOnly = true)
     public State read(String code, Long studentProfileId, OffsetDateTime now) {
         QuizRoom room = rooms.findByCodeIgnoreCase(code).orElseThrow(() -> new QuizEngineException("ROOM_NOT_FOUND"));
         QuizParticipant participant = participants.findByRoomIdAndStudentProfileId(room.getId(), studentProfileId).orElseThrow(() -> new QuizEngineException("PARTICIPANT_REQUIRED"));
-        if (room.getGameVersion() == null) throw new QuizEngineException("LEGACY_ROOM");
+        // Архив не имеет новых снимков; завершённую комнату показываем без текущего раунда.
         CurrentRound current = null;
-        if (room.getStatus() == QuizRoomStatus.ACTIVE && room.getStartedAt() != null && !now.isBefore(room.getStartedAt())) {
+        if (room.isPlayable() && room.getStatus() == QuizRoomStatus.ACTIVE && room.getStartedAt() != null && !now.isBefore(room.getStartedAt())) {
             for (var round : rounds.findByRoomIdOrderByOrderNoAsc(room.getId())) {
                 if (!now.isBefore(QuizAnswerEvaluator.startsAt(round)) && now.isBefore(QuizAnswerEvaluator.endsAt(round))) {
                     JsonNode config = json.read(round.getSourceConfigSnapshotJson()); Map<String, String> presentation = new LinkedHashMap<>();

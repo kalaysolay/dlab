@@ -229,7 +229,7 @@ class QuizGameFoundationSchemaTest {
         reject("update quiz_rooms set game_id = ? where id = ?", game, room);
         reject("update quiz_rooms set game_id = ?, game_version_id = ?, game_type = 'TRUE_FALSE' where id = ?", other, version, room);
         reject("update quiz_rooms set game_id = ?, game_version_id = ?, game_type = 'WORD_TRANSLATION' where id = ?", game, version, room);
-        jdbc.update("update quiz_rooms set game_id = ?, game_version_id = ?, game_type = 'TRUE_FALSE' where id = ?", game, version, room);
+        jdbc.update("update quiz_rooms set game_id = ?, game_version_id = ?, game_type = 'TRUE_FALSE', room_kind='CATALOG_GAME' where id = ?", game, version, room);
         reject("update quiz_rooms set settings_revision = -1 where id = ?", room);
         assertThat(jdbc.queryForObject("select command_revision from quiz_rooms where id = ?", Long.class, room)).isZero();
         reject("update quiz_rooms set command_revision = -1 where id = ?", room);

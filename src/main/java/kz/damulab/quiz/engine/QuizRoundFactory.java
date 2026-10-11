@@ -27,16 +27,21 @@ public class QuizRoundFactory {
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public List<QuizRound> create(String roomCode) {
         QuizRoom room = rooms.findLockedByCode(roomCode).orElseThrow(() -> new QuizEngineException("ROOM_NOT_FOUND"));
-        if (room.getGameVersion() == null || room.getStatus() != QuizRoomStatus.WAITING || rounds.countByRoomId(room.getId()) != 0) throw new QuizEngineException("ROUND_SET_ALREADY_CREATED");
-        var v = room.getGameVersion(); availability.requireWaitingStart(v);
-        if (room.getQuestionCount() < v.getMinQuestionCount() || room.getQuestionCount() > v.getMaxQuestionCount()
+        if (!room.isPlayable() || room.getStatus() != QuizRoomStatus.WAITING || rounds.countByRoomId(room.getId()) != 0) throw new QuizEngineException("ROUND_SET_ALREADY_CREATED");
+        var v = room.getGameVersion();
+        if (v != null) {
+            availability.requireWaitingStart(v);
+            if (room.getQuestionCount() < v.getMinQuestionCount() || room.getQuestionCount() > v.getMaxQuestionCount()
                 || (!v.isQuestionCountEditable() && room.getQuestionCount() != v.getDefaultQuestionCount())
                 || room.getRoundSeconds() < v.getMinRoundSeconds() || room.getRoundSeconds() > v.getMaxRoundSeconds()
                 || (!v.isRoundSecondsEditable() && room.getRoundSeconds() != v.getDefaultRoundSeconds())
                 || room.getMaxPlayers() != v.getMaxPlayers()
-                || !Set.of("ru", "kk").contains(room.getLanguage())) throw new QuizEngineException("SETTINGS_INVALID");
+                    || !Set.of("ru", "kk").contains(room.getLanguage())) throw new QuizEngineException("SETTINGS_INVALID");
+        } else {
+            QuizRoomService.validateCustomSettings(room);
+        }
         var required = audience.resolve(room, participants.findByRoomIdOrderByJoinedAtAscIdAsc(room.getId()));
-        var provider = providers.get(v.getGameType());
+        var provider = providers.get(room.getGameType());
         if (provider == null) throw new QuizEngineException("GAME_TYPE_UNSUPPORTED");
         var candidates = new ArrayList<>(provider.prepare(room, required.gradeIds()));
         if (candidates.stream().map(QuizRoundProvider.Source::versionId).distinct().count() != candidates.size()) throw new QuizEngineException("DUPLICATE_SOURCE");

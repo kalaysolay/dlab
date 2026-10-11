@@ -1,5 +1,7 @@
 package kz.damulab.quiz;
 
+// Контракт предыдущего бинарника нужен только для операторской проверки отката, не для приложения.
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

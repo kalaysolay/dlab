@@ -1,0 +1,4 @@
+// PostgreSQL-приёмка не перезаписывает результаты обычного build пользователя.
+allprojects {
+    layout.buildDirectory.set(file("${rootDir}/.run-logs/student-quiz-pg-build"))
+}

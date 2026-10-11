@@ -22,11 +22,15 @@ public class SubjectRoundProvider implements QuizRoundProvider {
     public QuizGameType gameType() { return QuizGameType.SUBJECT_QUIZ; }
     /** Отбирает текущие публикации нужного предмета, типа, сложности и пересечения всех классов. */
     public List<Source> prepare(QuizRoom room, Set<Long> required) {
-        if (room.getGameVersion().getAudiencePolicy() == AudiencePolicy.UNIVERSAL || required.isEmpty()) throw new QuizEngineException("SUBJECT_UNIVERSAL_UNSUPPORTED");
-        var config = configs.findById(room.getGameVersion().getId()).orElseThrow(() -> new QuizEngineException("SOURCE_UNAVAILABLE"));
-        return versions.findPublishedForQuizSource(config.getSubject().getId()).stream()
-                .filter(v -> v.getSubject().getId().equals(config.getSubject().getId()) && config.getQuestionTypes().contains(v.getType()))
-                .filter(v -> config.getDifficulty() == null || config.getDifficulty() == v.getDifficulty())
+        if (required.isEmpty()) throw new QuizEngineException("SUBJECT_UNIVERSAL_UNSUPPORTED");
+        boolean custom = room.getKind() == QuizRoomKind.CUSTOM_SUBJECT;
+        var config = custom ? null : configs.findById(room.getGameVersion().getId()).orElseThrow(() -> new QuizEngineException("SOURCE_UNAVAILABLE"));
+        if (!custom && room.getGameVersion().getAudiencePolicy() == AudiencePolicy.UNIVERSAL) throw new QuizEngineException("SUBJECT_UNIVERSAL_UNSUPPORTED");
+        var subject = custom ? room.getSubject() : config.getSubject();
+        Integer difficulty = custom ? room.getDifficulty() : config.getDifficulty();
+        return versions.findPublishedForQuizSource(subject.getId()).stream()
+                .filter(v -> custom || config.getQuestionTypes().contains(v.getType()))
+                .filter(v -> difficulty == null || difficulty == v.getDifficulty())
                 .filter(v -> QuizContentEligibility.subjectAudience(v, required) && QuizContentEligibility.subjectComplete(v))
                 .map(v -> new Source(v.getId(), (order, random) -> snapshot(room, v, order, random))).toList();
     }

@@ -23,8 +23,6 @@ damulab:
     max-topic-share-percent: 40
     mastery-stale-after-days: 30
   quiz:
-    # Регрессия старого портала не зависит от QUIZ_GAME_CATALOG_ENABLED машины разработчика.
-    game-catalog-enabled: false
     strict-self-review: false
     timeout-worker-enabled: false
   subjects:

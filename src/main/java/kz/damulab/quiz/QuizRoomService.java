@@ -36,6 +36,8 @@ public class QuizRoomService {
     private final QuizGameAvailabilityPolicy availability;
     private final QuizAudienceResolver audience;
     private final QuizSubjectGameConfigRepository subjectConfigs;
+    private final SubjectRepository subjects;
+    private final kz.damulab.questions.QuestionVersionRepository questionVersions;
     private final Map<QuizGameType, QuizRoundProvider> providers;
     private final QuizRoundFactory factory;
     private final QuizAnswerEvaluator evaluator;
@@ -59,7 +61,8 @@ public class QuizRoomService {
             List<QuizRoundProvider> providers, QuizRoundFactory factory, QuizAnswerEvaluator evaluator,
             QuizRoundAnswerChecker checker, QuizCurrentRoundReader reader, QuizGameResultService results,
             QuizSnapshotJson json, QuizRoomEventPublisher events, QuizRoomCode codes, DamulabQuizProperties properties,
-            Clock clock, PlatformTransactionManager manager, QuizRoomSubscriptions subscriptions, QuizSubjectGameConfigRepository subjectConfigs) {
+            Clock clock, PlatformTransactionManager manager, QuizRoomSubscriptions subscriptions, QuizSubjectGameConfigRepository subjectConfigs,
+            SubjectRepository subjects, kz.damulab.questions.QuestionVersionRepository questionVersions) {
         this.rooms = rooms; this.participants = participants; this.rounds = rounds; this.answers = answers;
         this.students = students; this.grades = grades; this.keys = keys; this.availability = availability;
         this.audience = audience; this.providers = providers.stream().collect(Collectors.toMap(QuizRoundProvider::gameType, Function.identity()));
@@ -68,9 +71,78 @@ public class QuizRoomService {
         this.properties = properties; this.clock = clock;
         this.subscriptions = subscriptions;
         this.subjectConfigs = subjectConfigs;
+        this.subjects = subjects;
+        this.questionVersions = questionVersions;
         transaction = new TransactionTemplate(manager);
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         transaction.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+    }
+
+    /** Создаёт предметную комнату с параметрами ученика, повтор формы не создаёт вторую комнату. */
+    public QuizGameRoomResponse createCustom(String email, QuizGameRoomRequest.CustomCreate request) {
+        if (request == null || request.subjectId() == null || request.gradeId() == null
+                || request.idempotencyKey() == null || request.idempotencyKey().isBlank() || request.idempotencyKey().length() > 128
+                || request.language() == null || !Set.of("ru", "kk").contains(request.language()))
+            throw new QuizEngineException("REQUEST_INVALID");
+        int count = request.questionCount() == null ? 15 : request.questionCount();
+        int seconds = request.roundSeconds() == null ? 10 : request.roundSeconds();
+        String keyHash = hash(request.idempotencyKey());
+        String payloadHash = hash(json.write(Arrays.asList("CUSTOM_SUBJECT", request.subjectId(), request.gradeId(), request.language(), count, seconds)));
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                return transact(() -> {
+                    var host = students.findLockedByEmail(email).orElseThrow(() -> new QuizEngineException("PROFILE_GRADE_REQUIRED"));
+                    var existing = keys.findByStudentProfileIdAndKeyHash(host.getId(), keyHash);
+                    if (existing.isPresent()) {
+                        if (!existing.get().getPayloadHash().equals(payloadHash)) throw new QuizEngineException("IDEMPOTENCY_CONFLICT");
+                        return response(existing.get().getRoom(), host);
+                    }
+                    var subject = subjects.findById(request.subjectId()).orElseThrow(() -> new QuizEngineException("REQUEST_INVALID"));
+                    var grade = grades.findById(request.gradeId()).orElseThrow(() -> new QuizEngineException("INVALID_GRADE"));
+                    String code = QuizRoomCode.normalize(codes.generate());
+                    if (rooms.existsByCodeIgnoreCase(code)) throw new CodeCollision();
+                    var room = new QuizRoom(code, host, subject, grade, request.language(), null, count, seconds, 4);
+                    room.initializeCustom(now().plus(properties.getWaitingTimeout()));
+                    var member = new QuizParticipant(room, host, host.getUser().getFullName(), true);
+                    member.markReady(0);
+                    validateSettings(room); validateContent(room, List.of(member));
+                    rooms.saveAndFlush(room); participants.saveAndFlush(member);
+                    keys.saveAndFlush(new QuizRoomCreationKey(host, keyHash, payloadHash, room));
+                    events.publish("room.created", room);
+                    return response(room, host);
+                });
+            } catch (CodeCollision | DataIntegrityViolationException ex) {
+                if (attempt == 9) throw new QuizEngineException("ROOM_CODE_EXHAUSTED");
+            }
+        }
+        throw new QuizEngineException("ROOM_CODE_EXHAUSTED");
+    }
+
+    /** Отдаёт только предметы/классы с пригодными опубликованными вопросами, одним запросом к банку. */
+    public QuizSetupCatalog setupCatalog() {
+        return transact(() -> {
+            var available = questionVersions.findPublishedForQuizSource(null).stream().filter(QuizContentEligibility::subjectComplete).toList();
+            var counts = new LinkedHashMap<Long, Map<Long, Long>>();
+            for (var version : available) {
+                var byGrade = counts.computeIfAbsent(version.getSubject().getId(), ignored -> new LinkedHashMap<>());
+                version.getGradeLinks().stream().map(g -> g.getGrade().getId()).distinct().forEach(id -> byGrade.merge(id, 1L, Long::sum));
+            }
+            var gradeList = grades.findAllByOrderByGradeNoAsc();
+            var options = subjects.findAllByOrderByTitleRuAsc().stream().filter(s -> counts.containsKey(s.getId())).map(s -> {
+                var byGrade = counts.get(s.getId());
+                var choices = gradeList.stream().filter(g -> byGrade.containsKey(g.getId()))
+                        .map(g -> new QuizSetupGradeOption(g.getId(), g.getGradeNo(), g.getTitleRu(), g.getTitleKk(), byGrade.get(g.getId()))).toList();
+                return new QuizSetupSubjectOption(s.getId(), s.getCode(), s.getTitleRu(), s.getTitleKk(), available.stream().filter(v -> v.getSubject().getId().equals(s.getId())).count(), choices);
+            }).filter(s -> !s.grades().isEmpty()).toList();
+            return new QuizSetupCatalog("school_subject", options);
+        });
+    }
+
+    /** Диапазоны самостоятельной викторины общие для create/settings/start, вместимость не выбирается. */
+    public static void validateCustomSettings(QuizRoom room) {
+        if (room.getSubject() == null || room.getAudienceGradeNo() == null || room.getQuestionCount() < 1 || room.getQuestionCount() > 50
+                || room.getRoundSeconds() < 5 || room.getRoundSeconds() > 120 || room.getMaxPlayers() != 4
+                || !Set.of("ru", "kk").contains(room.getLanguage())) throw new QuizEngineException("SETTINGS_INVALID");
     }
 
     /** Фиксирует текущую публикацию и host; повтор того же ключа возвращает ту же комнату даже после скрытия игры. */
@@ -117,29 +189,20 @@ public class QuizRoomService {
         throw new QuizEngineException("ROOM_CODE_EXHAUSTED");
     }
 
-    /** Проверяет только тип комнаты для переходного HTTP-фасада; состояние не выдаёт. */
-    public boolean isGameRoom(String code) {
-        return transact(() -> {
-            // Сначала допускается только уже существующий legacy-код по прежнему trim/case-контракту.
-            // Новые команды и неизвестные коды по-прежнему проходят строгий QuizRoomCode.normalize.
-            if (code != null && !code.isBlank() && code.trim().length() <= 16) {
-                var existing=rooms.findByCodeIgnoreCase(code.trim());
-                if (existing.isPresent() && existing.get().getGameVersion()==null) return false;
-            }
-            return find(code, false).getGameVersion() != null;
-        });
-    }
     /** Возвращает только разрешённые ID классов закреплённой версии после проверки membership текущего аккаунта. */
     public Set<Long> allowedGradeIds(String code, String email) {
         return transact(() -> {
-            var room=find(code,false); requireGame(room);
+            var room=find(code,false);
             member(room,student(email));
-            return Set.copyOf(room.getGameVersion().getGradeIds());
+            if (room.getKind() == QuizRoomKind.CUSTOM_SUBJECT)
+                return setupCatalog().subjects().stream().filter(s -> s.id().equals(room.getSubject().getId()))
+                        .flatMap(s -> s.grades().stream()).map(QuizSetupGradeOption::id).collect(Collectors.toSet());
+            return room.getGameVersion() == null ? Set.of() : Set.copyOf(room.getGameVersion().getGradeIds());
         });
     }
     /** Читает только состояние участника и догоняет серверное расписание без клиентских таймеров. */
     public QuizGameRoomResponse state(String code, String email) {
-        return command(code, email, (room, student) -> { member(room, student); advance(room, now()); return response(room, student); });
+        return transact(() -> { var room = find(code, true); var student = student(email); member(room, student); if (room.isPlayable()) advance(room, now()); return response(room, student); });
     }
     /** Ограниченное превью доступно ученику до join; никаких ID участников, условий или ответов. */
     public QuizGameRoomResponse.Preview preview(String code, String email) {
@@ -183,8 +246,12 @@ public class QuizRoomService {
             if (request == null || request.settingsRevision() != room.getSettingsRevision()) throw new QuizEngineException("SETTINGS_REVISION_CONFLICT");
             int count = request.questionCount() == null ? room.getQuestionCount() : request.questionCount();
             int seconds = request.roundSeconds() == null ? room.getRoundSeconds() : request.roundSeconds();
-            Integer grade = request.gradeId() == null ? room.getAudienceGradeNo() : selectedGrade(room.getGameVersion(), student, request.gradeId());
+            Integer grade = request.gradeId() == null ? room.getAudienceGradeNo() : room.getKind() == QuizRoomKind.CUSTOM_SUBJECT
+                    ? grades.findById(request.gradeId()).orElseThrow(() -> new QuizEngineException("INVALID_GRADE")).getGradeNo()
+                    : selectedGrade(room.getGameVersion(), student, request.gradeId());
             if (!Objects.equals(grade, room.getAudienceGradeNo()) || count != room.getQuestionCount() || seconds != room.getRoundSeconds()) {
+                if (room.getKind() == QuizRoomKind.CUSTOM_SUBJECT && request.gradeId() != null)
+                    room.changeCustomGrade(grades.findById(request.gradeId()).orElseThrow(() -> new QuizEngineException("INVALID_GRADE")));
                 room.changeSettings(grade, Set.of(), count, seconds); validateSettings(room); var members = members(room); validateContent(room, members);
                 for (var participant : members) {
                     if (isHost(room, participant.getStudentProfile())) participant.markReady(room.getSettingsRevision()); else participant.resetReady();
@@ -257,14 +324,14 @@ public class QuizRoomService {
     }
     /** Догоняет расписание и выдаёт только собственный разбор FINISHED-комнаты. */
     public QuizGameResultService.Result results(String code, String email) {
-        return command(code, email, (room, student) -> { member(room, student); advance(room, now()); return results.read(room.getCode(), student.getId()); });
+        return transact(() -> { var room = find(code, true); var student = student(email); member(room, student); if (room.isPlayable()) advance(room, now()); return results.read(room.getCode(), student.getId()); });
     }
     /** Одна транзакция на комнату: повреждённая игра не откатывает обработку остальных; flag каталога не участвует. */
     public void enforceTimeouts() {
         var codes = transact(() -> {
             var list = new ArrayList<String>();
-            rooms.findExpiredWaiting(now(), PageRequest.of(0, 100)).stream().filter(r -> r.getGameVersion() != null).forEach(r -> list.add(r.getCode()));
-            rooms.findByStatus(QuizRoomStatus.ACTIVE).stream().filter(r -> r.getGameVersion() != null).forEach(r -> list.add(r.getCode()));
+            rooms.findExpiredWaiting(now(), PageRequest.of(0, 100)).stream().filter(QuizRoom::isPlayable).forEach(r -> list.add(r.getCode()));
+            rooms.findByStatus(QuizRoomStatus.ACTIVE).stream().filter(QuizRoom::isPlayable).forEach(r -> list.add(r.getCode()));
             return list;
         });
         for (String code : codes) {
@@ -331,6 +398,7 @@ public class QuizRoomService {
         if (count < room.getQuestionCount()) throw new QuizEngineException("INSUFFICIENT_PUBLISHED_CONTENT", count, room.getQuestionCount());
     }
     private void validateSettings(QuizRoom room) {
+        if (room.getKind() == QuizRoomKind.CUSTOM_SUBJECT) { validateCustomSettings(room); return; }
         var v = room.getGameVersion();
         if (room.getQuestionCount() < v.getMinQuestionCount() || room.getQuestionCount() > v.getMaxQuestionCount()
                 || (!v.isQuestionCountEditable() && room.getQuestionCount() != v.getDefaultQuestionCount())
@@ -369,15 +437,16 @@ public class QuizRoomService {
                 room.getLanguage(), room.getDifficulty(), room.getQuestionCount(), room.getRoundSeconds(), room.getMaxPlayers(), at,
                 currentRound == null ? null : currentRound.id(), room.getCreatedAt(), room.getStartedAt(), room.getFinishedAt(),
                 members.stream().map(p -> new QuizGameRoomResponse.Member(p.getId(), p.getDisplayName(), p.isReady(), isHost(room, p.getStudentProfile()), p.getId().equals(current.getId()))).toList(), List.copyOf(windows),
-                room.getGame().getId(), room.getGame().getCode(), room.getGameType().name(), title(room),
-                QuizSnapshotJson.localized(v.getDescriptionRu(), v.getDescriptionKk(), room.getLanguage()), host, host && blockers.isEmpty(), List.copyOf(blockers),
+                room.getGame() == null ? null : room.getGame().getId(), room.getGame() == null ? null : room.getGame().getCode(), room.getGameType().name(), title(room),
+                v == null ? "" : QuizSnapshotJson.localized(v.getDescriptionRu(), v.getDescriptionKk(), room.getLanguage()), host, host && blockers.isEmpty(), List.copyOf(blockers),
                 effectiveStatus(room) == QuizRoomStatus.WAITING && members.size() < room.getMaxPlayers(), room.getExpiresAt(), room.getSettingsRevision(), currentRound,
                 currentRound == null ? null : switch (room.getGameType()) { case SUBJECT_QUIZ -> "QUESTION"; case WORD_TRANSLATION -> "VOCABULARY"; case TRUE_FALSE -> "FACT"; },
-                room.getAudienceGradeNo(), v.getGradeSelectionMode().name(), v.getAudiencePolicy().name(), v.isQuestionCountEditable(), v.isRoundSecondsEditable(),
-                v.getMinQuestionCount(), v.getMaxQuestionCount(), v.getMinRoundSeconds(), v.getMaxRoundSeconds());
+                room.getAudienceGradeNo(), v == null ? "REQUIRED" : v.getGradeSelectionMode().name(), v == null ? "ROOM_GRADE" : v.getAudiencePolicy().name(), v == null || v.isQuestionCountEditable(), v == null || v.isRoundSecondsEditable(),
+                v == null ? 1 : v.getMinQuestionCount(), v == null ? 50 : v.getMaxQuestionCount(), v == null ? 5 : v.getMinRoundSeconds(), v == null ? 120 : v.getMaxRoundSeconds());
     }
     private QuizRoom find(String code, boolean lock) {
-        String normalized = QuizRoomCode.normalize(code);
+        // Исторические коды сохраняют прежнее написание; неизвестный код проходит строгую проверку.
+        String normalized = code != null && code.trim().length() <= 16 && rooms.existsByCodeIgnoreCase(code.trim()) ? code.trim() : QuizRoomCode.normalize(code);
         var room = (lock ? rooms.findCommandLockedByCode(normalized) : rooms.findByCodeIgnoreCase(normalized)).orElseThrow(() -> new QuizEngineException("ROOM_NOT_FOUND"));
         if (lock) {
             // Сначала обычный WAIT lock, затем FORCE_INCREMENT уже своей заблокированной строки.
@@ -387,8 +456,9 @@ public class QuizRoomService {
         }
         return room;
     }
-    private void requireGame(QuizRoom room) { if (room.getGameVersion() == null) throw new QuizEngineException("LEGACY_ROOM"); }
+    private void requireGame(QuizRoom room) { if (!room.isPlayable()) throw new QuizEngineException("RESULTS_NOT_AVAILABLE"); }
     private void requireSource(QuizRoom room) {
+        if (room.getKind() == QuizRoomKind.CUSTOM_SUBJECT) return;
         try { availability.requireWaitingStart(room.getGameVersion()); }
         catch (ContentValidationException ex) { throw new QuizEngineException("GAME_CONFIGURATION_INVALID"); }
     }
@@ -397,7 +467,7 @@ public class QuizRoomService {
     private List<QuizParticipant> members(QuizRoom room) { return participants.findByRoomIdOrderByJoinedAtAscIdAsc(room.getId()); }
     private boolean isHost(QuizRoom room, StudentProfile student) { return room.getHostStudentProfile().getId().equals(student.getId()); }
     private void requireHost(QuizRoom room, StudentProfile student) { member(room, student); if (!isHost(room, student)) throw new QuizEngineException("HOST_ONLY_ACTION"); }
-    private QuizRoomStatus effectiveStatus(QuizRoom room) { return room.getStatus() == QuizRoomStatus.WAITING && !now().isBefore(room.getExpiresAt()) ? QuizRoomStatus.EXPIRED : room.getStatus(); }
+    private QuizRoomStatus effectiveStatus(QuizRoom room) { return room.getStatus() == QuizRoomStatus.WAITING && room.getExpiresAt() != null && !now().isBefore(room.getExpiresAt()) ? QuizRoomStatus.EXPIRED : room.getStatus(); }
     private void requireWaiting(QuizRoom room) {
         switch (effectiveStatus(room)) {
             case WAITING -> { }
@@ -407,6 +477,8 @@ public class QuizRoomService {
         }
     }
     private String title(QuizRoom room) {
+        if (room.getGameVersion() == null) return room.getSubject() == null ? room.getCode()
+                : QuizSnapshotJson.localized(room.getSubject().getTitleRu(), room.getSubject().getTitleKk(), room.getLanguage());
         String title = QuizSnapshotJson.localized(room.getGameVersion().getTitleRu(), room.getGameVersion().getTitleKk(), room.getLanguage());
         if (title.isBlank()) throw new QuizEngineException("GAME_CONFIGURATION_INVALID"); return title;
     }

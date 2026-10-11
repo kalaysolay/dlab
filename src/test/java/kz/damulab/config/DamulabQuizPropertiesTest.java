@@ -10,23 +10,12 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
-/**
- * Проверяет безопасный default и привязку флага без БД, внешних API и запуска портала.
- * YAML проверяется отдельно, чтобы Java-default не скрывал ошибку базовой конфигурации.
- * Регрессия существующих маршрутов остаётся в QuizArenaIntegrationTest.
- */
+/** Проверяет сроки ожидания, редакционное правило и удаление переключателя старого портала. */
 class DamulabQuizPropertiesTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(PropertiesConfiguration.class);
 
-    @Test
-    void catalogIsDisabledWhenPropertyIsAbsent() {
-        contextRunner.run(context -> {
-            assertThat(context).hasNotFailed().hasSingleBean(DamulabQuizProperties.class);
-            assertThat(context.getBean(DamulabQuizProperties.class).isGameCatalogEnabled()).isFalse();
-        });
-    }
     @Test
     void waitingTimeoutHasSafeDefaultBindsDurationAndRejectsNonPositiveValues() {
         contextRunner.run(context -> assertThat(context.getBean(DamulabQuizProperties.class).getWaitingTimeout()).isEqualTo(java.time.Duration.ofMinutes(30)));
@@ -37,24 +26,6 @@ class DamulabQuizPropertiesTest {
     }
 
     @Test
-    void catalogCanBeExplicitlyEnabled() {
-        contextRunner.withPropertyValues("damulab.quiz.game-catalog-enabled=true")
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context.getBean(DamulabQuizProperties.class).isGameCatalogEnabled()).isTrue();
-                });
-    }
-
-    @Test
-    void catalogCanBeExplicitlyDisabled() {
-        contextRunner.withPropertyValues("damulab.quiz.game-catalog-enabled=false")
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context.getBean(DamulabQuizProperties.class).isGameCatalogEnabled()).isFalse();
-                });
-    }
-
-    @Test
     void strictSelfReviewIsDisabledByDefaultAndCanBeEnabled() {
         contextRunner.run(context -> assertThat(context.getBean(DamulabQuizProperties.class).isStrictSelfReview()).isFalse());
         contextRunner.withPropertyValues("damulab.quiz.strict-self-review=true")
@@ -62,24 +33,24 @@ class DamulabQuizPropertiesTest {
     }
 
     @Test
-    void invalidBooleanFailsBindingInsteadOfEnablingCatalog() {
-        contextRunner.withPropertyValues("damulab.quiz.game-catalog-enabled=not-a-boolean")
-                .run(context -> assertThat(context).hasFailed());
+    void obsoleteCatalogFlagIsIgnoredInsteadOfSwitchingPortal() {
+        contextRunner.withPropertyValues("damulab.quiz.game-catalog-enabled=false")
+                .run(context -> assertThat(context).hasNotFailed());
     }
 
     @Test
-    void applicationYamlUsesAnEnvironmentOverrideWithSafeDefault() throws IOException {
+    void applicationYamlHasNoLegacyPortalSwitch() throws IOException {
         var sources = new YamlPropertySourceLoader().load("application", new ClassPathResource("application.yml"));
 
         assertThat(sources.get(0).getProperty("damulab.quiz.game-catalog-enabled"))
-                .isEqualTo("${QUIZ_GAME_CATALOG_ENABLED:false}");
+                .isNull();
     }
 
     @Test
-    void testProfileKeepsLegacyRegressionIndependentOfEnvironmentFlag() throws IOException {
+    void testProfileHasNoLegacyPortalSwitch() throws IOException {
         var sources = new YamlPropertySourceLoader().load("application-test", new ClassPathResource("application-test.yml"));
 
-        assertThat(sources.get(0).getProperty("damulab.quiz.game-catalog-enabled")).isEqualTo(false);
+        assertThat(sources.get(0).getProperty("damulab.quiz.game-catalog-enabled")).isNull();
     }
 
     @Configuration(proxyBeanMethods = false)

@@ -100,7 +100,7 @@ public class QuizAnswer {
 
     /** Legacy допускает исправление; в новой игре первый ответ окончателен. */
     public void replace(String answerJson, boolean correct, BigDecimal pointsAwarded) {
-        if (round.getRoom().getGameVersion() != null) throw new IllegalStateException("Ответ новой игры окончателен");
+        if (round.getRoom().isPlayable()) throw new IllegalStateException("Ответ игры окончателен");
         this.answerJson = answerJson;
         this.correct = correct;
         this.pointsAwarded = pointsAwarded == null ? BigDecimal.ZERO : pointsAwarded;

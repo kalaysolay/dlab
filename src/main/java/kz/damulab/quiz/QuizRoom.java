@@ -27,6 +27,24 @@ import kz.damulab.users.StudentProfile;
 /** Компонент комнаты: nullable-поля сохраняют legacy, новые механики опираются на версию и снимки. */
 public class QuizRoom {
 
+    @Enumerated(EnumType.STRING) @Column(name = "room_kind", nullable = false, length = 32)
+    private QuizRoomKind kind = QuizRoomKind.HISTORY;
+
+    /** Возвращает источник комнаты независимо от наличия ссылки на каталог. */
+    public QuizRoomKind getKind() { return kind; }
+
+    /** Указывает, что команда обслуживается единственным действующим движком. */
+    public boolean isPlayable() { return kind != QuizRoomKind.HISTORY; }
+
+    /** Создаёт самостоятельную предметную комнату без скрытой игры в каталоге. */
+    public void initializeCustom(OffsetDateTime expiry) {
+        if (id != null || gameVersion != null || subject == null || grade == null)
+            throw new IllegalStateException("Некорректная предметная комната");
+        kind = QuizRoomKind.CUSTOM_SUBJECT;
+        audienceGradeNo = grade.getGradeNo();
+        expiresAt = expiry;
+    }
+
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "game_id")
     private QuizGame game;
 
@@ -110,7 +128,7 @@ public class QuizRoom {
     public QuizGameVersion getGameVersion() { return gameVersion; }
 
     /** Возвращает gameType. */
-    public QuizGameType getGameType() { return gameType; }
+    public QuizGameType getGameType() { return kind == QuizRoomKind.CATALOG_GAME ? gameType : QuizGameType.SUBJECT_QUIZ; }
 
     /** Возвращает audienceGradeNo. */
     public Integer getAudienceGradeNo() { return audienceGradeNo; }
@@ -136,6 +154,7 @@ public class QuizRoom {
     /** Фиксирует версию при create; доступность проверяет командный сервис следующего этапа. */
     public void attachGameVersion(QuizGameVersion version, OffsetDateTime expiry) {
         if (status != QuizRoomStatus.WAITING || gameVersion != null) throw new IllegalStateException("Версия уже зафиксирована");
+        kind = QuizRoomKind.CATALOG_GAME;
         game = version.getGame(); gameVersion = version; gameType = version.getGameType(); expiresAt = expiry;
     }
     /** Задаёт исходный выбранный класс до первого INSERT; первая редакция настроек имеет revision 0. */
@@ -148,6 +167,12 @@ public class QuizRoom {
         if (status != QuizRoomStatus.WAITING) throw new IllegalStateException("Настройки доступны только в ожидании");
         this.audienceGradeNo = audienceGradeNo; this.audienceGrades = new LinkedHashSet<>(audienceGrades);
         this.questionCount = questionCount; this.roundSeconds = roundSeconds; settingsRevision++;
+    }
+    /** Синхронизирует исходный FK класса с настройками самостоятельной игры в той же транзакции. */
+    public void changeCustomGrade(Grade selected) {
+        if (kind != QuizRoomKind.CUSTOM_SUBJECT || status != QuizRoomStatus.WAITING || selected == null)
+            throw new IllegalStateException("Класс нельзя менять");
+        grade = selected;
     }
     /** Отменяет WAITING, не удаляя историю. */
     public void cancel(OffsetDateTime now) {

@@ -22,7 +22,7 @@ public class QuizResultCalculator {
             for (var round : rounds) {
                 var answer = own.get(round.getId()); boolean ok = correct(round, answer);
                 if (ok) correct++;
-                boolean legacy = room.getGameVersion() == null;
+                boolean legacy = !room.isPlayable();
                 BigDecimal points = legacy ? round.getPoints() : BigDecimal.ONE;
                 max = max.add(points);
                 if (ok) score = score.add(legacy ? answer.getPointsAwarded() : BigDecimal.ONE);
@@ -39,10 +39,10 @@ public class QuizResultCalculator {
             values.add(new Standing(participant, 0, rounds.size(), correct, score, max, percent, unknownTime ? null : time));
         }
         // Если достоверного времени нет, сохраняем старую сортировку и не сравниваем выдуманные нули.
-        boolean timed = room.getGameVersion() != null && values.stream().allMatch(s -> s.totalResponseMs() != null);
+        boolean timed = room.isPlayable() && values.stream().allMatch(s -> s.totalResponseMs() != null);
         Comparator<Standing> order = Comparator.comparing(Standing::score, Comparator.reverseOrder());
         if (timed) order = order.thenComparing(Standing::totalResponseMs);
-        else if (room.getGameVersion() == null) order = order.thenComparing(Standing::percent, Comparator.reverseOrder());
+        else if (!room.isPlayable()) order = order.thenComparing(Standing::percent, Comparator.reverseOrder());
         order = order.thenComparing(s -> s.participant().getJoinedAt()).thenComparing(s -> s.participant().getId());
         values.sort(order); List<Standing> result = new ArrayList<>();
         for (int i = 0; i < values.size(); i++) { var v = values.get(i); result.add(new Standing(v.participant(), i + 1, v.total(), v.correct(), v.score(), v.maxScore(), v.percent(), v.totalResponseMs())); }

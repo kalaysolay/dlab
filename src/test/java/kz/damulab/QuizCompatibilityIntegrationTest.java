@@ -8,7 +8,6 @@ import java.sql.DriverManager;
 import java.time.*;
 import java.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import kz.damulab.config.DamulabQuizProperties;
 import kz.damulab.quiz.*;
 import kz.damulab.quiz.catalog.*;
 import kz.damulab.quiz.engine.*;
@@ -38,7 +37,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 class QuizCompatibilityIntegrationTest {
     @Autowired QuizStarterContentService starter;
     @Autowired QuizRoomService rooms;
-    @Autowired QuizService legacy;
     @Autowired QuizStudentCatalog catalog;
     @Autowired QuizGameRepository games;
     @Autowired QuizGameAdminService adminGames;
@@ -48,7 +46,6 @@ class QuizCompatibilityIntegrationTest {
     @Autowired ObjectMapper mapper;
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
-    @Autowired DamulabQuizProperties properties;
     @Autowired PlatformTransactionManager manager;
     @Autowired TestClock clock;
     private String reviewer;
@@ -59,7 +56,7 @@ class QuizCompatibilityIntegrationTest {
         String url=System.getenv().getOrDefault("QUIZ_TEST_DB_URL","jdbc:h2:mem:"+schema+";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1");
         String user=System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"), password=System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD","");
         Flyway.configure().dataSource(url,user,password).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").target("46").load().migrate();
-        try (var c=DriverManager.getConnection(url,user,password)) { c.setSchema(schema); QuizFoundationMigrationTest.seedLegacy(c); }
+        try (var c=DriverManager.getConnection(url,user,password)) { c.setSchema(schema); QuizFoundationMigrationTest.seedLegacy(c); QuizFoundationMigrationTest.finishActive(c); }
         registry.add("spring.datasource.url",()->url); registry.add("spring.datasource.username",()->user); registry.add("spring.datasource.password",()->password);
         registry.add("spring.datasource.hikari.schema",()->schema); registry.add("spring.flyway.schemas",()->schema); registry.add("spring.flyway.default-schema",()->schema);
     }
@@ -71,7 +68,7 @@ class QuizCompatibilityIntegrationTest {
         try { assertThat(starter.install(reviewer)).containsExactlyElementsOf(QuizStarterContentService.CODES); }
         finally { SecurityContextHolder.clearContext(); }
     }
-    @BeforeEach void reset() { properties.setGameCatalogEnabled(false); clock.offset=0; }
+    @BeforeEach void reset() { clock.offset=0; }
 
     @ParameterizedTest
     @CsvSource({"starter-en-numbers-v1,ru,1","starter-kk-numbers-v1,kk,1","starter-math-sums-v1,ru,1","starter-space-facts-v1,kk,1",
@@ -91,7 +88,7 @@ class QuizCompatibilityIntegrationTest {
         }
         clock.offset=101;
         // Исполняется тот же метод, который вызывает scheduler, при false и без HTTP-перехода результата.
-        new QuizTimeoutScheduler(legacy,rooms).enforceTimeouts();
+        new QuizTimeoutScheduler(rooms).enforceTimeouts();
         assertThat(jdbc.queryForObject("select status from quiz_rooms where code=?",String.class,room.code())).isEqualTo("FINISHED");
         for(String player:players) {
             var result=rooms.results(room.code(),player); assertThat(result.me().percent()).isEqualTo(100);
@@ -100,17 +97,16 @@ class QuizCompatibilityIntegrationTest {
             mvc.perform(get("/student/quiz/rooms/"+room.code()+"/results").param("lang",locale).with(user(player).roles("STUDENT")))
                     .andExpect(status().isOk()).andExpect(view().name("student/quiz-game-room"));
         }
-        assertThat(properties.isGameCatalogEnabled()).isFalse();
     }
-    @Test void flagSwitchRetainsCommandsResultsExpiryAndLegacyCreate() throws Exception {
-        String host=profile("ru",5), guest=profile("kk",5); properties.setGameCatalogEnabled(true);
+    @Test void obsoleteFlagDoesNotSwitchCommandsAndCustomCreate() throws Exception {
+        String host=profile("ru",5), guest=profile("kk",5);
         mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(view().name("student/quiz-games"));
         String json=mvc.perform(post("/api/quiz/rooms").with(user(host).roles("STUDENT")).with(csrf()).contentType("application/json")
                 .content(mapper.writeValueAsString(Map.of("gameCode",QuizStarterContentService.CODES.get(3),"idempotencyKey",UUID.randomUUID().toString())))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String code=mapper.readTree(json).path("code").asText(); properties.setGameCatalogEnabled(false);
-        mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(view().name("student/quiz-hub"));
-        mvc.perform(get("/student/quiz/games").with(user(host).roles("STUDENT"))).andExpect(status().isNotFound());
-        mvc.perform(post("/student/quiz/games/rooms").with(user(host).roles("STUDENT")).with(csrf()).param("gameCode",QuizStarterContentService.CODES.get(3)).param("idempotencyKey",UUID.randomUUID().toString())).andExpect(status().isNotFound());
+        String code=mapper.readTree(json).path("code").asText();
+        mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(view().name("student/quiz-games"));
+        mvc.perform(get("/student/quiz/games").with(user(host).roles("STUDENT"))).andExpect(status().isOk());
+        mvc.perform(post("/student/quiz/games/rooms").with(user(host).roles("STUDENT")).with(csrf()).param("gameCode",QuizStarterContentService.CODES.get(3)).param("idempotencyKey",UUID.randomUUID().toString())).andExpect(status().is3xxRedirection());
         mvc.perform(get("/api/quiz/rooms/"+code+"/preview").with(user(guest).roles("STUDENT"))).andExpect(status().isOk());
         mvc.perform(post("/api/quiz/rooms/"+code+"/join").with(user(guest).roles("STUDENT")).with(csrf())).andExpect(status().isOk());
         mvc.perform(post("/api/quiz/rooms/"+code+"/ready").with(user(guest).roles("STUDENT")).with(csrf()).contentType("application/json").content("{\"ready\":true,\"settingsRevision\":0}")).andExpect(status().isOk());
@@ -119,52 +115,43 @@ class QuizCompatibilityIntegrationTest {
         var active=rooms.state(code,host);
         mvc.perform(post("/api/quiz/rooms/"+code+"/answers").with(user(host).roles("STUDENT")).with(csrf()).contentType("application/json").content("{\"roundId\":"+active.activeRoundId()+",\"answer\":false}")).andExpect(status().isOk());
         var expired=rooms.create(host,new QuizGameRoomRequest.Create(QuizStarterContentService.CODES.get(3),null,null,null,UUID.randomUUID().toString()));
-        clock.offset=1801; new QuizTimeoutScheduler(legacy,rooms).enforceTimeouts();
+        clock.offset=1801; new QuizTimeoutScheduler(rooms).enforceTimeouts();
         assertThat(rooms.state(expired.code(),host).status()).isEqualTo("expired");
         mvc.perform(get("/api/quiz/rooms/"+code+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(jsonPath("review.length()").value(5));
-        long subject=jdbc.queryForObject("select id from subjects where code='starter-math-sums-v1'",Long.class), grade=jdbc.queryForObject("select id from grades where grade_no=5",Long.class);
+        // Предмет берём из опубликованной конфигурации: тест не зависит от способа импорта starter-банка.
+        long subject=jdbc.queryForObject("select c.subject_id from quiz_subject_game_configs c join quiz_games g on g.published_version_id=c.game_version_id where g.code=?",Long.class,QuizStarterContentService.CODES.get(2)), grade=jdbc.queryForObject("select id from grades where grade_no=5",Long.class);
         String old=mvc.perform(post("/api/quiz/rooms").with(user(host).roles("STUDENT")).with(csrf()).contentType("application/json")
-                .content(mapper.writeValueAsString(Map.of("subjectId",subject,"gradeId",grade,"questionCount",5,"roundSeconds",20,"maxPlayers",4,"language","ru"))))
+                .content(mapper.writeValueAsString(Map.of("subjectId",subject,"gradeId",grade,"questionCount",5,"roundSeconds",20,"idempotencyKey",UUID.randomUUID().toString(),"language","ru"))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String legacyCode=mapper.readTree(old).path("code").asText();
         assertThat(jdbc.queryForObject("select game_version_id from quiz_rooms where code=?",Long.class,legacyCode)).isNull();
-        assertThat(jdbc.queryForObject("select count(*) from quiz_rounds r join quiz_rooms q on q.id=r.room_id where q.code=?",Integer.class,legacyCode)).isEqualTo(5);
+        assertThat(jdbc.queryForObject("select count(*) from quiz_rounds r join quiz_rooms q on q.id=r.room_id where q.code=?",Integer.class,legacyCode)).isEqualTo(0);
         mvc.perform(post("/api/quiz/rooms/"+legacyCode+"/start").with(user(host).roles("STUDENT")).with(csrf())).andExpect(status().isOk());
     }
     @Test void migratedHistoryUsesLegacyRendererSavedRatingAndUnknownTime() throws Exception {
-        assertThat(legacy.room("LEGACY0","migration@example.test").rounds().getFirst().body()).isEqualTo("Сұрақ");
+        assertThat(rooms.state("LEGACY0","migration@example.test").status()).isEqualTo("expired");
         String guest=profile("ru",5);
         Long student=jdbc.queryForObject("select p.id from student_profiles p join app_users u on u.id=p.user_id where u.email=?",Long.class,guest);
         jdbc.update("insert into quiz_participants(room_id,student_profile_id,display_name,ready) values (900003,?,'Исторический игрок',true)",student);
         Long participant=jdbc.queryForObject("select id from quiz_participants where room_id=900003 and student_profile_id=?",Long.class,student);
         // Сохранённый результат с прежними весами и ранней created_at обязан остаться первым, даже без ответа/response_ms.
         jdbc.update("insert into quiz_results(room_id,participant_id,total_questions,correct_answers,score,max_score,percent,created_at) values (900003,?,1,1,2,2,100, timestamp '2000-01-01 00:00:00')",participant);
-        var result=legacy.results("LEGACY2","migration@example.test"); assertThat(result.results().getFirst().percent()).isEqualTo(100);
-        assertThat(result.results().getFirst().participantId()).isEqualTo(participant);
-        assertThat(result.results().getFirst().score()).isEqualByComparingTo("2");
-        assertThat(result.results().getFirst().totalResponseMs()).isNull();
+        var result=rooms.results("LEGACY2","migration@example.test"); assertThat(result.leaderboard().getFirst().percent()).isEqualTo(100);
+        assertThat(result.leaderboard().getFirst().participantId()).isEqualTo(participant);
+        assertThat(result.leaderboard().getFirst().score()).isEqualByComparingTo("2");
+        assertThat(result.leaderboard().getFirst().totalResponseMs()).isNull();
         assertThat(jdbc.queryForObject("select response_ms from quiz_answers where id=900003",Long.class)).isNull();
         for(String language:List.of("ru","kk")) mvc.perform(get("/student/quiz/rooms/LEGACY2/results").param("lang",language).with(user("migration@example.test").roles("STUDENT")))
             .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString(language.equals("kk")?"жауап беру уақыты сақталмаған":"Время ответа в старых играх не сохранялось")));
         assertThat(mapper.writeValueAsString(result)).contains("\"totalResponseMs\":null");
     }
-    @Test void legacyEntryRoomAndErrorsAreLocalizedWithoutChangingApiCodes() throws Exception {
+    @Test void customEntryAndErrorsAreLocalizedWithStableApiCodes() throws Exception {
         String host=profile("kk",5);
         for(String language:List.of("ru","kk")) {
-            mvc.perform(get("/student/quiz").param("lang",language).with(user(host).roles("STUDENT")))
+            mvc.perform(get("/student/quiz/create").param("lang",language).with(user(host).roles("STUDENT")))
                 .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString(language.equals("kk")?"Пәнді таңдаңыз":"Выберите предмет")));
-            mvc.perform(get("/student/quiz/rooms/LEGACY0").param("lang",language).with(user("migration@example.test").roles("STUDENT")))
-                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString(language.equals("kk")?"Ұйымдастырушының күту бөлмесі":"Лобби хоста")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("window.quizLegacyMessages")));
-            mvc.perform(post("/student/quiz/rooms/join").param("lang",language).param("code","").with(user(host).roles("STUDENT")).with(csrf()))
-                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString(language.equals("kk")?"Бөлме кодын енгізіңіз":"Введите код комнаты")))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("room_code_required"))));
-            mvc.perform(post("/api/quiz/rooms/LEGACY2/ready").param("lang",language).with(user("migration@example.test").roles("STUDENT")).with(csrf()))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("error").value("room_not_waiting"))
-                .andExpect(jsonPath("message").value(language.equals("kk")?"Бөлме енді ойыншыларды күтіп тұрған жоқ.":"Комната больше не ожидает игроков."));
-            mvc.perform(post("/student/quiz/rooms/LEGACY2/ready").param("lang",language).with(user("migration@example.test").roles("STUDENT")).with(csrf()))
-                .andExpect(status().isBadRequest()).andExpect(view().name("student/quiz-game-error"))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("room_not_waiting"))));
+            mvc.perform(post("/api/quiz/rooms/LEGACY2/start").param("lang",language).with(user("migration@example.test").roles("STUDENT")).with(csrf()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("code").value("RESULTS_NOT_AVAILABLE"));
         }
     }
     @Test void fallbackHandlesBlankMetadataInSsrAndApiWithoutRelaxingPublication() throws Exception {
@@ -174,7 +161,7 @@ class QuizCompatibilityIntegrationTest {
             jdbc.update("update quiz_game_versions set title_kk='   ' where id=?",version);
             assertThat(catalog.read(host,"kk").stream().filter(c->c.code().equals(QuizStarterContentService.CODES.get(3))).findFirst().orElseThrow().title()).isEqualTo("Солнечная система: верю / не верю");
             mvc.perform(get("/api/quiz/rooms/"+room.code()).with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(jsonPath("gameTitle").value("Солнечная система: верю / не верю"));
-            properties.setGameCatalogEnabled(true);
+
             mvc.perform(get("/student/quiz").param("lang","kk").with(user(host).roles("STUDENT"))).andExpect(content().string(org.hamcrest.Matchers.containsString("Солнечная система: верю / не верю")));
             jdbc.update("update quiz_game_versions set title_ru=' ' where id=?",version);
             assertThat(catalog.read(host,"kk")).noneMatch(c->c.code().equals(QuizStarterContentService.CODES.get(3)));

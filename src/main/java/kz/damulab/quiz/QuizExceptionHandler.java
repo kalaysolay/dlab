@@ -8,7 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Стабильные локализуемые отказы новых комнат и прежний error-контракт legacy API. */
+/** Стабильные локализованные отказы единственного API викторин. */
 @RestControllerAdvice(assignableTypes = QuizApiController.class)
 public class QuizExceptionHandler {
     private final org.springframework.context.MessageSource messages;
@@ -38,15 +38,8 @@ public class QuizExceptionHandler {
         return engine(new kz.damulab.quiz.engine.QuizEngineException("REQUEST_INVALID"), locale);
     }
 
-    @ExceptionHandler(QuizException.class)
-    ResponseEntity<Map<String, String>> quiz(QuizException ex, java.util.Locale locale) {
-        // Прежний error остаётся стабильным для клиентов; перевод добавляется отдельным полем.
-        String message=messages.getMessage("quiz.legacy.error."+ex.getMessage(),null,messages.getMessage("quiz.legacy.error",null,locale),locale);
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage(), "message", message));
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    ResponseEntity<Map<String, String>> validation(MethodArgumentNotValidException ex, java.util.Locale locale) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "validation_failed", "message", messages.getMessage("quiz.legacy.invalid",null,locale)));
+    ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException ex, java.util.Locale locale) {
+        return engine(new kz.damulab.quiz.engine.QuizEngineException("REQUEST_INVALID"), locale);
     }
 }

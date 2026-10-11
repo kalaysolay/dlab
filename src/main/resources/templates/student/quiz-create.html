@@ -1,0 +1,33 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/quiz-ui-head :: head}"></head><body><div class="app-shell">
+<header th:replace="~{fragments/student-header :: studentHeader}"></header>
+<main class="page qg-page">
+    <section class="qg-heading"><h1 class="page-title" th:text="#{quiz.custom.title}"></h1>
+        <a class="button" th:href="@{/student/quiz}" th:text="#{quiz.ui.back}"></a></section>
+    <p class="alert error" role="alert" th:if="${error}" th:text="${error}"></p>
+    <form class="panel form wide-form" method="post" th:action="@{/student/quiz/rooms}" th:object="${studentQuizForm}" data-student-quiz-create>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" th:field="*{idempotencyKey}">
+        <div class="form-grid">
+            <label class="field"><span th:text="#{quiz.custom.subject}"></span><select th:field="*{subjectId}" required>
+                <option value="" th:text="#{quiz.custom.chooseSubject}"></option>
+                <option th:each="subject : ${quizSetupCatalog.subjects}" th:value="${subject.id}" th:text="${#locale.language == 'kk' ? subject.titleKk : subject.titleRu}"></option>
+            </select></label>
+            <label class="field"><span th:text="#{quiz.ui.grade}"></span><select th:field="*{gradeId}" required aria-describedby="quiz-available">
+                <option value="" th:text="#{quiz.ui.chooseGrade}"></option>
+                <th:block th:each="subject : ${quizSetupCatalog.subjects}">
+                    <option th:each="grade : ${subject.grades}" th:value="${grade.id}" th:attr="data-subject=${subject.id},data-count=${grade.questionCount}"
+                        th:text="${#locale.language == 'kk' ? grade.titleKk : grade.titleRu}"></option>
+                </th:block>
+            </select></label>
+            <label class="field"><span th:text="#{quiz.custom.language}"></span><select th:field="*{language}" required>
+                <option value="ru">Русский</option><option value="kk">Қазақша</option>
+            </select></label>
+            <label class="field"><span th:text="#{quiz.custom.count}"></span><input type="number" th:field="*{questionCount}" min="1" max="50" required></label>
+            <label class="field"><span th:text="#{quiz.ui.seconds}"></span><input type="number" th:field="*{roundSeconds}" min="5" max="120" required></label>
+        </div>
+        <p id="quiz-available" role="status" th:attr="data-label=#{quiz.custom.available}"></p>
+        <p th:text="#{quiz.custom.players}"></p>
+        <button type="submit" class="button primary" th:text="#{quiz.custom.create}" th:disabled="${quizSetupCatalog.subjects.isEmpty()}"></button>
+    </form>
+</main></div><script th:src="@{/js/quiz-create.js}" defer></script></body></html>

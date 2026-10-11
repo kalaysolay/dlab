@@ -21,6 +21,13 @@ public class QuizAudienceResolver {
     /** Применяет ту же policy к пакетно загруженным классам каталога, без запроса на каждую карточку. */
     public Audience resolve(QuizRoom room, List<QuizParticipant> participants, Map<Integer, Long> supported) {
         var version = room.getGameVersion();
+        if (room.getKind() == QuizRoomKind.CUSTOM_SUBJECT) {
+            // Выбранный учеником класс задаёт содержание игры, а не ограничивает класс гостей.
+            Long selected = supported.get(room.getAudienceGradeNo());
+            if (selected == null || participants.isEmpty() || participants.size() > 4)
+                throw new QuizEngineException("AUDIENCE_INVALID");
+            return new Audience(Set.of(selected), Set.of(room.getAudienceGradeNo()));
+        }
         if (participants.isEmpty() || participants.size() > version.getMaxPlayers()) throw new QuizEngineException("AUDIENCE_INVALID");
         Long selected = supported.get(room.getAudienceGradeNo());
         if (version.getGradeSelectionMode() != GradeSelectionMode.NONE && (selected == null || !version.getGradeIds().contains(selected))) throw new QuizEngineException("GRADE_REQUIRED");

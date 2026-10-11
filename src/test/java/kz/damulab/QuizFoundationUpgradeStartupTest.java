@@ -13,7 +13,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
-import kz.damulab.config.DamulabQuizProperties;
 import kz.damulab.quiz.*;
 import kz.damulab.quiz.catalog.QuizContentKind;
 
@@ -28,7 +27,6 @@ import kz.damulab.quiz.catalog.QuizContentKind;
 class QuizFoundationUpgradeStartupTest {
     @Autowired EntityManager em;
     @Autowired QuizRoomRepository rooms;
-    @Autowired DamulabQuizProperties properties;
 
     @DynamicPropertySource
     static void upgradedSchema(DynamicPropertyRegistry registry) throws Exception {
@@ -39,7 +37,7 @@ class QuizFoundationUpgradeStartupTest {
         Flyway.configure().dataSource(url, user, password).schemas(schema).defaultSchema(schema)
                 .locations("classpath:db/migration").target("46").load().migrate();
         try (var connection = DriverManager.getConnection(url, user, password)) {
-            connection.setSchema(schema); QuizFoundationMigrationTest.seedLegacy(connection);
+            connection.setSchema(schema); QuizFoundationMigrationTest.seedLegacy(connection); QuizFoundationMigrationTest.finishActive(connection);
         }
         registry.add("spring.datasource.url", () -> url);
         registry.add("spring.datasource.username", () -> user);
@@ -52,10 +50,9 @@ class QuizFoundationUpgradeStartupTest {
     }
 
     @Test
-    void upgradedApplicationReadsLegacyHistoryAndKeepsCatalogOff() {
-        assertThat(properties.isGameCatalogEnabled()).isFalse();
-        assertThat(rooms.findByCodeIgnoreCase("legacy0").orElseThrow().getStatus()).isEqualTo(QuizRoomStatus.WAITING);
-        assertThat(rooms.findByCodeIgnoreCase("legacy1").orElseThrow().getStatus()).isEqualTo(QuizRoomStatus.ACTIVE);
+    void upgradedApplicationReadsArchivedHistory() {
+        assertThat(rooms.findByCodeIgnoreCase("legacy0").orElseThrow().getStatus()).isEqualTo(QuizRoomStatus.EXPIRED);
+        assertThat(rooms.findByCodeIgnoreCase("legacy1").orElseThrow().getStatus()).isEqualTo(QuizRoomStatus.FINISHED);
         var finished = rooms.findByCodeIgnoreCase("legacy2").orElseThrow();
         assertThat(finished.getStatus()).isEqualTo(QuizRoomStatus.FINISHED);
         assertThat(finished.getGameVersion()).isNull();

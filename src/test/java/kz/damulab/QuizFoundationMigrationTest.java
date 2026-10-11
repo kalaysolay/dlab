@@ -19,7 +19,7 @@ class QuizFoundationMigrationTest {
             sql.executeUpdate("insert into quiz_games(id, code, status) values (920001, 'upgrade-game', 'DRAFT')");
             sql.executeUpdate("insert into quiz_content_editorial_events(content_type, content_id, from_status, to_status) values ('FACT_STATEMENT', 920001, 'DRAFT', 'NEEDS_REVIEW')");
             List<List<Object>> events = rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"));
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(4);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(5);
             assertThat(rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"))).isEqualTo(events);
             try (ResultSet result = sql.executeQuery("select code, status, admin_revision from quiz_games where id = 920001")) {
                 assertThat(result.next()).isTrue(); assertThat(result.getString(1)).isEqualTo("upgrade-game");
@@ -35,8 +35,8 @@ class QuizFoundationMigrationTest {
     void emptyDatabaseMigratesAndSecondRunIsIdempotent() throws Exception {
         Database db = database();
         var flyway = db.flyway(null);
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(55);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("55");
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(56);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("56");
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
     }
@@ -47,13 +47,15 @@ class QuizFoundationMigrationTest {
         assertThat(db.flyway("46").migrate().migrationsExecuted).isEqualTo(46);
         try (Connection connection = db.connection()) {
             seedLegacy(connection);
+            finishActive(connection);
+            try (var sql = connection.createStatement()) { sql.executeUpdate("update quiz_rooms set status='EXPIRED' where status='WAITING'"); }
             Map<String, List<String>> columns = new LinkedHashMap<>();
             Map<String, List<List<Object>>> before = new LinkedHashMap<>();
             for (String table : List.of("quiz_rooms", "quiz_participants", "quiz_rounds", "quiz_answers", "quiz_results", "questions", "question_versions")) {
                 columns.put(table, columns(connection, table));
                 before.put(table, rows(connection, table, columns.get(table)));
             }
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(9);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(10);
             for (String table : before.keySet()) assertThat(rows(connection, table, columns.get(table))).as(table + ": исходные поля").isEqualTo(before.get(table));
             try (Statement sql = connection.createStatement()) {
                 try (ResultSet result = sql.executeQuery("select game_id, game_version_id, game_type, expires_at, settings_revision, command_revision from quiz_rooms order by id")) {
@@ -73,6 +75,31 @@ class QuizFoundationMigrationTest {
         }
         assertThat(db.flyway(null).migrate().migrationsExecuted).isZero();
         assertThat(db.flyway(null).validateWithResult().validationSuccessful).isTrue();
+    }
+
+    @Test
+    void activeHistoricalGameBlocksUpgradeWithoutChangingHistory() throws Exception {
+        Database db = database(); db.flyway("55").migrate();
+        try (Connection connection = db.connection()) {
+            seedLegacy(connection);
+            assertThatThrownBy(() -> db.flyway(null).migrate()).hasStackTraceContaining("завершите активные");
+            try (var sql = connection.createStatement(); var row = sql.executeQuery("select status from quiz_rooms where code='LEGACY1'")) {
+                assertThat(row.next()).isTrue(); assertThat(row.getString(1)).isEqualTo("ACTIVE");
+            }
+            finishActive(connection);
+            // H2 помечает неудачную Java-миграцию failed; в PostgreSQL транзакция откатывает запись.
+            // repair касается исключительно выделенной схемы данного теста.
+            db.flyway(null).repair();
+            db.flyway(null).migrate();
+            try (var sql = connection.createStatement(); var row = sql.executeQuery("select status, room_kind from quiz_rooms where code='LEGACY0'")) {
+                assertThat(row.next()).isTrue(); assertThat(row.getString(1)).isEqualTo("EXPIRED"); assertThat(row.getString(2)).isEqualTo("HISTORY");
+            }
+        }
+    }
+
+    // Имитирует завершение игры предыдущим приложением перед переключением движка.
+    static void finishActive(Connection connection) throws SQLException {
+        try (var sql = connection.createStatement()) { sql.executeUpdate("update quiz_rooms set status='FINISHED', finished_at=current_timestamp where status='ACTIVE'"); }
     }
 
     // Фикстура создаётся именно по старой V46: добавочные столбцы ещё отсутствуют.

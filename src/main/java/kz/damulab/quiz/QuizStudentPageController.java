@@ -2,47 +2,75 @@ package kz.damulab.quiz;
 
 import java.security.Principal;
 import java.util.*;
-import kz.damulab.config.DamulabQuizProperties;
 import kz.damulab.content.GradeRepository;
 import kz.damulab.quiz.catalog.*;
 import kz.damulab.quiz.engine.*;
 import org.springframework.context.MessageSource;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-/** SSR-оболочки нового UI. Все игровые данные читаются через безопасный API; флаг ограничивает только новые входы. */
+/** Единственный вход ученика: самостоятельная викторина, каталог и безопасные оболочки комнат. */
 @Controller
 public class QuizStudentPageController {
     private final QuizStudentCatalog catalog;
     private final QuizRoomService rooms;
     private final GradeRepository grades;
-    private final DamulabQuizProperties properties;
     private final MessageSource messages;
-    /** Подключает каталог, безопасные комнаты и существующий флаг без его включения. */
+    /** Подключает каталог, общий движок комнат и локализацию. */
     public QuizStudentPageController(QuizStudentCatalog catalog,QuizRoomService rooms,
-            GradeRepository grades,DamulabQuizProperties properties,MessageSource messages) {
+            GradeRepository grades,MessageSource messages) {
         this.catalog=catalog; this.rooms=rooms;
-        this.grades=grades; this.properties=properties; this.messages=messages;
+        this.grades=grades; this.messages=messages;
     }
-    /** Показывает готовые карточки при явном флаге; старые комнаты доступны независимо от него. */
-    @GetMapping("/student/quiz/games")
+    /** Показывает каталог и ссылку на создание своей предметной викторины. */
+    @GetMapping({"/student/quiz", "/student/quiz/games"})
     public String hub(Principal principal,Model model,Locale locale) {
-        requireCatalog(); labels(model,locale); model.addAttribute("cards",catalog.read(principal.getName(),locale.getLanguage()));
+        labels(model,locale); model.addAttribute("cards",catalog.read(principal.getName(),locale.getLanguage()));
         return "student/quiz-games";
     }
     /** POST карточки закрепляет ключ формы; никакого create через GET. */
     @PostMapping("/student/quiz/games/rooms")
     public String create(Principal principal,@RequestParam String gameCode,@RequestParam String idempotencyKey,
             @RequestParam(required=false) Long gradeId,Model model,Locale locale) {
-        requireCatalog();
         try {
             var room=rooms.create(principal.getName(),new QuizGameRoomRequest.Create(gameCode,gradeId,null,null,idempotencyKey));
             return "redirect:/student/quiz/rooms/"+room.code();
         } catch (QuizEngineException ex) {
             hub(principal,model,locale); model.addAttribute("error",error(ex,locale)); return "student/quiz-games";
+        }
+    }
+    /** Начальный язык самостоятельной викторины берётся из текущей locale сайта. */
+    @GetMapping("/student/quiz/create")
+    public String customForm(Model model, Locale locale) {
+        if (!model.containsAttribute("studentQuizForm")) {
+            var form = new StudentQuizForm();
+            form.setLanguage("kk".equals(locale.getLanguage()) ? "kk" : "ru");
+            form.setIdempotencyKey(UUID.randomUUID().toString());
+            model.addAttribute("studentQuizForm", form);
+        }
+        labels(model, locale);
+        model.addAttribute("quizSetupCatalog", rooms.setupCatalog());
+        model.addAttribute("quizPageTitle", messages.getMessage("quiz.custom.title", null, locale));
+        return "student/quiz-create";
+    }
+
+    /** Ошибка сохраняет выбранные параметры и ключ формы для безопасной повторной отправки. */
+    @PostMapping("/student/quiz/rooms")
+    public String customCreate(Principal principal, @ModelAttribute StudentQuizForm studentQuizForm,
+            org.springframework.validation.BindingResult binding, Model model, Locale locale) {
+        if (binding.hasErrors()) {
+            model.addAttribute("error", messages.getMessage("quiz.api.REQUEST_INVALID", null, locale));
+            return customForm(model, locale);
+        }
+        try {
+            if (studentQuizForm.getLanguage() == null) studentQuizForm.setLanguage("kk".equals(locale.getLanguage()) ? "kk" : "ru");
+            var room = rooms.createCustom(principal.getName(), studentQuizForm.request());
+            return "redirect:/student/quiz/rooms/" + room.code();
+        } catch (QuizEngineException ex) {
+            model.addAttribute("error", ex.getAvailable() == null ? error(ex, locale)
+                    : messages.getMessage("quiz.custom.insufficient", new Object[]{ex.getAvailable(), ex.getRequired()}, locale));
+            return customForm(model, locale);
         }
     }
     /** Форма preview не присоединяет ученика и не создаёт комнату. */
@@ -57,7 +85,7 @@ public class QuizStudentPageController {
         model.addAttribute("quizPageTitle",room.gameTitle());
         // Разрешённые классы WAITING закреплены в версии комнаты, не в новой публикации игры.
         model.addAttribute("gradeChoices",roomGrades(code,principal.getName(),locale));
-        var replay=room.status().equals("finished") && properties.isGameCatalogEnabled()
+        var replay=room.status().equals("finished") && room.gameCode() != null
                 ? catalog.read(principal.getName(),locale.getLanguage()).stream().filter(c->c.code().equals(room.gameCode())).findFirst().orElse(null) : null;
         model.addAttribute("replayCard",replay);
         return "student/quiz-game-room";
@@ -80,5 +108,4 @@ public class QuizStudentPageController {
         model.addAttribute("quizPageTitle",labels.get("catalog"));
     }
     private String error(QuizEngineException ex,Locale locale) { return messages.getMessage("quiz.api."+QuizRoomService.externalCode(ex.getCode()),null,locale); }
-    private void requireCatalog() { if (!properties.isGameCatalogEnabled()) throw new ResponseStatusException(HttpStatus.NOT_FOUND); }
 }
