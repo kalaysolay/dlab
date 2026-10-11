@@ -74,9 +74,9 @@ class QuizCompatibilityIntegrationTest {
     @CsvSource({"starter-en-numbers-v1,ru,1","starter-kk-numbers-v1,kk,1","starter-math-sums-v1,ru,1","starter-space-facts-v1,kk,1",
             "starter-en-numbers-v1,kk,4","starter-kk-numbers-v1,ru,4","starter-math-sums-v1,kk,4","starter-space-facts-v1,ru,4"})
     void reviewedGamesFinishInSoloAndFourPlayerRooms(String code,String locale,int count) throws Exception {
-        String host=profile(locale,5); var room=rooms.create(host,new QuizGameRoomRequest.Create(code,null,null,null,UUID.randomUUID().toString()));
+        String host=profile(locale,4); var room=rooms.create(host,new QuizGameRoomRequest.Create(code,null,null,null,UUID.randomUUID().toString()));
         List<String> players=new ArrayList<>(List.of(host));
-        for(int i=1;i<count;i++) { String guest=profile(i%2==0?"ru":"kk",5); rooms.join(room.code(),guest); rooms.ready(room.code(),guest,new QuizGameRoomRequest.Ready(true,room.settingsRevision())); players.add(guest); }
+        for(int i=1;i<count;i++) { String guest=profile(i%2==0?"ru":"kk",i+1); rooms.join(room.code(),guest); rooms.ready(room.code(),guest,new QuizGameRoomRequest.Ready(true,room.settingsRevision())); players.add(guest); }
         rooms.start(room.code(),host);
         for(int round=0;round<5;round++) {
             clock.offset=round*20;
@@ -183,12 +183,15 @@ class QuizCompatibilityIntegrationTest {
             assertThatThrownBy(()->starter.install(reviewer)).isInstanceOf(ContentValidationException.class); assertThat(games.count()).isEqualTo(before);
         } finally { SecurityContextHolder.getContext().setAuthentication(original); }
     }
-    @Test void starterCoverageHasReserveAndRejectsYoungerProfiles() {
+    @Test void starterCoverageHasReserveAndAllowsOtherProfileGrades() {
         String younger=profile("ru",4);
         for(String code:QuizStarterContentService.CODES) {
             List<String> errors=new TransactionTemplate(manager).execute(s->{var game=games.findByCode(code).orElseThrow(); var view=adminGames.get(game.getId()); assertThat(view.content().worst().playable()).isEqualTo(8); assertThat(view.warnings()).isEmpty(); return view.errors();});
             assertThat(errors).isEmpty();
-            assertThatThrownBy(()->rooms.create(younger,new QuizGameRoomRequest.Create(code,null,null,null,UUID.randomUUID().toString()))).isInstanceOf(QuizEngineException.class);
+            var room=rooms.create(younger,new QuizGameRoomRequest.Create(code,null,null,null,UUID.randomUUID().toString()));
+            assertThat(rooms.start(room.code(),younger).status()).isEqualTo("active");
+            clock.offset+=101;
+            assertThat(rooms.state(room.code(),younger).status()).isEqualTo("finished");
         }
     }
     private String profile(String locale,Integer grade) {

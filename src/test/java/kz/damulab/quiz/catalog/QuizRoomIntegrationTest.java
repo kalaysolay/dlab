@@ -192,7 +192,7 @@ class QuizRoomIntegrationTest extends QuizGameTestSupport {
         rooms.enforceTimeouts(); assertThat(rooms.state(room.code(), host).status()).isEqualTo("expired");
         assertThat(roundRepository.countByRoomId(room.id())).isZero();
     }
-    @Test void audienceAllProfilesAndSettingsRollbackAreRechecked() {
+    @Test void selectedContentGradeAllowsDifferentAndMissingParticipantGrades() {
         String host = profile(5, "ru"), guest = profile(4, "ru"), missing = profile(null, "ru");
         String game = tx(() -> {
             var f = factForm(2); f.setAudiencePolicy(AudiencePolicy.ROOM_GRADE); f.setGradeSelectionMode(GradeSelectionMode.PROFILE_DEFAULT);
@@ -200,16 +200,18 @@ class QuizRoomIntegrationTest extends QuizGameTestSupport {
             return remember(publishGame(f));
         });
         var room = create(host, createRequest(game, "grades"));
-        failure(() -> rooms.join(room.code(), guest), "INVALID_GRADE");
-        failure(() -> rooms.join(room.code(), missing), "PROFILE_GRADE_REQUIRED");
+        rooms.join(room.code(), guest);
+        rooms.join(room.code(), missing);
         Long grade4 = tx(() -> grades.findAllByOrderByGradeNoAsc().stream().filter(g -> g.getGradeNo() == 4).findFirst().orElseThrow().getId());
         Long grade5 = tx(() -> grades.findAllByOrderByGradeNoAsc().stream().filter(g -> g.getGradeNo() == 5).findFirst().orElseThrow().getId());
         var changed = rooms.settings(room.code(), host, new QuizGameRoomRequest.Settings(grade4, null, null, room.settingsRevision()));
-        rooms.join(room.code(), guest); rooms.ready(room.code(), guest, new QuizGameRoomRequest.Ready(true, changed.settingsRevision()));
-        failure(() -> rooms.settings(room.code(), host, new QuizGameRoomRequest.Settings(grade5, null, null, changed.settingsRevision())), "AUDIENCE_INVALID");
-        var unchanged = rooms.state(room.code(), host); assertThat(unchanged.audienceGradeNo()).isEqualTo(4);
-        assertThat(unchanged.settingsRevision()).isEqualTo(changed.settingsRevision()); assertThat(unchanged.participants()).allMatch(QuizGameRoomResponse.Member::ready);
-        rooms.start(room.code(), host); assertThat(tx(() -> Set.copyOf(roomRepository.findByCodeIgnoreCase(room.code()).orElseThrow().getAudienceGrades()))).containsExactly(4);
+        rooms.ready(room.code(), guest, new QuizGameRoomRequest.Ready(true, changed.settingsRevision()));
+        var updated = rooms.settings(room.code(), host, new QuizGameRoomRequest.Settings(grade5, null, null, changed.settingsRevision()));
+        assertThat(updated.audienceGradeNo()).isEqualTo(5);
+        assertThat(updated.settingsRevision()).isEqualTo(changed.settingsRevision() + 1);
+        assertThat(updated.participants().stream().filter(p -> !p.host())).noneMatch(QuizGameRoomResponse.Member::ready);
+        for (String player : List.of(guest, missing)) rooms.ready(room.code(), player, new QuizGameRoomRequest.Ready(true, updated.settingsRevision()));
+        rooms.start(room.code(), host); assertThat(tx(() -> Set.copyOf(roomRepository.findByCodeIgnoreCase(room.code()).orElseThrow().getAudienceGrades()))).containsExactly(5);
     }
     @Test void sourceArchiveAndInsufficientStartLeaveNoSnapshots() {
         var host = profile(5, "ru"); String game = game(4, 2); var room = create(host, createRequest(game, "archive"));

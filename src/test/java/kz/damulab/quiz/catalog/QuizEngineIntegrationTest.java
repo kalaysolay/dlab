@@ -118,13 +118,17 @@ class QuizEngineIntegrationTest extends QuizGameTestSupport {
         assertThatThrownBy(() -> factory.create(room.getCode())).hasMessage("PROFILE_GRADE_REQUIRED");
         assertThat(roundRepository.countByRoomId(room.getId())).isZero();
     }
-    @Test void fixedGradesAndYoungerRoomGradeAreCheckedAgainAtFormation() {
+    @Test void fixedAndSelectedContentGradesDoNotRestrictParticipantProfiles() {
         var f = factForm(1); f.setAudiencePolicy(AudiencePolicy.FIXED_GRADES); f.setGradeIds(List.of(gradeId(5)));
         var room = room(publishGame(f), 1, "ru", 5, 4);
-        assertThatThrownBy(() -> factory.create(room.getCode())).hasMessage("AUDIENCE_INVALID");
+        var guest = participantRepository.findByRoomIdOrderByJoinedAtAscIdAsc(room.getId()).getLast().getStudentProfile();
+        guest.update(null, "ru");
+        assertThat(factory.create(room.getCode())).hasSize(1);
+        assertThat(room.getAudienceGrades()).containsExactly(5);
         var rf = factForm(1); rf.setAudiencePolicy(AudiencePolicy.ROOM_GRADE); rf.setGradeSelectionMode(GradeSelectionMode.REQUIRED); rf.setGradeIds(List.of(gradeId(5)));
         var other = room(publishGame(rf), 1, "ru", 4); other.changeSettings(5, Set.of(), 1, other.getRoundSeconds());
-        assertThatThrownBy(() -> factory.create(other.getCode())).hasMessage("AUDIENCE_INVALID");
+        assertThat(factory.create(other.getCode())).hasSize(1);
+        assertThat(other.getAudienceGrades()).containsExactly(5);
     }
     @Test void currentPublicationArchiveAndDraftAreRespectedAtFormation() {
         var set = factSet(2); var f = form(QuizGameType.TRUE_FALSE); f.setFactSetId(set.getId()); counts(f, 2); var game = publishGame(f);

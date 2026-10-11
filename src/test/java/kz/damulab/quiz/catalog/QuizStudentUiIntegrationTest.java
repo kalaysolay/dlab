@@ -91,6 +91,22 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         assertThat(cards.stream().filter(c->c.code().equals(universal.getCode())).findFirst().orElseThrow().blocker()).isNull();
         assertThat(cards.stream().filter(c->c.code().equals(restricted.getCode())).findFirst().orElseThrow().blocker()).isEqualTo("PROFILE_GRADE_REQUIRED");
     }
+    @Test void fixedGradeFiveCardCanBeCreatedAndPlayedByGradeFourHost() throws Exception {
+        tx(()->{ profiles.findByUserEmailIgnoreCase(host).orElseThrow().update(4,"ru"); return null; });
+        var game=tx(()->{var f=factForm(1); f.setAudiencePolicy(AudiencePolicy.FIXED_GRADES);
+            f.setGradeIds(List.of(grades.findAllByOrderByGradeNoAsc().stream().filter(g->g.getGradeNo()==5).findFirst().orElseThrow().getId())); return publish(f);});
+        assertThat(catalog.read(host,"ru").stream().filter(c->c.code().equals(game.getCode())).findFirst().orElseThrow().blocker()).isNull();
+        String redirect=mvc.perform(post("/student/quiz/games/rooms").with(user(host).roles("STUDENT")).with(csrf())
+                .param("gameCode",game.getCode()).param("idempotencyKey",UUID.randomUUID().toString()))
+                .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
+        String code=redirect.substring(redirect.lastIndexOf('/')+1);
+        var active=rooms.start(code,host);
+        rooms.answer(code,host,new QuizGameRoomRequest.Answer(active.activeRoundId(),mapper.readTree("false"),false));
+        clock.offset=25;
+        assertThat(rooms.results(code,host).me().correctAnswers()).isEqualTo(1);
+        assertThat(tx(()->profiles.findByUserEmailIgnoreCase(host).orElseThrow().getGradeNo())).isEqualTo(4);
+        assertThat(tx(()->Set.copyOf(roomRepository.findByCodeIgnoreCase(code).orElseThrow().getAudienceGrades()))).containsExactly(5);
+    }
     @Test void obsoleteFlagDoesNotSwitchUiOrRoomHistory() throws Exception {
         var g=tx(()->publish(factForm(1))); var r=create(g.getCode());
         mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(view().name("student/quiz-games"));
