@@ -7,6 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 /** Общая для админской диагностики и будущего движка policy безопасных слов-дистракторов. */
 @Service
 public class VocabularyDistractorService {
+    /** Единый приоритет вариантов; равноприоритетные кандидаты можно случайно выбирать в игровом раунде. */
+    public static final Comparator<Candidate> CANDIDATE_PREFERENCE = Comparator.comparing(Candidate::samePartOfSpeech, Comparator.reverseOrder())
+            .thenComparingInt(Candidate::difficultyDistance).thenComparing(Candidate::sameSet, Comparator.reverseOrder());
     private final VocabularyItemVersionRepository versions;
     private final VocabularyItemAnswerRepository answers;
     private final VocabularyDistractorExclusionRepository exclusions;
@@ -83,10 +86,7 @@ public class VocabularyDistractorService {
                     Objects.equals(source.getPartOfSpeech(), candidate.getPartOfSpeech()),
                     Math.abs(source.getDifficulty() - candidate.getDifficulty())));
         }
-        eligible.sort(Comparator.comparing(Candidate::samePartOfSpeech, Comparator.reverseOrder())
-                .thenComparingInt(Candidate::difficultyDistance)
-                .thenComparing(Candidate::sameSet, Comparator.reverseOrder())
-                .thenComparing(Candidate::versionId));
+        eligible.sort(CANDIDATE_PREFERENCE.thenComparing(Candidate::versionId));
         return new Diagnostics(List.copyOf(eligible), Collections.unmodifiableMap(reasons), eligible.size() >= 3);
     }
 

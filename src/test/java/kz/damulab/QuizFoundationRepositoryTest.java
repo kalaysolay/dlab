@@ -41,6 +41,7 @@ class QuizFoundationRepositoryTest {
 
     @Test
     void catalogLoadsPublishedVersionsInOneQueryRegardlessOfCardCount() {
+        var originalIds=games.findPublishedCatalog(PageRequest.of(0,100)).stream().map(QuizGame::getId).toList();
         for (int i = 0; i < 6; i++) game(QuizGameType.TRUE_FALSE, true);
         QuizGame hidden = game(QuizGameType.TRUE_FALSE, true); hidden.setCatalogVisible(false);
         QuizGame archived = game(QuizGameType.TRUE_FALSE, true); archived.setStatus(EditorialStatus.ARCHIVED);
@@ -49,8 +50,10 @@ class QuizFoundationRepositoryTest {
         var stats = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
         stats.clear();
         var catalog = games.findPublishedCatalog(PageRequest.of(0, 100));
-        assertThat(catalog).hasSize(6);
-        assertThat(catalog).allSatisfy(g -> assertThat(g.getPublishedVersion().getTitleRu()).isEqualTo("Игра"));
+        // Миграция поставляет реальные карточки: отдельно проверяем добавленные тестом шесть.
+        assertThat(catalog).hasSize(originalIds.size()+6);
+        assertThat(catalog).filteredOn(g -> !originalIds.contains(g.getId()))
+                .allSatisfy(g -> assertThat(g.getPublishedVersion().getTitleRu()).isEqualTo("Игра"));
         assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
     }
 

@@ -116,7 +116,11 @@ class QuizContentBankIntegrationTest {
         vocabulary.submitItem(candidate.getId(), admin); vocabulary.approveItem(candidate.getId(), admin); vocabulary.publishItem(candidate.getId(), admin);
 
         var disabled = distractors.diagnose(source.getPublishedVersion().getId(), Set.of(grades.findByGradeNo(1).orElseThrow().getId()));
-        assertThat(disabled.excludedByReason()).containsEntry("CROSS_SET_DISABLED", 1);
+        // Системный пакет тоже содержит опубликованные слова: проверяем конкретный запрет,
+        // а не предположение, что вся БД состоит только из двух наборов этого теста.
+        assertThat(disabled.excludedByReason().get("CROSS_SET_DISABLED")).isGreaterThanOrEqualTo(1);
+        assertThat(disabled.candidates()).extracting(VocabularyDistractorService.Candidate::versionId)
+                .doesNotContain(candidate.getPublishedVersion().getId());
 
         VocabularySetForm changed = vocabulary.setForm(sourceSet.getId()); changed.setCrossSetDistractorsAllowed(true);
         vocabulary.saveSetDraft(sourceSet.getId(), changed, admin); vocabulary.submitSet(sourceSet.getId(), admin);

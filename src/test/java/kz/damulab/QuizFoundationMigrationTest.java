@@ -19,8 +19,9 @@ class QuizFoundationMigrationTest {
             sql.executeUpdate("insert into quiz_games(id, code, status) values (920001, 'upgrade-game', 'DRAFT')");
             sql.executeUpdate("insert into quiz_content_editorial_events(content_type, content_id, from_status, to_status) values ('FACT_STATEMENT', 920001, 'DRAFT', 'NEEDS_REVIEW')");
             List<List<Object>> events = rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"));
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(5);
-            assertThat(rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"))).isEqualTo(events);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(6);
+            // V57 добавляет системные события поставки; прежние строки аудита сохраняются целиком.
+            assertThat(rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"))).containsAll(events);
             try (ResultSet result = sql.executeQuery("select code, status, admin_revision from quiz_games where id = 920001")) {
                 assertThat(result.next()).isTrue(); assertThat(result.getString(1)).isEqualTo("upgrade-game");
                 assertThat(result.getString(2)).isEqualTo("DRAFT"); assertThat(result.getLong(3)).isZero();
@@ -35,8 +36,8 @@ class QuizFoundationMigrationTest {
     void emptyDatabaseMigratesAndSecondRunIsIdempotent() throws Exception {
         Database db = database();
         var flyway = db.flyway(null);
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(56);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("56");
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(57);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("57");
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
     }
@@ -55,7 +56,7 @@ class QuizFoundationMigrationTest {
                 columns.put(table, columns(connection, table));
                 before.put(table, rows(connection, table, columns.get(table)));
             }
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(10);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(11);
             for (String table : before.keySet()) assertThat(rows(connection, table, columns.get(table))).as(table + ": исходные поля").isEqualTo(before.get(table));
             try (Statement sql = connection.createStatement()) {
                 try (ResultSet result = sql.executeQuery("select game_id, game_version_id, game_type, expires_at, settings_revision, command_revision from quiz_rooms order by id")) {

@@ -94,6 +94,16 @@ class BasicVocabularyPackageTest {
             }
             assertThat(keys).isEqualTo(1);
         }
+        // Большой банк должен давать разные дистракторы, а не только разные позиции первых трёх слов.
+        var first=prepared.getFirst(); var observed=new HashSet<String>();
+        for(int seed=0;seed<20;seed++) {
+            var round=first.builder().build(1,new Random(seed));
+            for(JsonNode option:mapper.readTree(round.getOptionsSnapshotJson())) {
+                String text=option.path("text").asText();
+                if(!text.equals(primaryById.get(first.versionId()))) observed.add(text);
+            }
+        }
+        assertThat(observed.size()).isGreaterThan(3);
     }
 
     private static void id(Object value, long id) { ReflectionTestUtils.setField(value, "id", id); }

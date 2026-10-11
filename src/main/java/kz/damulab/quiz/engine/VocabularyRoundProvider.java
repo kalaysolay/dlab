@@ -37,7 +37,12 @@ public class VocabularyRoundProvider implements QuizRoundProvider {
             result.add(new Source(v.getId(), (order, random) -> {
                 List<String> texts = new ArrayList<>(); texts.add(primary);
                 // Предпочтения части речи/сложности/набора определяет общий сервис, а показанный порядок перемешивается.
-                for (int i = 0; i < 3; i++) texts.add(diagnosis.candidates().get(i).answerText());
+                var candidates=new ArrayList<>(diagnosis.candidates());
+                // Стабильная сортировка после shuffle сохраняет общие предпочтения и случайный выбор среди равных.
+                // Иначе в большом банке почти каждый раунд предлагал первые три слова по ID.
+                Collections.shuffle(candidates,random);
+                candidates.sort(VocabularyDistractorService.CANDIDATE_PREFERENCE);
+                for (int i = 0; i < 3; i++) texts.add(candidates.get(i).answerText());
                 Collections.shuffle(texts, random);
                 List<Map<String, String>> options = new ArrayList<>(); String correctId = null;
                 for (int i = 0; i < texts.size(); i++) {
