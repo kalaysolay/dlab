@@ -27,6 +27,7 @@ public class QuizStudentPageController {
     @GetMapping({"/student/quiz", "/student/quiz/games"})
     public String hub(Principal principal,Model model,Locale locale) {
         labels(model,locale); model.addAttribute("cards",catalog.read(principal.getName(),locale.getLanguage()));
+        model.addAttribute("joinCode", "");
         return "student/quiz-games";
     }
     /** POST карточки закрепляет ключ формы; никакого create через GET. */
@@ -98,7 +99,7 @@ public class QuizStudentPageController {
     /** Добавляет только UI-подписи JSON-safe через Thymeleaf inlining; сообщения не становятся HTML. */
     public void labels(Model model,Locale locale) {
         Map<String,String> labels=new LinkedHashMap<>();
-        for (String key:List.of("catalog","intro","join","play","rounds","seconds","players","chooseGrade","profile","empty","back","host","you","ready","waiting","start","invite","copy","copied","cancel","leave","save","grade","round","submit","skip","sending","accepted","uncertain","next","timeout","remaining","threshold","connection","connected","reconnecting","cancelled","expired","results","score","place","percent","ranking","review","yourAnswer","correctAnswer","correct","incorrect","skipped","timedOut","time","timeRule","again","replayUnavailable","noAnswer","true","false","select","multiple","matching","fill","preview","organizer","enter","loading","requestError","source","rules","allReady","code","confirmGrade"))
+        for (String key:List.of("catalog","intro","join","play","rounds","seconds","players","chooseGrade","profile","empty","back","host","hostYou","player","joinedYou","you","ready","waiting","start","invite","copy","copied","cancel","leave","save","grade","round","submit","skip","sending","accepted","uncertain","next","timeout","remaining","threshold","connection","connected","reconnecting","cancelled","expired","results","score","place","percent","ranking","review","yourAnswer","correctAnswer","correct","incorrect","skipped","timedOut","time","timeRule","again","replayUnavailable","noAnswer","true","false","select","multiple","matching","fill","preview","organizer","enter","loading","requestError","source","rules","allReady","code","confirmGrade"))
             labels.put(key,messages.getMessage("quiz.ui."+key,null,locale));
         for (QuizGameType type:QuizGameType.values()) labels.put(type.name(),messages.getMessage("quiz.ui."+type.name(),null,locale));
         for (String key:List.of("PARTICIPANT_NOT_READY","GAME_CONFIGURATION_INVALID","INSUFFICIENT_PUBLISHED_CONTENT","INVALID_GRADE","PROFILE_GRADE_REQUIRED","ROOM_EXPIRED","ROOM_CANCELLED","ROOM_ALREADY_STARTED","ROOM_FULL","ROOM_CODE_INVALID","ANSWER_INVALID"))

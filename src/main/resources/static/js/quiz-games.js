@@ -28,6 +28,11 @@
     const join = document.querySelector("[data-quiz-join]");
     if (join) {
         let code, pending = false;
+        const quickJoin = join.hasAttribute("data-quick-join"), enter = byId("qg-enter");
+        const joinRoom = async () => {
+            const joined = await api(`/api/quiz/rooms/${code}/join`, {});
+            window.location.assign(`/student/quiz/rooms/${joined.code}`);
+        };
         byId("qg-code-form").addEventListener("submit", async event => {
             event.preventDefault(); if (pending) return; pending = true; show("qg-preview", false); text("qg-error", "");
             try {
@@ -37,16 +42,17 @@
                 text("qg-preview-blocker", labels[preview.joinBlocker] || "");
                 let existing = false;
                 try { await api(`/api/quiz/rooms/${code}`); existing = true; } catch (ex) { if (ex.status !== 403) throw ex; }
-                byId("qg-enter").disabled = !preview.canJoin && !existing;
+                if (quickJoin && (preview.canJoin || existing)) { await joinRoom(); return; }
+                if (enter) enter.disabled = !preview.canJoin && !existing;
                 show("qg-preview", true); byId("qg-preview-title").focus();
             } catch (ex) { error(labels[ex.message] || ex.message || labels.requestError); }
             finally { pending = false; }
         });
         // Любое редактирование кода инвалидирует прежнее preview; нельзя войти не в показанную комнату.
         byId("qg-code").addEventListener("input", () => { code = null; show("qg-preview", false); });
-        byId("qg-enter").addEventListener("click", async () => {
+        enter?.addEventListener("click", async () => {
             if (pending || !code) return; pending = true; byId("qg-enter").disabled = true;
-            try { const room = await api(`/api/quiz/rooms/${code}/join`, {}); window.location.assign(`/student/quiz/rooms/${room.code}`); }
+            try { await joinRoom(); }
             catch (ex) { error(ex.message); pending = false; byId("qg-enter").disabled = false; }
         });
     }
@@ -55,7 +61,9 @@
     const base = `/api/quiz/rooms/${root.dataset.code}`;
     let room, round, offset = 0, pending = false, polling = false, socket, stopped = false, reconnect, resultLoaded = false;
     let previousSeconds = Infinity, announced = new Set(), dirtySettings = false, seenRevision, lostPayload;
-    function online(connected) { text("qg-network", connected ? labels.connected : labels.connection); }
+    // При нормальной работе сети ничего не показываем: техническое «состояние обновлено»
+    // отвлекает ребёнка. Сообщение появляется только тогда, когда действительно есть проблема.
+    function online(connected) { text("qg-network", connected ? "" : labels.connection); }
     async function refresh() {
         if (polling || pending || stopped) return; polling = true;
         try { apply(await api(base)); online(true); }
@@ -73,7 +81,15 @@
             status(labels.waiting, false);
             text("qg-settings-summary", `${labels.rounds}: ${room.questionCount} · ${labels.seconds}: ${room.roundSeconds}${room.gradeTitle ? ` · ${room.gradeTitle}` : ""}`);
             const list = byId("qg-participants"); list.replaceChildren();
-            room.participants.forEach(p => list.append(node("div", `${p.displayName}${p.current ? ` (${labels.you})` : ""} · ${p.host ? `${labels.host} · ` : ""}${p.ready ? labels.ready : labels.waiting}`, "qg-participant")));
+            room.participants.forEach(p => {
+                const item = node("div", null, "qg-participant");
+                const shownName = p.current ? labels.you : p.displayName;
+                const avatar = node("span", shownName.trim().charAt(0).toUpperCase(), "qg-participant-avatar");
+                const copy = node("span", null, "qg-participant-copy");
+                copy.append(node("strong", shownName), node("small", p.host ? (p.current ? labels.hostYou : labels.host) : (p.current ? labels.joinedYou : labels.player)));
+                item.append(avatar, copy, node("span", p.ready ? labels.ready : labels.waiting, `qg-participant-state${p.ready ? " is-ready" : ""}`));
+                list.append(item);
+            });
             const blockers = byId("qg-blockers"); blockers.replaceChildren(...room.startBlockers.map(b => node("li", labels[b] || labels.requestError)));
             show("qg-start", host); byId("qg-start").disabled = !room.canStart;
             show("qg-ready", !host); byId("qg-ready").disabled = room.participants.find(p => p.current)?.ready || pending;

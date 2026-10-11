@@ -6,7 +6,7 @@ public class StudentQuizForm {
     private Long gradeId;
     private String language;
     private Integer questionCount = 15;
-    private Integer roundSeconds = 10;
+    private Integer roundSeconds = 5;
     private String idempotencyKey;
 
     public Long getSubjectId() { return subjectId; }

@@ -85,7 +85,7 @@ public class QuizRoomService {
                 || request.language() == null || !Set.of("ru", "kk").contains(request.language()))
             throw new QuizEngineException("REQUEST_INVALID");
         int count = request.questionCount() == null ? 15 : request.questionCount();
-        int seconds = request.roundSeconds() == null ? 10 : request.roundSeconds();
+        int seconds = request.roundSeconds() == null ? 5 : request.roundSeconds();
         String keyHash = hash(request.idempotencyKey());
         String payloadHash = hash(json.write(Arrays.asList("CUSTOM_SUBJECT", request.subjectId(), request.gradeId(), request.language(), count, seconds)));
         for (int attempt = 0; attempt < 10; attempt++) {

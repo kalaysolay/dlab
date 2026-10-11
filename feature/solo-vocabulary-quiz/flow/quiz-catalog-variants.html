@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Варианты каталога викторин — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <style>
+        :root {
+            --mock-border: #e2e8f0;
+            --mock-soft: #f6f8fb;
+            --mock-ink: #172033;
+            --mock-muted: #64748b;
+            --mock-blue: #1668dc;
+        }
+
+        body { background: #f3f6fa; }
+        .variant-page { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 64px; }
+        .variant-page * { box-sizing: border-box; }
+        .variant-page h1,.variant-page h2,.variant-page h3,.variant-page p { margin-top: 0; }
+        .variant-page a:hover { text-decoration: none; }
+        .lucide-icon { width: 19px; height: 19px; }
+
+        .mock-intro {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 18px;
+        }
+        .mock-intro h1 { margin-bottom: 6px; font-size: clamp(1.45rem, 2.4vw, 2rem); }
+        .mock-intro p { max-width: 680px; margin-bottom: 0; color: var(--mock-muted); }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; font-weight: 800; white-space: nowrap; }
+
+        .variant-switcher {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+            margin-bottom: 16px;
+            padding: 6px;
+            border: 1px solid var(--mock-border);
+            border-radius: 14px;
+            background: #fff;
+        }
+        .variant-switcher input { position: absolute; opacity: 0; pointer-events: none; }
+        .variant-switcher label {
+            display: grid;
+            place-items: center;
+            min-height: 42px;
+            padding: 8px 12px;
+            border-radius: 9px;
+            color: var(--mock-muted);
+            font-size: .84rem;
+            font-weight: 850;
+            text-align: center;
+            cursor: pointer;
+        }
+        .variant-switcher label:hover { background: var(--mock-soft); color: var(--mock-ink); }
+        #variant-1:checked + label,
+        #variant-2:checked + label,
+        #variant-3:checked + label,
+        #variant-4:checked + label { background: var(--mock-ink); color: #fff; }
+
+        .variant-stage { border: 1px solid var(--mock-border); border-radius: 18px; overflow: hidden; background: #fff; }
+        .variant { display: none; min-height: 690px; }
+        body:has(#variant-1:checked) .variant-one,
+        body:has(#variant-2:checked) .variant-two,
+        body:has(#variant-3:checked) .variant-three,
+        body:has(#variant-4:checked) .variant-four { display: block; }
+
+        .demo-header { padding: 18px 24px 14px; border-bottom: 1px solid var(--mock-border); }
+        .demo-header-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+        .demo-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--mock-ink); }
+        .demo-brand .brand-mark { width: 38px; height: 38px; }
+        .demo-brand-copy { display: grid; line-height: 1.15; }
+        .demo-brand-copy strong { font-size: .95rem; }
+        .demo-brand-copy small { margin-top: 3px; color: var(--mock-muted); font-size: .68rem; }
+        .demo-user { display: flex; align-items: center; gap: 8px; }
+        .demo-user .button { min-height: 38px; }
+        .demo-nav { display: flex; gap: 7px; margin-top: 14px; overflow-x: auto; }
+        .demo-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 7px 11px; border-radius: 9px; color: var(--mock-muted); font-size: .76rem; font-weight: 800; white-space: nowrap; }
+        .demo-nav a.active { background: #eef2f7; color: var(--mock-ink); }
+        .demo-main { padding: 26px; }
+        .demo-title { margin-bottom: 6px; font-size: clamp(1.35rem, 2vw, 1.8rem); }
+        .demo-lede { margin-bottom: 0; color: var(--mock-muted); font-size: .9rem; }
+        .section-copy { color: var(--mock-muted); font-size: .82rem; }
+        .section-title { margin-bottom: 4px; font-size: 1rem; }
+        .plain-badge { display: inline-flex; color: var(--mock-muted); font-size: .7rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+        .meta-line { display: flex; flex-wrap: wrap; gap: 7px 14px; color: var(--mock-muted); font-size: .76rem; }
+        .text-action { color: var(--mock-blue); font-size: .78rem; font-weight: 900; }
+        .neutral-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--mock-border); border-radius: 10px; color: var(--mock-ink); background: #fff; }
+
+        /* Вариант 1: компактные строки. */
+        .v1-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+        .v1-actions { display: flex; gap: 8px; }
+        .v1-actions .button { min-height: 40px; }
+        .list-section-head { margin-top: 30px; margin-bottom: 12px; }
+        .quiz-list { border: 1px solid var(--mock-border); border-radius: 14px; overflow: hidden; }
+        .quiz-row {
+            display: grid;
+            grid-template-columns: 42px minmax(180px, 1.25fr) minmax(220px, 1.8fr) auto auto;
+            align-items: center;
+            gap: 14px;
+            min-height: 82px;
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--mock-border);
+            color: var(--mock-ink);
+        }
+        .quiz-row:last-child { border-bottom: 0; }
+        .quiz-row:hover { background: var(--mock-soft); }
+        .quiz-row-title { display: grid; gap: 3px; }
+        .quiz-row-title strong { font-size: .93rem; }
+        .quiz-row-description { color: var(--mock-muted); font-size: .8rem; line-height: 1.4; }
+        .quiz-row .text-action { min-width: 68px; text-align: right; }
+
+        /* Вариант 2: типографская сетка без декоративных маркеров. */
+        .v2-top { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 24px; align-items: stretch; }
+        .v2-heading { padding: 10px 0; align-self: center; }
+        .v2-heading .demo-title { font-size: clamp(1.75rem, 3vw, 2.6rem); max-width: 570px; }
+        .action-menu { border: 1px solid var(--mock-border); border-radius: 14px; overflow: hidden; }
+        .action-menu a { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 72px; padding: 14px 16px; color: var(--mock-ink); }
+        .action-menu a + a { border-top: 1px solid var(--mock-border); }
+        .action-menu a:hover { background: var(--mock-soft); }
+        .action-menu span { display: grid; gap: 3px; }
+        .action-menu small { color: var(--mock-muted); font-size: .75rem; }
+        .number-mark { color: var(--mock-muted); font-size: .76rem; font-weight: 850; }
+        .v2-section { margin-top: 34px; }
+        .type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .type-card { display: grid; min-height: 184px; padding: 18px; border: 1px solid var(--mock-border); border-radius: 12px; color: var(--mock-ink); }
+        .type-card:hover { border-color: #94a3b8; background: #fcfdff; }
+        .type-card-top { display: flex; justify-content: space-between; align-items: start; }
+        .type-card h3 { align-self: end; margin: 28px 0 6px; font-size: 1.18rem; }
+        .type-card footer { display: flex; justify-content: space-between; align-items: end; gap: 14px; }
+
+        /* Вариант 3: один рекомендованный выбор и спокойный список альтернатив. */
+        .v3-heading { max-width: 610px; }
+        .v3-controls { display: flex; gap: 8px; margin: 18px 0 24px; }
+        .recommended-card { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(230px, .7fr); border: 1px solid var(--mock-ink); border-radius: 14px; overflow: hidden; }
+        .recommended-copy { padding: 28px; }
+        .recommended-copy h3 { margin: 12px 0 8px; font-size: clamp(1.35rem, 2.2vw, 1.85rem); }
+        .recommended-copy p { max-width: 520px; color: var(--mock-muted); font-size: .86rem; line-height: 1.5; }
+        .recommended-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 24px 0 20px; }
+        .recommended-stats span { display: grid; gap: 2px; padding-right: 12px; border-right: 1px solid var(--mock-border); }
+        .recommended-stats span:last-child { border-right: 0; }
+        .recommended-stats strong { font-size: .88rem; }
+        .recommended-stats small { color: var(--mock-muted); font-size: .68rem; }
+        .recommended-side { display: grid; align-content: center; padding: 24px; border-left: 1px solid var(--mock-border); background: var(--mock-soft); }
+        .recommended-side strong { margin-bottom: 10px; }
+        .recommended-side ul { margin: 0; padding-left: 18px; color: var(--mock-muted); font-size: .78rem; line-height: 1.8; }
+        .alternatives { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+        .alternative-card { display: grid; gap: 8px; padding: 15px; border: 1px solid var(--mock-border); border-radius: 12px; color: var(--mock-ink); }
+        .alternative-card:hover { background: var(--mock-soft); }
+        .alternative-card strong { font-size: .9rem; }
+
+        /* Вариант 4: плотный каталог с фильтрами. */
+        .v4-heading { display: flex; justify-content: space-between; gap: 20px; align-items: end; }
+        .v4-actions { display: flex; gap: 8px; }
+        .filter-bar { display: flex; align-items: center; gap: 7px; margin: 24px 0 12px; overflow-x: auto; }
+        .filter-bar button { min-height: 36px; padding: 7px 12px; border: 1px solid var(--mock-border); border-radius: 9px; background: #fff; color: var(--mock-muted); font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+        .filter-bar button.active { border-color: var(--mock-ink); background: var(--mock-ink); color: #fff; }
+        .catalog-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--mock-border); border-radius: 14px; overflow: hidden; }
+        .catalog-table th,.catalog-table td { padding: 13px 14px; border-bottom: 1px solid var(--mock-border); text-align: left; }
+        .catalog-table tr:last-child td { border-bottom: 0; }
+        .catalog-table th { background: var(--mock-soft); color: var(--mock-muted); font-size: .7rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+        .catalog-table td { color: var(--mock-muted); font-size: .78rem; }
+        .catalog-table td:first-child { color: var(--mock-ink); }
+        .catalog-table tr:hover td { background: #fafbfc; }
+        .table-title { display: flex; align-items: center; gap: 11px; }
+        .table-title strong { display: block; font-size: .86rem; }
+        .table-title small { display: block; margin-top: 2px; color: var(--mock-muted); font-size: .7rem; }
+
+        @media (max-width: 850px) {
+            .variant-switcher { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .quiz-row { grid-template-columns: 42px minmax(0, 1fr) auto; }
+            .quiz-row-description { grid-column: 2 / -1; }
+            .quiz-row .meta-line { display: none; }
+            .v2-top,.recommended-card { grid-template-columns: 1fr; }
+            .recommended-side { border-top: 1px solid var(--mock-border); border-left: 0; }
+            .alternatives { grid-template-columns: 1fr; }
+            .catalog-table th:nth-child(3),.catalog-table td:nth-child(3),.catalog-table th:nth-child(4),.catalog-table td:nth-child(4) { display: none; }
+        }
+        @media (max-width: 620px) {
+            .variant-page { width: min(100% - 20px, 1120px); padding-top: 14px; }
+            .mock-intro,.v1-heading,.v4-heading { align-items: stretch; flex-direction: column; }
+            .mock-intro { display: grid; }
+            .demo-header { padding-inline: 14px; }
+            .demo-main { padding: 18px 14px; }
+            .demo-user .button { display: none; }
+            .v1-actions,.v4-actions,.v3-controls { display: grid; grid-template-columns: 1fr; }
+            .v1-actions .button,.v4-actions .button,.v3-controls .button { width: 100%; }
+            .quiz-row { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; }
+            .quiz-row .text-action { grid-column: 2; text-align: left; }
+            .quiz-row-description { grid-column: 2; }
+            .type-grid { grid-template-columns: 1fr; }
+            .recommended-copy { padding: 20px; }
+            .recommended-stats { grid-template-columns: 1fr; }
+            .recommended-stats span { border-right: 0; border-bottom: 1px solid var(--mock-border); padding-bottom: 8px; }
+            .catalog-table th:nth-child(2),.catalog-table td:nth-child(2) { display: none; }
+        }
+    </style>
+</head>
+<body>
+<main class="variant-page">
+    <div class="mock-intro">
+        <div>
+            <h1>Каталог викторин: 4 направления</h1>
+            <p>Без цветных полос, уголков и декоративных выступов. Переключатели ниже показывают четыре самостоятельных подхода в интерфейсе Damulab.</p>
+        </div>
+        <a class="back-link" href="index.html">Вернуться к текущему макету</a>
+    </div>
+
+    <div class="variant-switcher" role="radiogroup" aria-label="Вариант интерфейса">
+        <input type="radio" name="variant" id="variant-1" checked><label for="variant-1">1. Компактный список</label>
+        <input type="radio" name="variant" id="variant-2"><label for="variant-2">2. Типографская сетка</label>
+        <input type="radio" name="variant" id="variant-3"><label for="variant-3">3. Рекомендация</label>
+        <input type="radio" name="variant" id="variant-4"><label for="variant-4">4. Плотный каталог</label>
+    </div>
+
+    <div class="variant-stage">
+        <!-- 1. Максимально простой список: удобен, когда игр немного и важна скорость выбора. -->
+        <section class="variant variant-one">
+            <header class="demo-header">
+                <div class="demo-header-row">
+                    <a class="demo-brand" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="demo-brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+                    <div class="demo-user"><button class="button" type="button">Русский</button><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></span></div>
+                </div>
+                <nav class="demo-nav"><a href="#">Главная</a><a href="#">Тесты</a><a href="#">Аналитика</a><a class="active" href="index.html">Викторины</a><a href="#">Достижения</a></nav>
+            </header>
+            <div class="demo-main">
+                <div class="v1-heading">
+                    <div><h2 class="demo-title">Во что сыграем?</h2><p class="demo-lede">Выберите готовую игру или запустите свою.</p></div>
+                    <div class="v1-actions"><a class="button primary" href="subjects.html">Своя викторина</a><a class="button" href="join.html">Присоединиться</a></div>
+                </div>
+                <div class="list-section-head"><h3 class="section-title">Популярные викторины</h3><p class="section-copy">Короткий список без декоративных карточек — всё видно с первого взгляда.</p></div>
+                <div class="quiz-list">
+                    <a class="quiz-row" href="room.html?game=english"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg></span><span class="quiz-row-title"><span class="plain-badge">Слова</span><strong>English: слова</strong></span><span class="quiz-row-description">Найдите правильный перевод английского слова.</span><span class="meta-line"><span>10 вопросов</span><span>15 секунд</span></span><span class="text-action">Играть</span></a>
+                    <a class="quiz-row" href="room.html?game=kazakh"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#book-open-check"></use></svg></span><span class="quiz-row-title"><span class="plain-badge">Слова</span><strong>Қазақша: слова</strong></span><span class="quiz-row-description">Читайте слово на казахском и находите перевод.</span><span class="meta-line"><span>10 вопросов</span><span>15 секунд</span></span><span class="text-action">Играть</span></a>
+                    <a class="quiz-row" href="room.html?game=math"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg></span><span class="quiz-row-title"><span class="plain-badge">Предмет</span><strong>Математика</strong></span><span class="quiz-row-description">Задачи, дроби и проценты для вашего класса.</span><span class="meta-line"><span>5 класс</span><span>20 секунд</span></span><span class="text-action">Играть</span></a>
+                    <a class="quiz-row" href="room.html?game=facts"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg></span><span class="quiz-row-title"><span class="plain-badge">Факты</span><strong>Удивительные факты</strong></span><span class="quiz-row-description">Определите, правда ли утверждение.</span><span class="meta-line"><span>5 вопросов</span><span>10 секунд</span></span><span class="text-action">Играть</span></a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Воздух и типографика вместо цветового кодирования. -->
+        <section class="variant variant-two">
+            <header class="demo-header">
+                <div class="demo-header-row"><a class="demo-brand" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="demo-brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a><div class="demo-user"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></span></div></div>
+                <nav class="demo-nav"><a href="#">Главная</a><a href="#">Тесты</a><a href="#">Аналитика</a><a class="active" href="index.html">Викторины</a><a href="#">Достижения</a></nav>
+            </header>
+            <div class="demo-main">
+                <div class="v2-top">
+                    <div class="v2-heading"><span class="plain-badge">Игровая практика</span><h2 class="demo-title">Небольшая игра — хороший способ закрепить тему</h2><p class="demo-lede">Готовые наборы уже настроены. Просто выберите интересный.</p></div>
+                    <nav class="action-menu" aria-label="Действия"><a href="subjects.html"><span><strong>Своя викторина</strong><small>Выбрать предмет и класс</small></span><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#clipboard-check"></use></svg></a><a href="join.html"><span><strong>Есть код комнаты</strong><small>Присоединиться к ведущему</small></span><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#route"></use></svg></a></nav>
+                </div>
+                <div class="v2-section"><h3 class="section-title">Популярные сейчас</h3><p class="section-copy">Карточки различаются содержанием и иерархией, а не цветными украшениями.</p>
+                    <div class="type-grid">
+                        <a class="type-card" href="room.html?game=english"><span class="type-card-top"><span class="plain-badge">Словарный запас</span><span class="number-mark">01</span></span><h3>English: слова</h3><footer><span class="meta-line"><span>10 вопросов</span><span>15 секунд</span></span><span class="text-action">Играть</span></footer></a>
+                        <a class="type-card" href="room.html?game=kazakh"><span class="type-card-top"><span class="plain-badge">Словарный запас</span><span class="number-mark">02</span></span><h3>Қазақша: слова</h3><footer><span class="meta-line"><span>10 вопросов</span><span>15 секунд</span></span><span class="text-action">Играть</span></footer></a>
+                        <a class="type-card" href="room.html?game=math"><span class="type-card-top"><span class="plain-badge">Школьный предмет</span><span class="number-mark">03</span></span><h3>Математика</h3><footer><span class="meta-line"><span>5 класс</span><span>20 секунд</span></span><span class="text-action">Играть</span></footer></a>
+                        <a class="type-card" href="room.html?game=facts"><span class="type-card-top"><span class="plain-badge">Верю / не верю</span><span class="number-mark">04</span></span><h3>Удивительные факты</h3><footer><span class="meta-line"><span>5 вопросов</span><span>10 секунд</span></span><span class="text-action">Играть</span></footer></a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Помогаем принять решение: одна рекомендация, затем альтернативы. -->
+        <section class="variant variant-three">
+            <header class="demo-header">
+                <div class="demo-header-row"><a class="demo-brand" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="demo-brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a><div class="demo-user"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></span></div></div>
+                <nav class="demo-nav"><a href="#">Главная</a><a href="#">Тесты</a><a href="#">Аналитика</a><a class="active" href="index.html">Викторины</a><a href="#">Достижения</a></nav>
+            </header>
+            <div class="demo-main">
+                <div class="v3-heading"><h2 class="demo-title">Можно начать с этого</h2><p class="demo-lede">Мы выбрали короткую викторину для разминки. Никаких дополнительных настроек до старта.</p></div>
+                <div class="v3-controls"><a class="button primary" href="subjects.html">Создать свою</a><a class="button" href="join.html">Войти по коду</a></div>
+                <a class="recommended-card" href="room.html?game=english">
+                    <span class="recommended-copy"><span class="plain-badge">Рекомендуем сегодня</span><h3>English: слова</h3><p>Быстрая тренировка знакомых слов. Подойдёт, если хочется позаниматься несколько минут без сложной подготовки.</p><span class="recommended-stats"><span><strong>10 вопросов</strong><small>объём игры</small></span><span><strong>15 секунд</strong><small>на ответ</small></span><span><strong>Один или с друзьями</strong><small>формат</small></span></span><span class="button primary">Начать игру</span></span>
+                    <span class="recommended-side"><strong>Что будет в игре</strong><ul><li>перевод слов</li><li>четыре варианта ответа</li><li>результат после последнего вопроса</li></ul></span>
+                </a>
+                <div class="list-section-head"><h3 class="section-title">Или выберите другую</h3></div>
+                <div class="alternatives"><a class="alternative-card" href="room.html?game=kazakh"><span class="plain-badge">Слова</span><strong>Қазақша: слова</strong><span class="meta-line">10 вопросов · 15 секунд</span></a><a class="alternative-card" href="room.html?game=math"><span class="plain-badge">Предмет</span><strong>Математика</strong><span class="meta-line">5 класс · 20 секунд</span></a><a class="alternative-card" href="room.html?game=facts"><span class="plain-badge">Факты</span><strong>Удивительные факты</strong><span class="meta-line">5 вопросов · 10 секунд</span></a></div>
+            </div>
+        </section>
+
+        <!-- 4. Каталог для большого количества игр: фильтры и таблица. -->
+        <section class="variant variant-four">
+            <header class="demo-header">
+                <div class="demo-header-row"><a class="demo-brand" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="demo-brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a><div class="demo-user"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#user"></use></svg></span></div></div>
+                <nav class="demo-nav"><a href="#">Главная</a><a href="#">Тесты</a><a href="#">Аналитика</a><a class="active" href="index.html">Викторины</a><a href="#">Достижения</a></nav>
+            </header>
+            <div class="demo-main">
+                <div class="v4-heading"><div><h2 class="demo-title">Викторины</h2><p class="demo-lede">Найдите игру по предмету или формату.</p></div><div class="v4-actions"><a class="button primary" href="subjects.html">Своя викторина</a><a class="button" href="join.html">Присоединиться</a></div></div>
+                <div class="filter-bar" aria-label="Фильтры"><button class="active" type="button">Все игры</button><button type="button">Слова</button><button type="button">Предметы</button><button type="button">Факты</button><button type="button">Для моего класса</button></div>
+                <table class="catalog-table">
+                    <thead><tr><th>Викторина</th><th>Формат</th><th>Вопросы</th><th>Время</th><th></th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="table-title"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg></span><span><strong>English: слова</strong><small>Перевод английских слов</small></span></span></td><td>Выбор ответа</td><td>10</td><td>15 сек.</td><td><a class="text-action" href="room.html?game=english">Играть</a></td></tr>
+                        <tr><td><span class="table-title"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#book-open-check"></use></svg></span><span><strong>Қазақша: слова</strong><small>Перевод казахских слов</small></span></span></td><td>Выбор ответа</td><td>10</td><td>15 сек.</td><td><a class="text-action" href="room.html?game=kazakh">Играть</a></td></tr>
+                        <tr><td><span class="table-title"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#line-chart"></use></svg></span><span><strong>Математика</strong><small>Задачи для 5 класса</small></span></span></td><td>По предмету</td><td>10</td><td>20 сек.</td><td><a class="text-action" href="room.html?game=math">Играть</a></td></tr>
+                        <tr><td><span class="table-title"><span class="neutral-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#brain"></use></svg></span><span><strong>Удивительные факты</strong><small>Правда или вымысел</small></span></span></td><td>Верю / не верю</td><td>5</td><td>10 сек.</td><td><a class="text-action" href="room.html?game=facts">Играть</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
+</body>
+</html>

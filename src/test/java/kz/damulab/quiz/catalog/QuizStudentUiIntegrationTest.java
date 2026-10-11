@@ -69,7 +69,8 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         var list=catalog.read(host,"ru"); assertThat(list.stream().filter(c->c.code().equals(one.getCode())||c.code().equals(two.getCode())).map(QuizStudentCatalog.Card::title)).containsExactly("Абрикос","Яблоко <script>alert(1)</script>");
         assertThat(list).noneMatch(c->c.code().equals(hidden.getCode()));
         String html=mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(view().name("student/quiz-games")).andReturn().getResponse().getContentAsString();
-        assertThat(html).contains("&lt;script&gt;alert(1)&lt;/script&gt;").doesNotContain("<script>alert(1)</script>","answerKeySnapshot","Ложное утверждение");
+        assertThat(html).contains("Небольшая игра — хороший способ закрепить тему", "id=\"qg-code-form\"", "Абрикос", "&lt;script&gt;alert(1)&lt;/script&gt;")
+                .doesNotContain("<script>alert(1)</script>","answerKeySnapshot","Ложное утверждение");
         mvc.perform(get("/student/quiz").param("lang","kk").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Алма")));
     }
     @Test void cardPostIsCsrfProtectedIdempotentAndOnlyStudentsHaveAccess() throws Exception {
@@ -83,6 +84,12 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         mvc.perform(post("/student/quiz/games/rooms").with(user(host).roles("STUDENT")).with(csrf()).param("gameCode",game.getCode()).param("idempotencyKey",key)).andExpect(redirectedUrl(redirect));
         for(String role:List.of("PARENT","ADMIN")) mvc.perform(get("/student/quiz/games").with(user(host).roles(role))).andExpect(redirectedUrl("/access-denied"));
         mvc.perform(get("/student/quiz/games")).andExpect(status().is3xxRedirection());
+    }
+    @Test void customQuizFormStartsAtFiveSecondsAndKeepsFiveAsTheMinimum() throws Exception {
+        mvc.perform(get("/student/quiz/create").with(user(host).roles("STUDENT")))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("studentQuizForm", org.hamcrest.Matchers.hasProperty("roundSeconds", org.hamcrest.Matchers.is(5))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("min=\"5\"")));
     }
     @Test void missingProfileGradeHasAnActionableCardAndUniversalDoesNotNeedIt() {
         String missing=profile(null,"ru"); var universal=tx(()->publish(factForm(1)));

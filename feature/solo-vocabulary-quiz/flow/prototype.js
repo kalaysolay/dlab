@@ -145,7 +145,7 @@
         gradeField.hidden = !game.grade;
 
         if (guestMode) {
-            roomRoot.querySelector("[data-player-list]").innerHTML = '<div class="player-row"><span class="player-avatar">А</span><span><strong>Айдар</strong><small>Организатор</small></span><span class="ready-mark">Готов</span></div><div class="player-row"><span class="player-avatar">М</span><span><strong>Малика</strong><small>Вы</small></span><span class="ready-mark">Готова</span></div>';
+            roomRoot.querySelector("[data-player-list]").innerHTML = '<div class="player-row"><span class="player-avatar">А</span><span><strong>Айдар</strong><small>Создал эту игру</small></span><span class="ready-mark">Готов к игре</span></div><div class="player-row"><span class="player-avatar">В</span><span><strong>Вы</strong><small>Вы присоединились</small></span><span class="ready-mark">Готовы к игре</span></div>';
             roomRoot.querySelectorAll(".room-settings select").forEach((select) => select.disabled = true);
             roomRoot.querySelector("[data-invite-toggle]").hidden = true;
             roomRoot.querySelector("[data-start-question]").textContent = "Вы в игре";
@@ -186,7 +186,7 @@
         roomRoot.querySelector("[data-simulate-friend]")?.addEventListener("click", (event) => {
             if (playerCount > 1) return;
             playerCount = 2;
-            roomRoot.querySelector("[data-player-list]").insertAdjacentHTML("beforeend", '<div class="player-row"><span class="player-avatar">М</span><span><strong>Малика</strong><small>Присоединилась по коду</small></span><span class="ready-mark">Готова</span></div>');
+            roomRoot.querySelector("[data-player-list]").insertAdjacentHTML("beforeend", '<div class="player-row"><span class="player-avatar">М</span><span><strong>Малика</strong><small>Присоединилась к игре</small></span><span class="ready-mark">Готова к игре</span></div>');
             event.currentTarget.textContent = "Малика присоединилась";
             event.currentTarget.disabled = true;
             updateRoomSummary();

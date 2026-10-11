@@ -87,7 +87,7 @@ class QuizArenaIntegrationTest {
             var doc=org.jsoup.Jsoup.parse(html);
             assertThat(doc.select("select[name=language] option[selected]").val()).isEqualTo(locale);
             assertThat(doc.select("input[name=questionCount]").val()).isEqualTo("15");
-            assertThat(doc.select("input[name=roundSeconds]").val()).isEqualTo("10");
+            assertThat(doc.select("input[name=roundSeconds]").val()).isEqualTo("5");
             assertThat(doc.select("[name=maxPlayers]")).isEmpty(); assertThat(doc.select("[name=difficulty]")).isEmpty();
         }
         mvc.perform(get("/student/quiz").with(user(HOST).roles("STUDENT"))).andExpect(view().name("student/quiz-games"))
@@ -97,7 +97,7 @@ class QuizArenaIntegrationTest {
         String key=UUID.randomUUID().toString();
         var request=new QuizGameRoomRequest.CustomCreate(subjectId,gradeId,"kk",null,null,key);
         var room=rooms.createCustom(HOST,request);
-        assertThat(room.questionCount()).isEqualTo(15); assertThat(room.roundSeconds()).isEqualTo(10);
+        assertThat(room.questionCount()).isEqualTo(15); assertThat(room.roundSeconds()).isEqualTo(5);
         assertThat(room.maxPlayers()).isEqualTo(4); assertThat(room.language()).isEqualTo("kk"); assertThat(room.gameCode()).isNull();
         assertThat(rooms.createCustom(HOST,request).code()).isEqualTo(room.code()); assertThat(roundCount(room)).isZero();
         rooms.start(room.code(),HOST); assertThat(roundCount(room)).isEqualTo(15);

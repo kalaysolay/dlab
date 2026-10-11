@@ -16,7 +16,7 @@
                 <select id="qg-grade" aria-describedby="qg-error"><option value="" th:text="#{quiz.ui.chooseGrade}"></option>
                     <option th:each="grade : ${gradeChoices}" th:value="${grade.id}" th:text="${grade.title}"></option></select></label>
             <label class="field"><span th:text="#{quiz.ui.rounds}"></span><input id="qg-count" type="number" required aria-describedby="qg-error"></label>
-            <label class="field"><span th:text="#{quiz.ui.seconds}"></span><input id="qg-seconds" type="number" required aria-describedby="qg-error"></label>
+            <label class="field"><span th:text="#{quiz.ui.seconds}"></span><input id="qg-seconds" type="number" min="5" max="120" required aria-describedby="qg-error"></label>
             <button class="button" type="submit" th:text="#{quiz.ui.save}"></button>
         </form>
         <ul id="qg-blockers" class="qg-reason"></ul><a th:href="@{/student/profile}" th:text="#{quiz.ui.profile}"></a>
