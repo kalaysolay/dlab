@@ -58,7 +58,7 @@ public class QuizBinaryRollbackMatrix {
                 c.setSchema(schema); QuizFoundationMigrationTest.seedLegacy(c);
                 // В отличие от минимальной history-фикстуры, legacy create требует опубликованный материал с grade link и вариантами.
                 try(var sql=c.createStatement()) {
-                    sql.executeUpdate("insert into question_version_grades(question_version_id,grade_id) select 900001,id from grades where grade_no=5");
+                    sql.executeUpdate("insert into question_version_grades(question_version_id,grade_id) select 900001,id from grades where grade_no=4");
                     sql.executeUpdate("update question_versions set options_json='[{\"label\":\"A\",\"textRu\":\"2\",\"textKk\":\"2\"},{\"label\":\"B\",\"textRu\":\"3\",\"textKk\":\"3\"}]', answer_key_json='[\"A\"]' where id=900001");
                 }
             }

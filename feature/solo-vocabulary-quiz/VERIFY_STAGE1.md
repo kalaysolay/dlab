@@ -380,3 +380,76 @@ jar/bootJar содержат V54/V55 и JSON-ресурсы. Архивы не �
 Остатки приёмки: реальная речь UI-10; SEED-01 — предметная таксономия;
 I18N-01 — итог SEED-01 и визуальный проход последних legacy-переводов.
 Этап 7 целиком не DONE, каталог false, этап 8 не начат.
+
+## Актуализация приёмки по решению пользователя, 2026-10-11
+
+Обязательный ручной речевой проход скринридером исключён из текущей поставки;
+факт успешной проверки речи не заявляется. UI-10/UX-03/этап 6 DONE по изменённым
+критериям и ранее выполненным keyboard/focus/aria/mobile-проверкам. Прежние записи
+об IN_PROGRESS до речи выше — исторические. QA-04 ждёт только окончательную
+seed-приёмку; QA-06/QA-07 на реальной копии и выпуск остаются открытыми.
+Изменены только документы; код и проверенный артефакт d0ecd10 не менялись.
+
+## Итог самостоятельной подготовки и animal-facts-v1, 2026-10-11
+
+Эта запись заменяет прежние остатки seed/локализации: этап 7 DONE, QA-01..05 DONE.
+QA-06/QA-07 на настоящей копии БД и производственный выпуск остаются IN_PROGRESS.
+Синтетическая схема не объявляется копией dlab; рабочая БД/глобальный флаг не менялись.
+
+Финальный полный прогон без QUIZ_UI_SMOKE и без PostgreSQL-переменных:
+
+```powershell
+$env:JAVA_HOME='C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2025.2.6.3\jbr'
+foreach($key in @('QUIZ_UI_SMOKE','QUIZ_TEST_DB_URL','QUIZ_TEST_DB_DRIVER',
+    'QUIZ_TEST_DB_USER','QUIZ_TEST_DB_PASSWORD','QUIZ_PREVIOUS_JAR')) {
+    Remove-Item -LiteralPath "Env:$key" -ErrorAction SilentlyContinue
+}
+.\gradlew.bat build i18nVerify -I scripts/quiz-foundation-test.init.gradle --no-daemon --max-workers=1 '-Dorg.gradle.jvmargs=-Xmx256m -Xms64m -XX:MaxMetaspaceSize=192m -XX:ActiveProcessorCount=2 -XX:ReservedCodeCacheSize=64m' --console=plain --rerun-tasks
+```
+
+PASS за 3m54s: **444 теста / 75 классов**, failures/errors/skipped=0;
+**512** совпадающих ключей RU/KK; jar/bootJar собраны.
+Лог `.run-logs/quiz-animals-final-build.log`, отчёты
+`.run-logs/quiz-animals-final-h2-reports/test`.
+bootJar SHA-256 `c18cd018f799fd925abfb0c0c08a666a1896314911a1402b315bf04c73dd6578`.
+Manifest src до/после совпадает. JS/CSS не менялись; предыдущие 23 Node/jsdom PASS
+применимы. Применённые миграции не изменены; этот подход не добавляет SQL-миграций.
+
+Целевые проверки animal-facts-v1: H2 20 compatibility PASS
+(`quiz-animals-h2.log`); PostgreSQL 20 compatibility + 7 legacy PASS
+(`quiz-animals-pg.log`), failures/errors/skipped=0. PostgreSQL запущен отдельно
+с принудительным test; фактический порт 53968 получен после start. Binary matrix
+повторена с конкретным cb97aac JAR, на V55 и двух собственных новых схемах:
+`.run-logs/quiz-stage7-rollback-73d261e5-8b92-412e-8fe6-2290d2548c99/matrix.json`.
+Матрица проверяет разрешённый возврат до новых записей и запрет после новых
+типов/состояний; новый контент не объявляется совместимым со старым binary.
+
+Первый полный запуск (`quiz-animals-build.log`) завершился с ошибками:
+пустая переменная QUIZ_TEST_DB_URL подавляла JDBC fallback у standalone Flyway.
+Удаление через `[Environment]::SetEnvironmentVariable(...,$null,'Process')`
+не обеспечило отсутствия переменной в этом окружении; исправлена команда очистки
+через `Remove-Item Env:...`. SQL/проверки миграций не ослаблялись.
+Отдельно один раз упал существующий `AiContentFactoryIntegrationTest`:
+job status=succeeded, batchId=null. При неизменном AI-коде повторный полный suite
+прошёл. Это однократный асинхронный сбой, его исправление не заявляется;
+при повторении требуется отдельная диагностика. Неуспешные отчёты сохранены
+в `.run-logs/quiz-animals-failed-build-reports/test`, тесты не исключались.
+
+Явный `quiz-preview.ps1 -Action AddAnimals` использовал новый закреплённый bootJar
+в прежней собственной схеме: 11 прежних комнат сохранены, 6 игр PUBLISHED,
+после новых сценариев — 15 комнат. Окружение оператора восстановлено без пустых
+переменных; синтаксис PowerShell проверен. Фактический новый порт БД — 52843.
+Четыре реальные игры по 5×20 секунд завершены: RU solo QZ6JYV/QZA9RQ и
+KK два игрока QZJPWK/QZYL7K. False/skip, 5 разборов с объяснениями/источниками,
+гость 0% / 100000 ms PASS; `.run-logs/quiz-preview/animal-smoke-results.json`.
+Конкурентные SQLState 40001 были повторены штатным транзакционным механизмом;
+итоговые команды/ответы и завершение игр успешны.
+
+Браузерные карточки и разбор проверены RU 1280×800 / KK 360×800, снимки
+`.run-logs/quiz-preview/animal-{catalog-ru,catalog-kk-mobile,review-ru,review-kk-mobile}.jpg`.
+Язык комнаты закреплён при create из профиля, последующая смена языка интерфейса
+не меняет её утверждения. Speech не проверялась по изменённой приёмке.
+Инструкция запуска/остановки и локальные аккаунты — TEST_TOMORROW.md.
+После проверки собственный Java-процесс и только проверенный по имени/label
+`dlab-quiz-stage1-pg` остановлены; данные/контейнер/артефакты сохранены.
+Временные вкладки закрыты, viewport сброшен. Повторный запуск — через Start.

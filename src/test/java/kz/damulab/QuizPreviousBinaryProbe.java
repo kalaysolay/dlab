@@ -30,7 +30,7 @@ public class QuizPreviousBinaryProbe {
             }
             result.put("cells",cells);
             var request=new CreateQuizRoomRequest(); request.setSubjectId(jdbc.queryForObject("select id from subjects where code='math'",Long.class));
-            request.setGradeId(jdbc.queryForObject("select id from grades where grade_no=5",Long.class)); request.setQuestionCount(1); request.setRoundSeconds(20); request.setMaxPlayers(4); request.setLanguage("ru");
+            request.setGradeId(jdbc.queryForObject("select id from grades where grade_no=4",Long.class)); request.setQuestionCount(1); request.setRoundSeconds(20); request.setMaxPlayers(4); request.setLanguage("ru");
             result.put("legacyCreateAndStart",check(()->{var created=service.createRoom("migration@example.test",request); return service.start(created.code(),"migration@example.test");}));
             Long before=jdbc.queryForObject("select count(*) from quiz_answers a join quiz_rounds r on r.id=a.round_id join quiz_rooms q on q.id=r.room_id where q.game_version_id is not null",Long.class);
             result.put("scheduler",check(()->{service.enforceActiveRoomTimeouts(); return "done";}));

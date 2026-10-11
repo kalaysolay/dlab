@@ -65,14 +65,34 @@ class QuizCompatibilityIntegrationTest {
         new TransactionTemplate(manager).execute(s->{var u=new AppUser(reviewer,"test-only","Проверяющий",null); u.getRoles().add(roles.findByCode(RoleCode.ADMIN).orElseThrow()); users.save(u); return null;});
         var auth=new UsernamePasswordAuthenticationToken("admin@damulab.kz",null,List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
         SecurityContextHolder.getContext().setAuthentication(auth);
-        try { assertThat(starter.install(reviewer)).containsExactlyElementsOf(QuizStarterContentService.CODES); }
+        try {
+            // При совпадающей публикации импорт обязан откатить весь пакет, не расширять справочник
+            // и не примешивать непроверенные исторические вопросы в тематическую стартовую игру.
+            new TransactionTemplate(manager).executeWithoutResult(status->{
+                long grade=jdbc.queryForObject("select id from grades where grade_no=5",Long.class);
+                jdbc.update("insert into question_version_grades(question_version_id,grade_id) values (900001,?)",grade);
+                assertThatThrownBy(()->starter.install(reviewer)).isInstanceOf(ContentValidationException.class)
+                        .hasMessageContaining("проверка существующих вопросов");
+                status.setRollbackOnly();
+            });
+            assertThat(jdbc.queryForObject("select count(*) from vocabulary_sets where code like 'starter-%'",Integer.class)).isZero();
+            assertThat(starter.install(reviewer)).containsExactlyElementsOf(QuizStarterContentService.CODES);
+            assertThat(starter.installAnimalGames(reviewer)).containsExactlyElementsOf(QuizStarterContentService.ANIMAL_CODES);
+        }
         finally { SecurityContextHolder.clearContext(); }
     }
     @BeforeEach void reset() { clock.offset=0; }
 
+    @Test void subjectStarterUsesExistingMathWithoutExtraSubject() {
+        assertThat(jdbc.queryForObject("select count(*) from subjects where code='starter-math-sums-v1'",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select s.code from quiz_subject_game_configs c join subjects s on s.id=c.subject_id join quiz_game_versions v on v.id=c.game_version_id join quiz_games g on g.published_version_id=v.id where g.code='starter-math-sums-v1'",String.class)).isEqualTo("math");
+        assertThat(jdbc.queryForObject("select count(*) from questions q join question_versions v on v.id=q.current_version_id join question_version_grades g on g.question_version_id=v.id join grades gr on gr.id=g.grade_id where gr.grade_no=5 and q.status='PUBLISHED'",Integer.class)).isEqualTo(8);
+    }
+
     @ParameterizedTest
     @CsvSource({"starter-en-numbers-v1,ru,1","starter-kk-numbers-v1,kk,1","starter-math-sums-v1,ru,1","starter-space-facts-v1,kk,1",
-            "starter-en-numbers-v1,kk,4","starter-kk-numbers-v1,ru,4","starter-math-sums-v1,kk,4","starter-space-facts-v1,ru,4"})
+            "starter-en-numbers-v1,kk,4","starter-kk-numbers-v1,ru,4","starter-math-sums-v1,kk,4","starter-space-facts-v1,ru,4",
+            "animal-wonders-v1,ru,1","animal-wonders-v1,kk,4","ocean-animals-v1,kk,1","ocean-animals-v1,ru,4"})
     void reviewedGamesFinishInSoloAndFourPlayerRooms(String code,String locale,int count) throws Exception {
         String host=profile(locale,4); var room=rooms.create(host,new QuizGameRoomRequest.Create(code,null,null,null,UUID.randomUUID().toString()));
         List<String> players=new ArrayList<>(List.of(host));
@@ -193,6 +213,44 @@ class QuizCompatibilityIntegrationTest {
             clock.offset+=101;
             assertThat(rooms.state(room.code(),younger).status()).isEqualTo("finished");
         }
+    }
+    @Test void animalBanksHaveBilingualExplanationsBalancedTruthAndNoOverwrite() throws Exception {
+        com.fasterxml.jackson.databind.JsonNode data;
+        try (var stream=new org.springframework.core.io.ClassPathResource("quiz/animal-facts-v1.json").getInputStream()) {
+            data=mapper.readTree(stream);
+        }
+        var codes=new ArrayList<String>();
+        for (var bank:data.path("games")) {
+            codes.add(bank.path("code").asText());
+            assertThat(bank.path("facts").size()).isEqualTo(10);
+            int trueCount=0;
+            var texts=new HashSet<String>();
+            for (var fact:bank.path("facts")) {
+                assertThat(fact.path("truth").isBoolean()).isTrue();
+                if (fact.path("truth").booleanValue()) trueCount++;
+                for (String field:List.of("ru","kk","explanationRu","explanationKk"))
+                    assertThat(fact.path(field).asText()).isNotBlank().doesNotContain("TODO","�");
+                assertThat(texts.add(fact.path("ru").asText())).isTrue();
+                assertThat(java.net.URI.create(fact.path("source").asText()).getHost()).isIn(
+                        "animals.sandiegozoo.org","ocean.si.edu","www.fisheries.noaa.gov","oceanservice.noaa.gov","www.montereybayaquarium.org");
+            }
+            assertThat(trueCount).isEqualTo(5);
+            new TransactionTemplate(manager).executeWithoutResult(s->{
+                var view=adminGames.get(games.findByCode(bank.path("code").asText()).orElseThrow().getId());
+                assertThat(view.errors()).isEmpty(); assertThat(view.warnings()).isEmpty();
+                assertThat(view.content().worst().playable()).isEqualTo(10);
+            });
+        }
+        assertThat(codes).containsExactlyElementsOf(QuizStarterContentService.ANIMAL_CODES);
+        long count=games.count();
+        assertThatThrownBy(()->starter.installAnimalGames(reviewer)).isInstanceOf(ContentValidationException.class);
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("admin@damulab.kz",null,List.of()));
+        try {
+            assertThatThrownBy(()->starter.installAnimalGames(reviewer)).isInstanceOf(ContentValidationException.class)
+                    .hasMessageContaining("уже существует");
+        } finally { SecurityContextHolder.clearContext(); }
+        assertThat(games.count()).isEqualTo(count);
+        assertThat(jdbc.queryForObject("select count(*) from fact_statements f join fact_sets s on s.id=f.set_id where s.code in ('animal-wonders-v1','ocean-animals-v1') and f.status='PUBLISHED'",Integer.class)).isEqualTo(20);
     }
     private String profile(String locale,Integer grade) {
         return new TransactionTemplate(manager).execute(s->{String email=UUID.randomUUID()+"@compat.test"; var user=new AppUser(email,"test-only","Ученик",null); user.getRoles().add(roles.findByCode(RoleCode.STUDENT).orElseThrow()); users.save(user); students.save(new StudentProfile(user,grade,locale)); return email;});
