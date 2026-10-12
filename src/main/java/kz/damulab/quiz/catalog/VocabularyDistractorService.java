@@ -40,6 +40,10 @@ public class VocabularyDistractorService {
         boolean crossSet = set.getPublishedVersion() != null && set.getPublishedVersion().isCrossSetDistractorsAllowed();
         return dataset(versions.findPublishedForGame(set.getId(), set.getSourceLanguage(), set.getTargetLanguage(), crossSet), List.of());
     }
+    /** Индекс текущей транзакции: проверка полноты и переводов выполняется один раз на слово. */
+    public GamePool forAudience(Dataset data, Set<Long> required) {
+        return new GamePool(data,required);
+    }
 
     private Dataset dataset(List<VocabularyItemVersion> all, Collection<VocabularyItemVersion> extraSources) {
         Set<Long> ids = new HashSet<>(); extraSources.forEach(v -> ids.add(v.getId())); all.forEach(v -> ids.add(v.getId()));
@@ -122,4 +126,59 @@ public class VocabularyDistractorService {
     /** Согласованный пакет данных только для чтения внутри диагностической транзакции. */
     public record Dataset(List<VocabularyItemVersion> versions, Map<Long, List<VocabularyItemAnswer>> answers,
                           List<VocabularyDistractorExclusion> exclusions) {}
+
+    /** Общая подготовка игровой аудитории без кеша между транзакциями и без устаревших публикаций. */
+    public static final class GamePool {
+        private final List<Word> eligible=new ArrayList<>();
+        private final Map<Long,Word> words=new HashMap<>();
+        private final Map<Long,Set<Long>> excluded=new HashMap<>();
+        private final Map<String,Set<Long>> byTranslation=new HashMap<>();
+        private GamePool(Dataset data,Set<Long> required) {
+            for(var v:data.versions()) {
+                var translations=data.answers().getOrDefault(v.getId(),List.of());
+                var primary=translations.stream().filter(VocabularyItemAnswer::isPrimary).findFirst().orElse(null);
+                var word=new Word(v,primary,Set.copyOf(normalizedAnswers(translations)));
+                words.put(v.getId(),word);
+                if(QuizContentEligibility.wordSetComplete(v.getItem().getSet()) && QuizContentEligibility.wordComplete(v,translations)
+                        && QuizContentEligibility.audience(v.isUniversalAudience(),v.getGradeIds(),required)) {
+                    eligible.add(word);
+                    for(String translation:word.translations()) byTranslation.computeIfAbsent(translation,k->new HashSet<>()).add(v.getId());
+                }
+            }
+            // Запрет симметричен: его направление в редакторе не меняет игровой подбор.
+            for(var pair:data.exclusions()) {
+                long a=pair.getItemVersion().getId(),b=pair.getExcludedItemVersion().getId();
+                excluded.computeIfAbsent(a,k->new HashSet<>()).add(b);
+                excluded.computeIfAbsent(b,k->new HashSet<>()).add(a);
+            }
+        }
+        /** Пригодные источники выбранного набора в прежнем порядке банка. */
+        public List<VocabularyItemVersion> sources(Long setId) {
+            return eligible.stream().filter(w->w.version().getItem().getSet().getId().equals(setId)).map(Word::version).toList();
+        }
+        /** Проверка останавливается на трёх вариантах; полный список нужен только выбранным раундам. */
+        public boolean playable(VocabularyItemVersion source) { return candidates(source,3).size()==3; }
+        /** Полный выбор сохраняет приоритеты и случайный выбор среди равных в провайдере. */
+        public List<Candidate> candidates(VocabularyItemVersion source) { return candidates(source,Integer.MAX_VALUE); }
+        private List<Candidate> candidates(VocabularyItemVersion source,int limit) {
+            var own=words.get(source.getId()); if(own==null) return List.of();
+            var sourceSet=source.getItem().getSet();
+            boolean cross=sourceSet.getPublishedVersion()!=null && sourceSet.getPublishedVersion().isCrossSetDistractorsAllowed();
+            Set<Long> forbidden=new HashSet<>(excluded.getOrDefault(source.getId(),Set.of())); forbidden.add(source.getId());
+            // Индекс альтернатив обоих слов предотвращает неоднозначные переводы без повторного разбора банка.
+            for(String translation:own.translations()) forbidden.addAll(byTranslation.getOrDefault(translation,Set.of()));
+            Set<String> used=new HashSet<>(); List<Candidate> result=new ArrayList<>();
+            for(var word:eligible) {
+                var candidate=word.version(); var set=candidate.getItem().getSet();
+                boolean sameSet=sourceSet.getId().equals(set.getId());
+                if(forbidden.contains(candidate.getId()) || !sameDirection(sourceSet,set) || (!sameSet && !cross)
+                        || !used.add(word.primary().getAnswerNormalized())) continue;
+                result.add(new Candidate(candidate.getId(),word.primary().getAnswerText(),sameSet,
+                        Objects.equals(source.getPartOfSpeech(),candidate.getPartOfSpeech()),Math.abs(source.getDifficulty()-candidate.getDifficulty())));
+                if(result.size()==limit) break;
+            }
+            return result;
+        }
+        private record Word(VocabularyItemVersion version,VocabularyItemAnswer primary,Set<String> translations) {}
+    }
 }

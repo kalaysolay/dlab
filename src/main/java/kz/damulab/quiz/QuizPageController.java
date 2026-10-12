@@ -10,10 +10,9 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 public class QuizPageController {
     private final QuizStudentPageController pages;
-    private final QuizRoomService rooms;
 
-    public QuizPageController(QuizStudentPageController pages, QuizRoomService rooms) {
-        this.pages = pages; this.rooms = rooms;
+    public QuizPageController(QuizStudentPageController pages) {
+        this.pages = pages;
     }
 
     @GetMapping("/student/quiz/rooms/{code}")
@@ -23,7 +22,6 @@ public class QuizPageController {
 
     @GetMapping("/student/quiz/rooms/{code}/results")
     String results(Principal principal, @PathVariable String code, Model model, Locale locale) {
-        rooms.results(code, principal.getName());
-        return pages.room(principal, code, model, locale);
+        return pages.results(principal, code, model, locale);
     }
 }

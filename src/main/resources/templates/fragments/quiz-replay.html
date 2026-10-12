@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"><body>
+<div th:fragment="replay">
+        <form th:if="${replayCard != null and replayCard.blocker == null}" th:action="@{/student/quiz/games/rooms}" method="post" data-create-game>
+            <input type="hidden" name="gameCode" th:value="${replayCard.code}"><input type="hidden" name="idempotencyKey" th:value="${replayCard.key}">
+            <label class="field" th:if="${replayCard.gradeMode != 'NONE'}"><span th:text="#{quiz.ui.grade}"></span><select name="gradeId" required>
+                <option value="" th:text="#{quiz.ui.chooseGrade}"></option><option th:each="grade : ${replayCard.grades}" th:value="${grade.id}" th:text="${grade.title}"
+                    th:selected="${grade.id == replayCard.selectedGradeId}" th:disabled="${grade.blocker != null}"></option></select></label>
+            <button type="submit" class="button primary" th:text="#{quiz.ui.again}"></button></form>
+        <a th:if="${room.gameCode == null and room.expiresAt != null}" class="button primary" th:href="@{/student/quiz/create}" th:text="#{quiz.ui.again}"></a>
+        <p th:if="${room.gameCode != null and (replayCard == null or replayCard.blocker != null)}" th:text="#{quiz.ui.replayUnavailable}"></p>
+</div></body></html>

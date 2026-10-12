@@ -70,16 +70,33 @@ async function harness(format='SCQ',kind='QUESTION') {
     const options=format==='MATCHING'?{left:[{id:'1',text:'Один'}],right:[{id:'a',text:'Первый'}]}:format==='FILL_IN'?{placeholders:['[[1]]']}:[{id:'A',text:'<script>вариант</script>'},{id:'B',text:'Второй'}];
     let state={code:'QZABCD',status:'active',gameType:kind==='FACT'?'TRUE_FALSE':kind==='VOCABULARY'?'WORD_TRANSLATION':'SUBJECT_QUIZ',questionCount:2,serverTime:new Date(now).toISOString(),
         currentRound:{id:1,orderNo:1,contentKind:kind,format,prompt:'<script>условие</script>',options,locale:'ru',presentation:{},startsAt:new Date(now-1000).toISOString(),endsAt:new Date(now+20000).toISOString(),answered:false}};
-    const requests=[], intervals=[];let fail=false, postHandler=null, results=null;
+    const requests=[], intervals=[], replayRequests=[];let fail=false, postHandler=null, results=null, replayHandler=async()=>({ok:true,text:async()=>'<a href="/student/quiz">Каталог</a>'});
     w.setInterval=fn=>{intervals.push(fn);return intervals.length;};w.clearInterval=()=>{};w.setTimeout=()=>1;w.clearTimeout=()=>{};w.WebSocket=undefined;
     w.fetch=async(url,init)=>{
         if(url.endsWith('/results')) return {ok:true,status:200,json:async()=>structuredClone(results)};
+        if(url.includes('/replay')) {replayRequests.push(url);return replayHandler();}
         if(init.method==='POST') {requests.push({url,payload:JSON.parse(init.body),headers:init.headers});if(fail)throw new Error('offline');if(postHandler)state=await postHandler(requests.at(-1),state);else state={...state,currentRound:{...state.currentRound,answered:true}};}
         return {ok:true,status:200,json:async()=>structuredClone(state)};
     };
     w.eval(core);w.eval(client);await flush();
-    return {w,dom,requests,intervals,refresh:()=>w.dispatchEvent(new w.Event('online')),setResults:r=>{results=r;},setPostHandler:fn=>{postHandler=fn;},setState:s=>{state=s;},getState:()=>state,setFail:b=>{fail=b;},close:()=>{w.dispatchEvent(new w.Event('pagehide'));w.close();}};
+    return {w,dom,requests,intervals,replayRequests,setReplayHandler:fn=>{replayHandler=fn;},refresh:()=>w.dispatchEvent(new w.Event('online')),setResults:r=>{results=r;},setPostHandler:fn=>{postHandler=fn;},setState:s=>{state=s;},getState:()=>state,setFail:b=>{fail=b;},close:()=>{w.dispatchEvent(new w.Event('pagehide'));w.close();}};
 }
+test('итог появляется без перезагрузки и не ждёт медленный или сломанный повтор',async()=>{
+    for(const broken of [false,true]) {
+        const h=await harness(),d=h.w.document;
+        try {
+            h.setReplayHandler(()=>broken ? Promise.reject(new Error('offline')) : new Promise(()=>{}));
+            h.setResults({me:{place:1,score:2,maxScore:2,correctAnswers:2,totalRounds:2,percent:100},leaderboard:[],review:[]});
+            h.setState({...h.getState(),status:'finished',currentRound:null});h.refresh();await flush();
+            assert.equal(h.w.location.pathname,'/student/quiz/rooms/QZABCD/results');
+            assert.equal(d.querySelector('#qg-result-percent').textContent,'100%');
+            assert.equal(d.querySelector('#qg-results').hidden,false);
+            assert.equal(h.replayRequests.length,1);
+            assert.equal(d.querySelector('#qg-error').textContent,'');
+            if(broken) assert.equal(d.querySelector('#qg-replay a').getAttribute('href'),'/student/quiz');
+        } finally {h.close();}
+    }
+});
 test('разбор: false, безопасный текст, пропуски и фильтры без повторной загрузки результата',async()=>{
     const h=await harness('BOOLEAN','FACT'),d=h.w.document;
     try {

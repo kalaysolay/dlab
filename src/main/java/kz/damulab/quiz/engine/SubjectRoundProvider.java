@@ -22,6 +22,13 @@ public class SubjectRoundProvider implements QuizRoundProvider {
     public QuizGameType gameType() { return QuizGameType.SUBJECT_QUIZ; }
     /** Отбирает текущие публикации нужного предмета, типа, сложности и пересечения всех классов. */
     public List<Source> prepare(QuizRoom room, Set<Long> required) {
+        return eligible(room, required).map(v -> new Source(v.getId(), (order, random) -> snapshot(room, v, order, random))).toList();
+    }
+    /** Проверка достаточности прекращается на limit и не создаёт сборщиков раундов. */
+    public int countUpTo(QuizRoom room, Set<Long> required, int limit) {
+        return (int)eligible(room, required).limit(limit).count();
+    }
+    private java.util.stream.Stream<QuestionVersion> eligible(QuizRoom room, Set<Long> required) {
         if (required.isEmpty()) throw new QuizEngineException("SUBJECT_UNIVERSAL_UNSUPPORTED");
         boolean custom = room.getKind() == QuizRoomKind.CUSTOM_SUBJECT;
         var config = custom ? null : configs.findById(room.getGameVersion().getId()).orElseThrow(() -> new QuizEngineException("SOURCE_UNAVAILABLE"));
@@ -31,8 +38,7 @@ public class SubjectRoundProvider implements QuizRoundProvider {
         return versions.findPublishedForQuizSource(subject.getId()).stream()
                 .filter(v -> custom || config.getQuestionTypes().contains(v.getType()))
                 .filter(v -> difficulty == null || difficulty == v.getDifficulty())
-                .filter(v -> QuizContentEligibility.subjectAudience(v, required) && QuizContentEligibility.subjectComplete(v))
-                .map(v -> new Source(v.getId(), (order, random) -> snapshot(room, v, order, random))).toList();
+                .filter(v -> QuizContentEligibility.subjectAudience(v, required) && QuizContentEligibility.subjectComplete(v));
     }
     private QuizRound snapshot(QuizRoom room, QuestionVersion v, int order, Random random) {
         JsonNode key = json.read(v.getAnswerKeyJson());

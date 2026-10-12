@@ -34,6 +34,19 @@ public class QuizGameContentDiagnostics {
                 questions.findPublishedForQuizDiagnostics(), index(subjects.findAll(), Subject::getId),
                 index(grades.findAllByOrderByGradeNoAsc(), Grade::getId));
     }
+    /** Для одной карточки читает только её банк, включая разрешённые межнаборные варианты слов. */
+    @Transactional(readOnly = true)
+    public Batch prepare(QuizGameType type, QuizSubjectGameConfig subject, QuizWordGameConfig word, QuizFactGameConfig fact) {
+        var emptyWords=new VocabularyDistractorService.Dataset(List.of(),Map.of(),List.of());
+        return switch(type) {
+            case WORD_TRANSLATION -> new Batch(word==null ? emptyWords : distractors.prepareForGame(word.getVocabularySet()),
+                    word==null ? Map.of() : Map.of(word.getVocabularySet().getId(),word.getVocabularySet()),Map.of(),List.of(),List.of(),Map.of(),index(grades.findAllByOrderByGradeNoAsc(),Grade::getId));
+            case TRUE_FALSE -> new Batch(emptyWords,Map.of(),fact==null ? Map.of() : Map.of(fact.getFactSet().getId(),fact.getFactSet()),
+                    fact==null ? List.of() : facts.findPublishedCurrentVersionsInSet(fact.getFactSet().getId()),List.of(),Map.of(),index(grades.findAllByOrderByGradeNoAsc(),Grade::getId));
+            case SUBJECT_QUIZ -> new Batch(emptyWords,Map.of(),Map.of(),List.of(),subject==null ? List.of() : questions.findPublishedForQuizSource(subject.getSubject().getId()),
+                    subject==null ? Map.of() : Map.of(subject.getSubject().getId(),subject.getSubject()),index(grades.findAllByOrderByGradeNoAsc(),Grade::getId));
+        };
+    }
 
     /** Проверяет один набор требуемых классов общей policy; будущий start передаст фактические классы комнаты. */
     public Coverage coverage(QuizGameForm f, Set<Long> required, Batch data) {
