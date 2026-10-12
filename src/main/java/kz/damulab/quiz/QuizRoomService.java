@@ -394,7 +394,7 @@ public class QuizRoomService {
     private void validateContent(QuizRoom room, List<QuizParticipant> members) {
         requireSource(room); var required = audience.resolve(room, members); var provider = providers.get(room.getGameType());
         if (provider == null) throw new QuizEngineException("GAME_CONFIGURATION_INVALID");
-        int count = provider.prepare(room, required.gradeIds()).size();
+        int count = provider.countUpTo(room, required.gradeIds(), room.getQuestionCount());
         if (count < room.getQuestionCount()) throw new QuizEngineException("INSUFFICIENT_PUBLISHED_CONTENT", count, room.getQuestionCount());
     }
     private void validateSettings(QuizRoom room) {

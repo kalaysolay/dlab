@@ -125,8 +125,12 @@
             stopped = true; socket?.close();
         }
         if (room.status === "finished") {
-            stopped = true; socket?.close();
-            if (root.dataset.initialStatus !== "finished") { window.location.replace(`/student/quiz/rooms/${room.code}/results`); return; }
+            stopped = true; socket?.close(); clearInterval(timer); clearTimeout(pollTimer); clearTimeout(reconnect);
+            // Итог загружается в текущей странице: повторный SSR не должен задерживать разбор.
+            if (root.dataset.initialStatus !== "finished") {
+                history.replaceState(null, "", `/student/quiz/rooms/${room.code}/results${location.search}`);
+                root.dataset.initialStatus = "finished";
+            }
             loadResults();
         }
     }
@@ -283,7 +287,25 @@
             renderReview("all");
             filters.onclick = event => { const button = event.target.closest("[data-review-filter]"); if (button) renderReview(button.dataset.reviewFilter); };
             status(labels.results,false); byId("qg-results-title").focus();
+            loadReplay();
         } catch (ex) { resultLoaded = false; error(ex.message); setTimeout(loadResults,3000); }
+    }
+    async function loadReplay() {
+        const target = byId("qg-replay");
+        if (!target) return;
+        try {
+            const response = await fetch(`/student/quiz/rooms/${room.code}/replay${location.search}`, {credentials:"same-origin",redirect:"error"});
+            if (!response.ok) throw new Error();
+            // Фрагмент рендерит наш Thymeleaf с экранированием контента и CSRF формы.
+            const document = new DOMParser().parseFromString(await response.text(), "text/html");
+            target.replaceChildren(...document.body.childNodes);
+            target.querySelector("[data-create-game]")?.addEventListener("submit", event => {
+                event.currentTarget.querySelector('button[type="submit"]').disabled = true;
+            });
+        } catch {
+            // Сбой повтора не меняет успешно загруженный результат и оставляет выход в каталог.
+            const link = node("a", labels.back, "button"); link.href = "/student/quiz"; target.replaceChildren(link);
+        }
     }
     // Сокет передаёт только CONNECT/SUBSCRIBE; команда игры всегда проходит CSRF-защищённый HTTP.
     function connect() {

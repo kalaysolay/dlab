@@ -82,14 +82,29 @@ public class QuizStudentPageController {
     }
     /** Рендерит только safe shell после проверки membership; ACTIVE/терминальная история не зависит от флага. */
     public String room(Principal principal,String code,Model model,Locale locale) {
-        var room=rooms.state(code,principal.getName()); labels(model,locale); model.addAttribute("room",room);
+        return renderRoom(principal,code,model,locale,false);
+    }
+    /** Проверяет FINISHED по состоянию: расчёт и личный разбор загрузит отдельный API один раз. */
+    public String results(Principal principal,String code,Model model,Locale locale) {
+        return renderRoom(principal,code,model,locale,true);
+    }
+    private String renderRoom(Principal principal,String code,Model model,Locale locale,boolean results) {
+        var room=rooms.state(code,principal.getName());
+        if(results && !room.status().equals("finished")) throw new QuizEngineException("RESULTS_NOT_AVAILABLE");
+        labels(model,locale); model.addAttribute("room",room);
         model.addAttribute("quizPageTitle",room.gameTitle());
         // Разрешённые классы WAITING закреплены в версии комнаты, не в новой публикации игры.
-        model.addAttribute("gradeChoices",roomGrades(code,principal.getName(),locale));
-        var replay=room.status().equals("finished") && room.gameCode() != null
-                ? catalog.read(principal.getName(),locale.getLanguage()).stream().filter(c->c.code().equals(room.gameCode())).findFirst().orElse(null) : null;
-        model.addAttribute("replayCard",replay);
+        model.addAttribute("gradeChoices",room.status().equals("waiting") ? roomGrades(code,principal.getName(),locale) : List.of());
         return "student/quiz-game-room";
+    }
+    /** Проверка участия предшествует чтению одной актуальной карточки; повтор не задерживает результаты. */
+    @GetMapping("/student/quiz/rooms/{code}/replay")
+    public String replay(Principal principal,@PathVariable String code,Model model,Locale locale) {
+        var room=rooms.state(code,principal.getName());
+        if(!room.status().equals("finished")) throw new QuizEngineException("RESULTS_NOT_AVAILABLE");
+        model.addAttribute("room",room);
+        model.addAttribute("replayCard",room.gameCode()==null ? null : catalog.replay(principal.getName(),locale.getLanguage(),room.gameCode()));
+        return "fragments/quiz-replay :: replay";
     }
     private List<QuizStudentCatalog.Choice> roomGrades(String code,String email,Locale locale) {
         var allowed=rooms.allowedGradeIds(code,email);

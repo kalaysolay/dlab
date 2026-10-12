@@ -68,6 +68,9 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         var hidden=tx(()->publish(factForm(1))); tx(()->{games.setVisibility(hidden.getId(),revision(hidden.getId()),false,admin()); return null;});
         var list=catalog.read(host,"ru"); assertThat(list.stream().filter(c->c.code().equals(one.getCode())||c.code().equals(two.getCode())).map(QuizStudentCatalog.Card::title)).containsExactly("Абрикос","Яблоко <script>alert(1)</script>");
         assertThat(list).noneMatch(c->c.code().equals(hidden.getCode()));
+        assertThat(catalog.replay(host,"ru",one.getCode())).usingRecursiveComparison().ignoringFields("key")
+                .isEqualTo(list.stream().filter(c->c.code().equals(one.getCode())).findFirst().orElseThrow());
+        assertThat(catalog.replay(host,"ru",hidden.getCode())).isNull();
         String html=mvc.perform(get("/student/quiz").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(view().name("student/quiz-games")).andReturn().getResponse().getContentAsString();
         assertThat(html).contains("Небольшая игра — хороший способ закрепить тему", "id=\"qg-code-form\"", "Абрикос", "&lt;script&gt;alert(1)&lt;/script&gt;")
                 .doesNotContain("<script>alert(1)</script>","answerKeySnapshot","Ложное утверждение");
@@ -128,6 +131,8 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
     @Test void outsiderCannotReadRoomResultsOrPinnedGradeChoices() throws Exception {
         var g=tx(()->publish(factForm(1))); var r=create(g.getCode()); String outsider=profile(5,"ru");
         mvc.perform(get("/student/quiz/rooms/"+r.code()).with(user(outsider).roles("STUDENT"))).andExpect(status().isForbidden());
+        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/replay").with(user(outsider).roles("STUDENT"))).andExpect(status().isForbidden());
+        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/replay").with(user(host).roles("STUDENT"))).andExpect(status().isConflict());
         assertThatThrownBy(()->rooms.allowedGradeIds(r.code(),outsider)).isInstanceOf(QuizEngineException.class);
         mvc.perform(get("/student/quiz/rooms/"+r.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isConflict());
         mvc.perform(get("/student/quiz/join").param("code","<script>").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("value=\"<script>"))));
@@ -143,10 +148,13 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
     @Test void finishedCancelledAndExpiredScreensStayAccessibleAndReplayUsesCurrentPublication() throws Exception {
         var g=tx(()->publish(factForm(1))); var r=create(g.getCode()); var active=rooms.start(r.code(),host);
         rooms.answer(r.code(),host,new QuizGameRoomRequest.Answer(active.activeRoundId(),mapper.readTree("false"),false)); clock.offset=25;
-        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(model().attributeExists("replayCard"));
+        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(model().attributeDoesNotExist("replayCard"));
+        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/replay").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(model().attributeExists("replayCard"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"idempotencyKey\"")));
         assertThat(rooms.results(r.code(),host).me().correctAnswers()).isEqualTo(1);
         tx(()->{games.setVisibility(g.getId(),revision(g.getId()),false,admin()); return null;});
-        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Повтор сейчас недоступен")));
+        mvc.perform(get("/student/quiz/rooms/"+r.code()+"/replay").with(user(host).roles("STUDENT"))).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Повтор сейчас недоступен")));
         var other=tx(()->publish(factForm(1))); var cancelled=create(other.getCode()); rooms.cancel(cancelled.code(),host);
         mvc.perform(get("/student/quiz/rooms/"+cancelled.code()).with(user(host).roles("STUDENT"))).andExpect(status().isOk());
         var expired=create(other.getCode()); clock.offset+=1801;
@@ -167,7 +175,7 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
         rooms.answer(room.code(),host,new QuizGameRoomRequest.Answer(active.activeRoundId(),null,true));
         clock.offset=11;
         assertThat(rooms.results(room.code(),host).review().getFirst().skipped()).isTrue();
-        mvc.perform(get("/student/quiz/rooms/"+room.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk())
+        mvc.perform(get("/student/quiz/rooms/"+room.code()+"/replay").with(user(host).roles("STUDENT"))).andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/student/quiz/create")));
     }
     @Test void catalogUsesBoundedQueriesForMultipleCards() {
@@ -178,6 +186,41 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
             tx(()->{for(int i=0;i<5;i++){var f=form(QuizGameType.TRUE_FALSE); f.setFactSetId(set.getId()); publish(f);} return null;});
             stats.clear(); catalog.read(host,"ru"); assertThat(stats.getPrepareStatementCount()).isLessThanOrEqualTo(one+1);
         } finally {stats.setStatisticsEnabled(previous);}
+    }
+    /** Повторяемый локальный замер: одинаковые банки и операции до/после рефакторинга, без порогов по времени CI. */
+    @Test void quizLatencyProbe() throws Exception {
+        var cases=new LinkedHashMap<String,QuizGame>();
+        cases.put("FACT",tx(()->publish(factForm(100))));
+        cases.put("WORD",tx(()->{var f=form(QuizGameType.WORD_TRANSLATION); f.setVocabularySetId(wordSet(100).getId()); f.setSourceLanguage("en"); f.setTargetLanguage("ru"); return publish(f);}));
+        cases.put("SUBJECT",subject(QuestionType.SCQ));
+        var stats=entityManager.getEntityManagerFactory().unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        boolean previous=stats.isStatisticsEnabled(); stats.setStatisticsEnabled(true);
+        try {
+            for(var entry:cases.entrySet()) for(int i=0;i<4;i++) {
+                clock.offset=0; var r=create(entry.getValue().getCode());
+                stats.clear(); long at=System.nanoTime(); rooms.start(r.code(),host);
+                probe(entry.getKey(),i,"start",at,stats);
+                stats.clear(); at=System.nanoTime(); rooms.state(r.code(),host); probe(entry.getKey(),i,"state",at,stats);
+                clock.offset=25; rooms.results(r.code(),host);
+                stats.clear(); at=System.nanoTime();
+                mvc.perform(get("/student/quiz/rooms/"+r.code()+"/results").with(user(host).roles("STUDENT"))).andExpect(status().isOk());
+                probe(entry.getKey(),i,"results-page",at,stats);
+                // Страница результата не загружает ни один банк независимо от числа других игр.
+                for(String entity:List.of(VocabularyItemVersion.class.getName(),FactStatementVersion.class.getName(),QuestionVersion.class.getName()))
+                    assertThat(stats.getEntityStatistics(entity).getLoadCount()).isZero();
+                stats.clear(); at=System.nanoTime(); rooms.results(r.code(),host); probe(entry.getKey(),i,"results-api",at,stats);
+                stats.clear(); at=System.nanoTime();
+                mvc.perform(get("/student/quiz/rooms/"+r.code()+"/replay").with(user(host).roles("STUDENT"))).andExpect(status().isOk());
+                probe(entry.getKey(),i,"replay",at,stats);
+                // Фрагмент повтора не читает банки двух остальных механик.
+                if(!entry.getKey().equals("WORD")) assertThat(stats.getEntityStatistics(VocabularyItemVersion.class.getName()).getLoadCount()).isZero();
+                if(!entry.getKey().equals("FACT")) assertThat(stats.getEntityStatistics(FactStatementVersion.class.getName()).getLoadCount()).isZero();
+                if(!entry.getKey().equals("SUBJECT")) assertThat(stats.getEntityStatistics(QuestionVersion.class.getName()).getLoadCount()).isZero();
+            }
+        } finally { stats.setStatisticsEnabled(previous); }
+    }
+    private void probe(String type,int iteration,String operation,long at,org.hibernate.stat.Statistics stats) {
+        System.out.printf(Locale.ROOT,"QUIZ_PROBE %s %d %s %.3fms sql=%d%n",type,iteration,operation,(System.nanoTime()-at)/1_000_000.0,stats.getPrepareStatementCount());
     }
     @Test void allGameTypesHaveRealServerPagesAndOptionalBrowserAcceptance() throws Exception {
         var codes=new LinkedHashMap<String,String>();

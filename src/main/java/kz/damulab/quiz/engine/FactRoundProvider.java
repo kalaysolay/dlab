@@ -19,12 +19,18 @@ public class FactRoundProvider implements QuizRoundProvider {
     public QuizGameType gameType() { return QuizGameType.TRUE_FALSE; }
     /** Повторно проверяет опубликованный набор и фактическую аудиторию, без доверия административному preview. */
     public List<Source> prepare(QuizRoom room, Set<Long> required) {
+        return eligible(room,required).map(v -> new Source(v.getId(), (order, random) -> snapshot(room, v, order))).toList();
+    }
+    /** Достаточность проверяется до limit; снимки и ключи не сериализуются. */
+    public int countUpTo(QuizRoom room, Set<Long> required, int limit) {
+        return (int)eligible(room,required).limit(limit).count();
+    }
+    private java.util.stream.Stream<FactStatementVersion> eligible(QuizRoom room, Set<Long> required) {
         FactSet set = configs.findById(room.getGameVersion().getId()).orElseThrow(() -> new QuizEngineException("SOURCE_UNAVAILABLE")).getFactSet();
         if (set.getStatus() != EditorialStatus.PUBLISHED || QuizContentEligibility.blank(set.getSourcePolicy())) throw new QuizEngineException("SOURCE_UNAVAILABLE");
         return versions.findPublishedCurrentVersionsInSet(set.getId()).stream()
                 .filter(v -> v.getStatement().getSet().getId().equals(set.getId()))
-                .filter(v -> QuizContentEligibility.factComplete(v) && QuizContentEligibility.audience(v.isUniversalAudience(), v.getGradeIds(), required))
-                .map(v -> new Source(v.getId(), (order, random) -> snapshot(room, v, order))).toList();
+                .filter(v -> QuizContentEligibility.factComplete(v) && QuizContentEligibility.audience(v.isUniversalAudience(), v.getGradeIds(), required));
     }
     private QuizRound snapshot(QuizRoom room, FactStatementVersion v, int order) {
         QuizRound round = QuizRound.fact(room, v, order);

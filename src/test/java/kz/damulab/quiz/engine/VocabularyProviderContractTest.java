@@ -79,6 +79,28 @@ class VocabularyProviderContractTest {
         Set<String> keys = new HashSet<>(); for (int seed = 0; seed < 50; seed++) keys.add(source.builder().build(1, new Random(seed)).getAnswerKeySnapshotJson());
         assertThat(keys.size()).isGreaterThan(1);
     }
+    /** Быстрый путь обязан совпадать с полной редакционной диагностикой на смешанном банке. */
+    @Test void indexedGameplayPreservesDiagnosticPolicyAndStopsAtRequestedCount() {
+        local.getPublishedVersion().setCrossSetDistractorsAllowed(true);
+        for(int i=1;i<=50;i++) {
+            var v=word(i,i%3==0 ? cross : local,"word"+i,"translation"+(i%17));
+            if(i%5==0) translations.add(new VocabularyItemAnswer(v,"alias"+(i%4),"alias"+(i%4),false));
+            if(i%7==0) {v.setUniversalAudience(false);v.setGradeIds(Set.of(10L));}
+            if(i%11==0) v.recordReview(null,null);
+        }
+        forbidden.add(new VocabularyDistractorExclusion(bank.get(0),bank.get(1),"Редакционный запрет"));
+        for(var required:List.of(Set.<Long>of(),Set.of(10L),Set.of(10L,20L))) {
+            var data=distractors.prepare(List.of()); var pool=distractors.forAudience(data,required);
+            for(var source:pool.sources(local.getId())) {
+                var expected=distractors.diagnose(source,required,data);
+                assertThat(pool.candidates(source).stream().sorted(VocabularyDistractorService.CANDIDATE_PREFERENCE.thenComparing(VocabularyDistractorService.Candidate::versionId)).toList()).isEqualTo(expected.candidates());
+                assertThat(pool.playable(source)).isEqualTo(expected.playable());
+            }
+            int count=provider.prepare(room,required).size();
+            assertThat(provider.countUpTo(room,required,3)).isEqualTo(Math.min(3,count));
+            assertThat(provider.countUpTo(room,required,100)).isEqualTo(count);
+        }
+    }
     private VocabularyItemVersion word(long id, VocabularySet set, String prompt, String translation) {
         var item = new VocabularyItem(set); item.setStatus(EditorialStatus.PUBLISHED); id(item, id);
         var v = new VocabularyItemVersion(1, item, prompt, prompt, "Словарь"); id(v, id); v.setStatus(EditorialStatus.PUBLISHED); v.setPublishedAt(OffsetDateTime.now()); v.recordReview(1L, OffsetDateTime.now()); v.setUniversalAudience(true); v.setDifficulty(1); v.setMeaningNoteRu("Разбор"); item.setPublishedVersion(v);

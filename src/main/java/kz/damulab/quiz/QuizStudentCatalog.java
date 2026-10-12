@@ -34,8 +34,16 @@ public class QuizStudentCatalog {
     /** Карточки сортируются по административному порядку и локализованному названию; число запросов не зависит от числа игр. */
     @Transactional(readOnly=true)
     public List<Card> read(String email, String locale) {
+        return cards(email, locale, games.findPublishedCatalog(Pageable.unpaged()), false);
+    }
+    /** Карточка повтора проверяет только актуальную публикацию выбранной игры, без обхода каталога. */
+    @Transactional(readOnly=true)
+    public Card replay(String email, String locale, String code) {
+        var game=games.findByCode(code).filter(availability::visible);
+        return game.map(g -> cards(email,locale,List.of(g),true).stream().findFirst().orElse(null)).orElse(null);
+    }
+    private List<Card> cards(String email,String locale,List<QuizGame> published,boolean single) {
         var student=students.findByUserEmailIgnoreCase(email).orElseThrow(() -> new QuizEngineException("PROFILE_GRADE_REQUIRED"));
-        var published=games.findPublishedCatalog(Pageable.unpaged());
         if (published.isEmpty()) return List.of();
         var ids=published.stream().map(g -> g.getPublishedVersion().getId()).toList();
         var sc=subjects.findByGameVersionIdIn(ids).stream().collect(Collectors.toMap(QuizSubjectGameConfig::getGameVersionId, v->v));
@@ -43,7 +51,10 @@ public class QuizStudentCatalog {
         var fc=facts.findByGameVersionIdIn(ids).stream().collect(Collectors.toMap(QuizFactGameConfig::getGameVersionId, v->v));
         var allGrades=grades.findAllByOrderByGradeNoAsc();
         var supported=allGrades.stream().collect(Collectors.toMap(Grade::getGradeNo, Grade::getId));
-        var data=diagnostics.prepare(); List<Card> cards=new ArrayList<>();
+        // Для повтора загружается один источник; общие правила карточек остаются теми же.
+        var first=published.getFirst().getPublishedVersion();
+        var data=single ? diagnostics.prepare(first.getGameType(),sc.get(first.getId()),wc.get(first.getId()),fc.get(first.getId())) : diagnostics.prepare();
+        List<Card> cards=new ArrayList<>();
         for (var game:published) {
             if (!availability.visible(game)) continue;
             var v=game.getPublishedVersion(); String title=QuizSnapshotJson.localized(v.getTitleRu(),v.getTitleKk(),locale);
