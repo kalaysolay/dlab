@@ -99,6 +99,9 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // Полный набор интеграционных тестов создаёт много Spring-контекстов с Hibernate
+    // и брокерами. Освобождаем старые контексты, чтобы обычный build не исчерпывал heap.
+    systemProperty 'spring.test.context.cache.maxSize', '2'
 }
 
 // Исходники и двуязычные шаблоны писем компилируются одинаково на Windows и Linux.
