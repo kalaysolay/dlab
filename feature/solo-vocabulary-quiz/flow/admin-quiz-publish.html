@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Публикация викторины — Damulab Admin</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css"><link rel="stylesheet" href="../../../src/main/resources/static/css/app.css"><link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside class="sidebar" aria-label="Админ-навигация">
+            <div class="admin-brand"><div class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></div><div><h1>Damulab Admin</h1><p>Admin Console</p></div></div>
+            <nav class="admin-nav"><a href="#">Обзор</a><a href="#">Предметы</a><a href="#">Темы</a><a href="#">Вопросы</a><a class="active" href="admin-quizzes.html">Викторины</a><a href="admin-word-bank.html">Банк слов</a><a href="#">AI генерация</a><a href="#">Эталоны для ИИ</a><a href="#">Настройки AI</a><a href="#">Качество вопросов</a><a href="#">Импорт вопросов</a><a href="#">Лекции</a></nav>
+        </aside>
+
+        <section class="panel quiz-admin-page" data-quiz-publish>
+            <div class="notice"><strong>Контракт этапа 3</strong><span>Числа ниже — статический пример. Сервер различает публикацию, новый черновик и видимость; <a href="GAME_ADMIN_CONTRACT.md">полный контракт</a>.</span></div>
+            <div class="page-head"><div><div class="quiz-admin-title-line"><h1 class="page-title" data-publish-title>English: слова</h1><span class="badge success" data-publish-status>Готова</span></div><p class="lede">Проверьте игру глазами ученика и опубликуйте без риска для текущих комнат.</p></div><div class="row-actions"><a class="button" href="admin-quizzes.html">К списку</a><button class="button primary" type="button" data-publish-button>Опубликовать</button></div></div>
+
+            <nav class="quiz-admin-tabs"><a href="admin-quiz-edit.html?game=english" data-tab-link="edit">Основное и правила</a><a href="admin-quiz-content.html?game=english" data-tab-link="content">Контент</a><a class="active" href="admin-quiz-publish.html?game=english" data-tab-link="publish">Проверка и публикация</a></nav>
+            <div class="notice success" data-publish-notice hidden><strong>Игра опубликована</strong><span>Новые комнаты будут использовать эту версию. Уже начатые игры не изменятся.</span></div>
+
+            <div class="subpanel"><strong>Опубликована v1 · черновик v2 APPROVED · видима</strong><p><button class="button" type="button">Скрыть / вернуть (отдельный POST)</button> <button class="button" type="button">Архивировать с сохранением истории</button></p><label><input type="checkbox"> Подтверждаю предупреждения</label><p>Скрытие запрещает новые create/replay; прежняя WAITING сохраняет join/start. Архив блокирует start.</p></div>
+            <div class="quiz-publish-layout">
+                <section class="form wide-form">
+                    <div class="quiz-section-head"><div><h2 class="section-title">Готовность</h2><p class="muted-line">Публикация доступна только без блокирующих ошибок.</p></div><strong class="quiz-readiness-score" data-readiness-score>5 из 5</strong></div>
+                    <div class="quiz-check-list" data-check-list>
+                        <div class="quiz-check-row is-ok"><span class="quiz-check-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></span><div><strong>Карточка заполнена</strong><span>Есть названия и описания на двух языках.</span></div></div>
+                        <div class="quiz-check-row is-ok"><span class="quiz-check-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></span><div><strong>Правила комнаты корректны</strong><span>Можно играть одному, максимум 8 участников.</span></div></div>
+                        <div class="quiz-check-row is-ok"><span class="quiz-check-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></span><div><strong>Контента достаточно</strong><span data-content-check>58 опубликованных слов подходят под правила.</span></div></div>
+                        <div class="quiz-check-row is-ok"><span class="quiz-check-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></span><div><strong>Классы аудитории проверены</strong><span>Материал подходит всем требуемым классам участников.</span></div></div>
+                        <div class="quiz-check-row is-ok"><span class="quiz-check-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#shield-check"></use></svg></span><div><strong>Диагностика пригодности выполнена</strong><span>Предпросмотр не создаёт комнаты или снимки раундов.</span></div></div>
+                    </div>
+                    <div class="actions"><button class="button" type="button" data-run-check>Проверить ещё раз</button><button class="button primary" type="button" data-publish-button>Опубликовать</button></div>
+                </section>
+
+                <aside class="quiz-student-preview">
+                    <div class="quiz-section-head"><div><h2 class="section-title">Как увидит ученик</h2><p class="muted-line">Карточка и основные настройки комнаты.</p></div><span class="badge">Предпросмотр</span></div>
+                    <article class="admin-student-game-card"><span class="game-card-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#languages"></use></svg></span><div><span class="game-card-label" data-preview-type>Слова</span><strong data-preview-title>English: слова</strong><p data-preview-description>Выбирайте правильный перевод английских слов.</p></div><div class="admin-preview-meta"><span data-preview-count>10 слов</span><span data-preview-seconds>15 сек</span></div></article>
+                    <div class="admin-room-preview"><div><strong>Перед игрой</strong><span>Настройки уже подобраны</span></div><dl><div data-preview-grade-row hidden><dt>Класс</dt><dd>5 класс</dd></div><div><dt>Вопросов</dt><dd data-preview-room-count>10</dd></div><div><dt>Время</dt><dd data-preview-room-seconds>15 секунд</dd></div><div><dt>Игроки</dt><dd>1–4</dd></div></dl><a class="button" href="room.html?game=english" data-student-preview-link>Открыть полный экран</a></div>
+                </aside>
+            </div>
+        </section>
+    </main>
+</div>
+<!-- Административные действия и счётчики реализует сервер; демонстрационный JS здесь отключён. -->
+</body>
+</html>

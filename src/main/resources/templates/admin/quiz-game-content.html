@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Администрирование игр</title>
+<th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block><link rel="stylesheet" th:href="@{/css/app.css}"></head>
+<body><div class="app-shell admin-shell"><main class="page admin-layout">
+<aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside><section class="panel">
+<div class="alert danger" role="alert" th:each="error : ${formErrors}" th:text="${error}"></div>
+<div class="alert success" role="status" th:if="${successMessage}" th:text="${successMessage}"></div>
+<div class="page-head"><div><h1 class="page-title">Контент игры</h1><p class="lede" th:text="${item.form.titleRu}"></p></div></div>
+<nav th:replace="~{fragments/quiz-game-admin :: tabs(${item})}"></nav>
+<div th:replace="~{fragments/quiz-game-admin :: coverage(${item})}"></div>
+<div class="alert danger" th:each="error : ${item.errors}" th:text="${error}"></div>
+<div class="alert warning" th:each="warning : ${item.warnings}" th:text="${warning}"></div>
+<h2>Исключённые материалы худшего состава</h2><div class="table-wrap"><table class="data-table"><thead><tr><th>Редакция</th><th>Причина</th><th>Исправить</th></tr></thead><tbody><tr th:each="excluded : ${item.content.worst.excluded}"><td th:text="${excluded.versionId}"></td><td th:text="${excluded.reason}"></td><td><a class="button" th:href="${excluded.editUrl}">Открыть материал</a></td></tr></tbody></table></div>
+</section></main></div></body></html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/quiz-ui-head :: head}"></head><body><div class="app-shell">
+<header th:replace="~{fragments/student-header :: studentHeader}"></header>
+<main class="page qg-page" data-quiz-join><section class="panel qg-narrow">
+    <h1 class="page-title" th:text="#{quiz.ui.join}"></h1>
+    <form id="qg-code-form" class="form"><label class="field" for="qg-code"><span th:text="#{quiz.ui.code}"></span>
+        <input id="qg-code" name="code" maxlength="32" required autocomplete="off" autocapitalize="characters" spellcheck="false"
+               th:value="${joinCode}" aria-describedby="qg-error" placeholder="QZ7K2M"></label>
+        <button class="button primary" type="submit" th:text="#{quiz.ui.preview}"></button></form>
+    <p id="qg-error" role="alert" class="qg-error" tabindex="-1"></p>
+    <section id="qg-preview" hidden aria-live="polite"><h2 id="qg-preview-title" tabindex="-1"></h2><p id="qg-preview-meta"></p>
+        <p id="qg-preview-blocker"></p><button class="button primary" id="qg-enter" type="button" th:text="#{quiz.ui.enter}"></button></section>
+    <a class="button" th:href="@{/student/profile}" th:text="#{quiz.ui.profile}"></a>
+    <a class="button" th:href="@{/student/quiz}" th:text="#{quiz.ui.back}"></a>
+</section></main></div></body></html>

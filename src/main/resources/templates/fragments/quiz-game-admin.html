@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="ru" xmlns:th="http://www.thymeleaf.org"><body>
+<nav class="row-actions" aria-label="Разделы игры" th:fragment="tabs(item)">
+<a class="button" th:href="@{/admin/quiz-games}">Список</a>
+<a class="button" th:href="@{/admin/quiz-games/{id}/edit(id=${item.game.id})}">Настройки</a>
+<a class="button" th:href="@{/admin/quiz-games/{id}/content(id=${item.game.id})}">Контент</a>
+<a class="button" th:href="@{/admin/quiz-games/{id}/publish(id=${item.game.id})}">Проверка и публикация</a>
+</nav>
+<div th:fragment="status(item)" class="subpanel">
+<p>Статус игры: <strong th:text="${item.game.status}"></strong>. Видимость: <strong th:text="${item.game.catalogVisible ? 'Видима' : 'Скрыта'}"></strong>.</p>
+<p>Опубликованная редакция: <span th:text="${item.game.publishedVersion == null ? 'нет' : item.game.publishedVersion.versionNo}"></span>.
+Черновая редакция: <span th:text="${item.game.draftVersion == null ? 'нет' : item.game.draftVersion.versionNo}"></span>.</p>
+<p class="muted-line">Скрытие запрещает новые комнаты и повтор; прежняя ожидающая комната может стартовать. Архивирование блокирует новый старт и сохраняет историю.</p>
+</div>
+<div th:fragment="coverage(item)" class="subpanel">
+<h2>Покрытие контента</h2>
+<p>Источник: <a th:href="${item.content.bankUrl}" th:text="${item.content.source}"></a></p>
+<dl><dt>Опубликовано</dt><dd th:text="${item.content.worst.published}"></dd><dt>Подходит аудитории</dt><dd th:text="${item.content.worst.audience}"></dd><dt>Пригодно для вопросов</dt><dd th:text="${item.content.worst.playable}"></dd></dl>
+<p>Проверено сочетаний классов: <span th:text="${item.content.checkedScenarios}"></span>. Аудитория худшего покрытия: <span th:text="${item.content.audienceLabel}"></span>.</p>
+<p>Минимум / по умолчанию / максимум вопросов: <span th:text="${item.form.minQuestionCount}"></span> / <span th:text="${item.form.defaultQuestionCount}"></span> / <span th:text="${item.form.maxQuestionCount}"></span>.</p>
+<p class="muted-line">Число записей банка не равно числу пригодных вопросов. Финальная проверка выполняется при старте комнаты.</p>
+</div>
+</body></html>

@@ -1,0 +1,12 @@
+/** Отдельный opt-in запуск конкретного старого JAR; не входит в обычный test/build и не касается рабочей БД. */
+allprojects {
+    afterEvaluate {
+        tasks.register('quizBinaryRollback', JavaExec) {
+            dependsOn testClasses
+            classpath = sourceSets.test.runtimeClasspath
+            mainClass = 'kz.damulab.QuizBinaryRollbackMatrix'
+            maxHeapSize = '256m'
+            jvmArgs '-XX:ActiveProcessorCount=2'
+        }
+    }
+}

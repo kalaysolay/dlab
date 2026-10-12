@@ -1,0 +1,64 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/quiz-ui-head :: head}"></head><body><div class="app-shell">
+<header th:replace="~{fragments/student-header :: studentHeader}"></header>
+<main class="page qg-page" data-quiz-game-room th:attr="data-code=${room.code},data-initial-status=${room.status}">
+    <section class="qg-heading"><div><h1 class="page-title" th:text="${room.gameTitle}"></h1><p class="lede" th:text="${room.gameDescription}"></p></div>
+        <a class="button" th:href="@{/student/quiz}" th:text="#{quiz.ui.back}"></a></section>
+    <p id="qg-network" class="muted-line" role="status"></p>
+    <p id="qg-error" class="qg-error" role="alert" tabindex="-1"></p>
+    <p id="qg-status" class="qg-status" role="status" tabindex="-1" th:text="#{quiz.ui.loading}"></p>
+    <p id="qg-timer-live" class="qg-sr" aria-live="polite" aria-atomic="true"></p>
+    <section class="panel" id="qg-lobby" hidden>
+        <h2 th:text="#{quiz.ui.rules}"></h2><p id="qg-settings-summary"></p><p th:text="#{quiz.ui.timeRule}"></p>
+        <div id="qg-participants" class="qg-participants"></div>
+        <form id="qg-settings" class="form qg-settings" hidden>
+            <label class="field" id="qg-grade-field"><span th:text="#{quiz.ui.grade}"></span>
+                <select id="qg-grade" aria-describedby="qg-error"><option value="" th:text="#{quiz.ui.chooseGrade}"></option>
+                    <option th:each="grade : ${gradeChoices}" th:value="${grade.id}" th:text="${grade.title}"></option></select></label>
+            <label class="field"><span th:text="#{quiz.ui.rounds}"></span><input id="qg-count" type="number" required aria-describedby="qg-error"></label>
+            <label class="field"><span th:text="#{quiz.ui.seconds}"></span><input id="qg-seconds" type="number" min="5" max="120" required aria-describedby="qg-error"></label>
+        </form>
+        <ul id="qg-blockers" class="qg-reason"></ul>
+        <div class="actions qg-actions"><button id="qg-start" class="button primary" type="button" th:text="#{quiz.ui.start}" hidden></button>
+            <button id="qg-ready" class="button primary" type="button" th:text="#{quiz.ui.ready}" hidden></button>
+            <button id="qg-invite" class="button" type="button" th:text="#{quiz.ui.invite}" hidden></button>
+            <button id="qg-cancel" class="button" type="button" th:text="#{quiz.ui.cancel}" hidden></button>
+            <button id="qg-leave" class="button" type="button" th:text="#{quiz.ui.leave}" hidden></button></div>
+        <div id="qg-invitation" hidden><label class="field"><span th:text="#{quiz.ui.code}"></span><input id="qg-invite-code" readonly th:value="${room.code}"></label>
+            <button id="qg-copy" type="button" class="button" th:text="#{quiz.ui.copy}"></button><a th:href="@{/student/quiz/join(code=${room.code})}" th:text="#{quiz.ui.join}"></a></div>
+    </section>
+    <section id="qg-active" class="panel qg-active" hidden>
+        <div class="qg-heading"><p id="qg-progress"></p><p class="qg-timer"><span th:text="#{quiz.ui.remaining}"></span> <strong id="qg-timer" aria-live="off"></strong></p></div>
+        <p id="qg-direction" class="badge"></p><h2 id="qg-question" tabindex="-1"></h2>
+        <form id="qg-answer-form"><fieldset id="qg-answer-fields" aria-describedby="qg-error"><legend id="qg-answer-legend"></legend><div id="qg-options"></div></fieldset>
+            <div class="actions qg-actions"><button id="qg-submit" type="submit" class="button primary" th:text="#{quiz.ui.submit}"></button>
+                <button id="qg-skip" type="button" class="button" th:text="#{quiz.ui.skip}"></button></div></form>
+    </section>
+    <section id="qg-terminal" class="panel" hidden><h2 id="qg-terminal-title" tabindex="-1"></h2><a class="button" th:href="@{/student/quiz}" th:text="#{quiz.ui.back}"></a></section>
+    <section id="qg-results" class="panel" hidden>
+        <div class="qg-result-hero"><div><span class="qg-eyebrow" th:text="#{quiz.ui.finished}"></span>
+            <h2 tabindex="-1" id="qg-results-title" th:text="#{quiz.ui.results}"></h2>
+            <p class="qg-result-game" th:text="${room.gameTitle}"></p><p id="qg-result-summary"></p></div>
+            <div class="qg-result-count"><strong id="qg-result-count"></strong><span th:text="#{quiz.ui.percent}"></span><small id="qg-result-percent"></small></div></div>
+        <p th:if="${room.expiresAt != null}" th:text="#{quiz.ui.timeRule}"></p>
+        <p th:if="${room.expiresAt == null}" th:text="#{quiz.legacy.noTime}"></p>
+        <h3 th:text="#{quiz.ui.ranking}"></h3><div class="qg-table-wrap"><table class="qg-table"><thead><tr>
+            <th th:text="#{quiz.ui.place}"></th><th th:text="#{quiz.ui.players}"></th><th th:text="#{quiz.ui.score}"></th><th th:text="#{quiz.ui.time}"></th>
+        </tr></thead><tbody id="qg-ranking"></tbody></table></div>
+        <div class="qg-review-heading"><div><h3 id="qg-review-title" th:text="#{quiz.ui.review}"></h3><p th:text="#{quiz.ui.reviewHint}"></p></div>
+            <div id="qg-review-filters" class="qg-review-filters" role="group" th:attr="aria-label=#{quiz.ui.reviewFilters}">
+                <button type="button" data-review-filter="all" aria-pressed="true"><span th:text="#{quiz.ui.reviewAll}"></span> <span data-review-count="all"></span></button>
+                <button type="button" data-review-filter="wrong" aria-pressed="false"><span th:text="#{quiz.ui.reviewWrong}"></span> <span data-review-count="wrong"></span></button>
+                <button type="button" data-review-filter="unanswered" aria-pressed="false"><span th:text="#{quiz.ui.reviewUnanswered}"></span> <span data-review-count="unanswered"></span></button>
+            </div></div>
+        <div id="qg-review" aria-live="polite" aria-labelledby="qg-review-title"></div>
+        <form th:if="${replayCard != null and replayCard.blocker == null}" th:action="@{/student/quiz/games/rooms}" method="post" data-create-game>
+            <input type="hidden" name="gameCode" th:value="${replayCard.code}"><input type="hidden" name="idempotencyKey" th:value="${replayCard.key}">
+            <label class="field" th:if="${replayCard.gradeMode != 'NONE'}"><span th:text="#{quiz.ui.grade}"></span><select name="gradeId" required>
+                <option value="" th:text="#{quiz.ui.chooseGrade}"></option><option th:each="grade : ${replayCard.grades}" th:value="${grade.id}" th:text="${grade.title}"
+                    th:selected="${grade.id == replayCard.selectedGradeId}" th:disabled="${grade.blocker != null}"></option></select></label>
+            <button type="submit" class="button primary" th:text="#{quiz.ui.again}"></button></form>
+        <a th:if="${room.gameCode == null and room.expiresAt != null}" class="button primary" th:href="@{/student/quiz/create}" th:text="#{quiz.ui.again}"></a>
+        <p th:if="${room.gameCode != null and (replayCard == null or replayCard.blocker != null)}" th:text="#{quiz.ui.replayUnavailable}"></p>
+    </section>
+</main></div></body></html>

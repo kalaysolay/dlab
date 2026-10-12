@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Мой разбор · 3 варианта — Damulab</title>
+  <link rel="stylesheet" href="quiz-review-variants.css">
+</head>
+<body>
+  <div class="workbench">
+    <div class="intro"><div><span class="eyebrow">Damulab / HTML-макеты</span><h1>Разбор, к которому хочется вернуться</h1><p>Один результат, три способа увидеть свои ответы и запомнить новое.</p></div><span class="prototype-label">Демонстрационные данные</span></div>
+    <div class="variants" role="tablist" aria-label="Варианты оформления">
+      <button id="tab-cards" role="tab" aria-selected="true" aria-controls="preview" data-variant="cards">01 <span>Карточки</span></button>
+      <button id="tab-list" role="tab" aria-selected="false" aria-controls="preview" tabindex="-1" data-variant="list">02 <span>Компактный список</span></button>
+      <button id="tab-focus" role="tab" aria-selected="false" aria-controls="preview" tabindex="-1" data-variant="focus">03 <span>По одному вопросу</span></button>
+    </div>
+    <p id="direction" class="direction"></p>
+    <section id="preview" role="tabpanel" aria-labelledby="tab-cards" tabindex="0" class="preview">
+      <header class="app-header"><strong>Damulab<span class="brand-dot">.</span></strong><span>Викторины <span class="divider">/</span> Жители океана</span><span class="profile">Ученик</span></header>
+      <main>
+        <section class="result"><div><span class="eyebrow">Игра завершена</span><h2>Результаты викторины</h2><p>Жители океана</p></div><div class="score"><strong>3<span>/ 5</span></strong><span>верных ответов</span></div></section>
+        <div class="review-heading"><div><h2>Мой разбор</h2><p>Сравните ответы и узнайте, почему именно так.</p></div><div class="filters" role="group" aria-label="Фильтр ответов"><button aria-pressed="true" data-filter="all">Все <span>5</span></button><button aria-pressed="false" data-filter="wrong">Ошибки <span>1</span></button><button aria-pressed="false" data-filter="timeout">Без ответа <span>1</span></button></div></div>
+        <div id="review-content" aria-live="polite"></div>
+        <footer class="review-footer"><span>Разбор помогает запомнить больше, чем сам результат.</span><button id="reset">Посмотреть все вопросы</button></footer>
+      </main>
+    </section>
+  </div>
+  <script src="quiz-review-variants.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Редакция набора слов</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body><div class="app-shell admin-shell"><main class="page admin-layout">
+<aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside>
+<section class="panel">
+    <div class="page-head"><div><h1 class="page-title">Редакция набора слов</h1>
+        <p class="lede">Направление и код стабильны; настройки после публикации сохраняются новой версией.</p>
+    </div><a class="button" th:href="@{/admin/vocabulary/sets}">К наборам</a></div>
+    <a class="button" th:href="@{/admin/vocabulary/items(setId=${setId})}">Слова набора</a>
+    <div class="alert danger" th:each="error : ${formErrors}" th:text="${error}"></div>
+    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <form class="form wide-form" method="post" th:object="${setForm}"
+          th:action="@{/admin/vocabulary/sets/{id}(id=${setId})}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" th:field="*{code}"><input type="hidden" th:field="*{sourceLanguage}">
+        <input type="hidden" th:field="*{targetLanguage}">
+        <p><strong th:text="*{code}"></strong> ·
+            <span th:text="${setForm.sourceLanguage + ' → ' + setForm.targetLanguage}"></span></p>
+        <label class="field"><span>Название RU</span><input th:field="*{titleRu}" required></label>
+        <label class="field"><span>Название KK</span><input th:field="*{titleKk}" required></label>
+        <label class="field"><span>Проверяемый источник</span><input th:field="*{sourceReference}" required></label>
+        <label><input type="checkbox" th:field="*{crossSetDistractorsAllowed}"> Разрешить межнаборный подбор для этого набора</label>
+        <div class="actions"><button class="button primary" type="submit">Сохранить редакцию</button>
+            <a class="button" th:href="@{/admin/vocabulary/sets}">Отмена</a></div>
+    </form>
+</section></main></div></body></html>

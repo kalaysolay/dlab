@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Банк слов — Damulab Admin</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css"><link rel="stylesheet" href="../../../src/main/resources/static/css/app.css"><link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell admin-shell">
+    <main class="page admin-layout">
+        <aside class="sidebar" aria-label="Админ-навигация">
+            <div class="admin-brand"><div class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></div><div><h1>Damulab Admin</h1><p>Admin Console</p></div></div>
+            <nav class="admin-nav"><a href="#">Обзор</a><a href="#">Предметы</a><a href="#">Темы</a><a href="#">Вопросы</a><a href="admin-quizzes.html">Викторины</a><a class="active" href="admin-word-bank.html">Банк слов</a><a href="#">AI генерация</a><a href="#">Эталоны для ИИ</a><a href="#">Настройки AI</a><a href="#">Качество вопросов</a><a href="#">Импорт вопросов</a><a href="#">Лекции</a></nav>
+        </aside>
+
+        <section class="panel quiz-admin-page" data-word-bank>
+            <div class="page-head"><div><h1 class="page-title">Банк слов</h1><p class="lede">Версии учебных значений, переводы, классы и проверяемый источник.</p></div><div class="row-actions"><button class="button" type="button">Отправить выбранные на проверку</button><a class="button primary" href="admin-word-edit.html">Добавить слово</a></div></div>
+
+            <div class="meta-grid quiz-admin-metrics"><div class="metric"><strong>110</strong><span>Всего слов</span></div><div class="metric"><strong>101</strong><span>Опубликованы</span></div><div class="metric"><strong>7</strong><span>На проверке</span></div><div class="metric"><strong>2</strong><span>Есть замечания</span></div></div>
+
+            <form class="filter-bar">
+                <label class="field compact"><span>Язык</span><select name="language"><option value="">Любой</option><option value="en">English</option><option value="kk">Қазақша</option></select></label>
+                <label class="field compact"><span>Класс</span><select name="grade"><option value="">Любой</option><option>4 класс</option><option>5 класс</option><option>Универсальная аудитория</option></select></label>
+                <label class="field compact"><span>Статус</span><select name="status"><option value="">Любой</option><option value="published">Опубликовано</option><option value="review">На проверке</option><option value="flagged">Есть замечания</option></select></label>
+                <label class="field compact"><span>Поиск</span><input name="query" placeholder="Слово или перевод"></label>
+                <button class="button" type="submit">Показать</button><button class="button" type="button" data-reset-word-filter>Сбросить</button>
+            </form>
+
+            <div class="empty-state" data-word-empty hidden><strong>Слова не найдены</strong><span>Измените фильтры или добавьте новое слово.</span></div>
+            <div class="table-wrap" data-word-table><table class="data-table word-bank-table"><thead><tr><th>ID</th><th>Слово</th><th>Основной перевод</th><th>Язык</th><th>Аудитория</th><th>Тематика</th><th>Статус</th><th>Источник</th><th>Действия</th></tr></thead><tbody>
+                <tr data-word-row data-language="en" data-status="published" data-search="discover обнаружить"><td>W-104</td><td><strong>discover</strong><span class="muted-line">/dɪˈskʌvə/</span></td><td>обнаружить</td><td><span class="badge">English</span></td><td>4–5 классы</td><td>Учёба</td><td><span class="badge success">published</span></td><td>Oxford 3000</td><td class="row-actions"><a class="button" href="admin-word-edit.html?word=discover">Редактировать</a></td></tr>
+                <tr data-word-row data-language="en" data-status="published" data-search="journey путешествие"><td>W-118</td><td><strong>journey</strong><span class="muted-line">/ˈdʒɜːni/</span></td><td>путешествие</td><td><span class="badge">English</span></td><td>4–5 классы</td><td>Путешествия</td><td><span class="badge success">published</span></td><td>Oxford 3000</td><td class="row-actions"><a class="button" href="admin-word-edit.html?word=journey">Редактировать</a></td></tr>
+                <tr data-word-row data-language="en" data-status="review" data-search="responsibility ответственность"><td>W-144</td><td><strong>responsibility</strong><span class="muted-line">/rɪˌspɒnsəˈbɪləti/</span></td><td>ответственность</td><td><span class="badge">English</span></td><td>5 класс</td><td>Общение</td><td><span class="badge warning">review</span></td><td>Cambridge B1</td><td class="row-actions"><a class="button" href="admin-word-edit.html?word=responsibility">Проверить</a></td></tr>
+                <tr data-word-row data-language="kk" data-status="published" data-search="білім знание"><td>W-207</td><td><strong>білім</strong><span class="muted-line">білім</span></td><td>знание</td><td><span class="badge">Қазақша</span></td><td>5 класс</td><td>Учёба</td><td><span class="badge success">published</span></td><td>Оқулық, 5 сынып</td><td class="row-actions"><a class="button" href="admin-word-edit.html?word=bilim">Редактировать</a></td></tr>
+                <tr data-word-row data-language="kk" data-status="flagged" data-search="ұқыпты аккуратный"><td>W-221</td><td><strong>ұқыпты</strong><span class="muted-line">ұқыпты</span></td><td>аккуратный</td><td><span class="badge">Қазақша</span></td><td>Универсальная</td><td>Характер</td><td><span class="badge danger">замечание</span></td><td>Оқулық, 5 сынып</td><td class="row-actions"><a class="button primary" href="admin-word-edit.html?word=uqypty">Исправить</a></td></tr>
+            </tbody></table></div>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

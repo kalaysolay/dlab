@@ -9,6 +9,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface QuestionVersionRepository extends JpaRepository<QuestionVersion, Long> {
+    /** Загружает опубликованный предметный состав и классы пакетно для административной диагностики игр. */
+    @Query("""
+            select distinct v from QuestionVersion v join fetch v.question q join fetch v.subject
+            left join fetch v.gradeLinks g left join fetch g.grade
+            where q.currentVersion = v and q.status = kz.damulab.questions.QuestionStatus.PUBLISHED
+            and v.publishedAt is not null and (:subjectId is null or v.subject.id = :subjectId) order by v.id
+            """)
+    List<QuestionVersion> findPublishedForQuizSource(@Param("subjectId") Long subjectId);
+
+    /** Диагностика нескольких игр получает общий состав тем же публикационным запросом. */
+    default List<QuestionVersion> findPublishedForQuizDiagnostics() { return findPublishedForQuizSource(null); }
 
     boolean existsByAtomicSkillId(Long atomicSkillId);
 

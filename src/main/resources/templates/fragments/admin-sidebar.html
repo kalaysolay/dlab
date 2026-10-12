@@ -24,6 +24,13 @@
         <a th:classappend="${activeAdminNav == 'lectures'} ? 'active'" th:href="@{/admin/lectures}" th:text="#{admin.nav.lectures}">Лекции</a>
         <a th:classappend="${activeAdminNav == 'push'} ? 'active'" th:href="@{/admin/push-notifications}" th:text="#{admin.nav.push}">Push</a>
         <a th:classappend="${activeAdminNav == 'push-campaigns'} ? 'active'" th:href="@{/admin/push-campaigns}">Push-кампании</a>
+        <section class="admin-nav-group" aria-labelledby="admin-quiz-nav-title">
+            <h2 id="admin-quiz-nav-title" class="admin-nav-group-title" th:text="#{admin.nav.quizzes}">Викторины</h2>
+            <a th:classappend="${activeAdminNav == 'quizGames'} ? 'active'" th:href="@{/admin/quiz-games}" th:text="#{admin.nav.quizGames}">Игры</a>
+            <a th:classappend="${activeAdminNav == 'vocabularySets'} ? 'active'" th:href="@{/admin/vocabulary/sets}" th:text="#{admin.nav.vocabularySets}">Наборы слов</a>
+            <a th:classappend="${activeAdminNav == 'vocabulary'} ? 'active'" th:href="@{/admin/vocabulary/items}" th:text="#{admin.nav.vocabularyItems}">Слова</a>
+            <a th:classappend="${activeAdminNav == 'facts'} ? 'active'" th:href="@{/admin/facts}" th:text="#{admin.nav.facts}">Банк утверждений</a>
+        </section>
     </nav>
 </aside>
 </body>

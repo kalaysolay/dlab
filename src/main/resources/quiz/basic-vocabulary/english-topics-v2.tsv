@@ -1,0 +1,401 @@
+theme	english	russian	part_of_speech	english_prompt	english_alternatives	russian_alternatives
+study	syllabus	программа отдельного курса	noun	syllabus (course outline)
+study	curriculum	учебный план школы	noun	curriculum (school programme)
+study	deadline	крайний срок сдачи	noun	deadline		последний срок
+study	research	научное исследование	noun	research
+study	evidence	подтверждающие данные	noun	evidence (supporting facts)		доказательства
+study	approach	подход к решению задачи	noun	approach (to a problem)
+study	feedback	обратная связь о работе	noun	feedback (on your work)
+study	assessment	оценивание результатов	noun	assessment (of learning)
+study	qualification	подтверждённая квалификация	noun	qualification (education)
+study	scholarship	стипендия на обучение	noun	scholarship
+study	tuition	плата за обучение	noun	tuition (fees)	tuition fees
+study	attendance	посещаемость занятий	noun	attendance (at classes)
+study	revision	повторение перед экзаменом	noun	revision (exam preparation)
+study	reference	ссылка на источник	noun	reference (to a source)
+study	conclusion	вывод исследования	noun	conclusion (of research)
+study	summary	краткое изложение	noun	summary
+study	paragraph	абзац	noun	paragraph
+study	quotation	цитата	noun	quotation	quote
+study	definition	определение понятия	noun	definition
+study	hypothesis	гипотеза	noun	hypothesis
+study	debate	дискуссия с аргументами	noun	debate		дебаты
+study	achievement	достижение	noun	achievement (something accomplished)	accomplishment
+study	requirement	требование	noun	requirement
+study	semester	учебный семестр	noun	semester
+study	assignment	учебное задание	noun	assignment (schoolwork)
+study	revise	повторять пройденный материал	verb	revise (for an exam)
+study	memorise	заучивать наизусть	verb	memorise	memorize
+study	summarise	кратко излагать	verb	summarise	summarize
+study	analyse	анализировать	verb	analyse	analyze
+study	compare	сравнивать	verb	compare
+study	distinguish	различать	verb	distinguish
+study	assess	оценивать результаты	verb	assess (performance)	evaluate
+study	interpret	истолковывать значение	verb	interpret (meaning)
+study	justify	обосновывать	verb	justify (an answer)
+study	investigate	исследовать проблему	verb	investigate (a problem)
+study	participate	участвовать	verb	participate	take part
+study	concentrate	сосредоточиваться	verb	concentrate (on a task)	focus
+study	take notes	делать конспект	verb	take notes		записывать основные мысли
+study	hand in an assignment	сдавать учебное задание	verb	hand in an assignment	submit an assignment
+study	catch up with the class	догонять класс в учёбе	verb	catch up with the class
+study	compulsory	обязательный	adjective	compulsory (course)	mandatory
+study	optional	необязательный	adjective	optional (course)
+study	accurate	точный и безошибочный	adjective	accurate (answer)
+study	relevant	относящийся к теме	adjective	relevant (information)
+study	practical	практический	adjective	practical (task)
+study	theoretical	теоретический	adjective	theoretical
+study	independent	самостоятельный	adjective	independent (learner)
+study	reliable	надёжный	adjective	reliable (source)	dependable
+study	convincing	убедительный	adjective	convincing (argument)	persuasive
+study	demanding	требующий больших усилий	adjective	demanding (course)
+travel	departure	отправление транспорта	noun	departure (transport)
+travel	arrival	прибытие	noun	arrival
+travel	destination	место назначения	noun	destination		пункт назначения
+travel	accommodation	место проживания в поездке	noun	accommodation (travel)
+travel	reservation	бронирование	noun	reservation (hotel or ticket)	booking
+travel	itinerary	план маршрута поездки	noun	itinerary
+travel	timetable	расписание транспорта	noun	timetable (transport)	schedule
+travel	fare	стоимость проезда	noun	fare
+travel	boarding pass	посадочный талон	noun	boarding pass
+travel	passport control	паспортный контроль	noun	passport control
+travel	customs	таможня	noun	customs (at a border)
+travel	luggage	багаж	noun	luggage	baggage
+travel	hand luggage	ручная кладь	noun	hand luggage	carry-on luggage;carry-on baggage
+travel	aisle	проход между рядами кресел	noun	aisle (on a plane)
+travel	platform	платформа на вокзале	noun	platform (railway)
+travel	junction	место соединения дорог	noun	junction (roads)
+travel	pedestrian crossing	пешеходный переход	noun	pedestrian crossing	crosswalk
+travel	roundabout	перекрёсток с круговым движением	noun	roundabout (traffic)	traffic circle
+travel	traffic jam	дорожная пробка	noun	traffic jam
+travel	detour	объездной маршрут	noun	detour (road)	diversion
+travel	delay	задержка рейса	noun	delay (flight)
+travel	connection	стыковка рейсов	noun	connection (between flights)
+travel	runway	взлётно-посадочная полоса	noun	runway (airport)
+travel	landmark	приметный ориентир	noun	landmark (recognisable place)
+travel	excursion	экскурсия	noun	excursion
+travel	navigate	ориентироваться по маршруту	verb	navigate (a route)
+travel	arrive	прибывать	verb	arrive
+travel	board a plane	садиться на самолёт	verb	board a plane
+travel	check in for a flight	регистрироваться на рейс	verb	check in for a flight
+travel	cancel a booking	отменять бронирование	verb	cancel a booking	cancel a reservation
+travel	postpone a journey	откладывать поездку	verb	postpone a journey	put off a journey
+travel	miss a flight	пропускать свой рейс	verb	miss a flight
+travel	change trains	пересаживаться на другой поезд	verb	change trains
+travel	rent a car	брать автомобиль напрокат	verb	rent a car	hire a car
+travel	fasten a seat belt	пристёгивать ремень безопасности	verb	fasten a seat belt
+travel	overtake	обгонять транспорт	verb	overtake (a vehicle)
+travel	set off	отправляться в путь	verb	set off (on a journey)
+travel	get lost	заблудиться	verb	get lost (on a journey)
+travel	get off a bus	выходить из автобуса	verb	get off a bus
+travel	pick up a passenger	заезжать за пассажиром	verb	pick up a passenger
+travel	convenient	удобный для поездки	adjective	convenient (location)
+travel	crowded	переполненный людьми	adjective	crowded
+travel	remote	удалённый от населённых мест	adjective	remote (place)
+travel	direct	прямой без пересадок	adjective	direct (flight)
+travel	delayed	задержанный по времени	adjective	delayed (flight)
+travel	refundable	с возможностью возврата денег	adjective	refundable (ticket)
+travel	valid	действительный по сроку	adjective	valid (ticket)
+travel	available	доступный для бронирования	adjective	available (hotel room)
+travel	scenic	с живописными видами	adjective	scenic (route)	picturesque
+travel	overseas	находящийся за границей	adjective	overseas (destination)
+communication	conversation	разговор	noun	conversation
+communication	argument	ссора	noun	argument (quarrel)	quarrel
+communication	agreement	договорённость	noun	agreement (between people)
+communication	misunderstanding	недопонимание	noun	misunderstanding
+communication	opinion	мнение	noun	opinion
+communication	attitude	отношение к ситуации	noun	attitude (towards something)
+communication	behaviour	поведение	noun	behaviour	behavior
+communication	confidence	уверенность в себе	noun	confidence (self-belief)	self-confidence
+communication	trust	доверие	noun	trust (in a person)
+communication	respect	уважение	noun	respect
+communication	apology	извинение	noun	apology
+communication	complaint	жалоба	noun	complaint
+communication	invitation	приглашение	noun	invitation
+communication	permission	разрешение что-либо сделать	noun	permission
+communication	advice	совет	noun	advice
+communication	relationship	взаимоотношения	noun	relationship (between people)
+communication	responsibility	ответственность	noun	responsibility
+communication	compromise	компромисс	noun	compromise
+communication	intention	намерение	noun	intention
+communication	reaction	реакция	noun	reaction
+communication	impression	впечатление	noun	impression (of someone)
+communication	disappointment	разочарование	noun	disappointment
+communication	embarrassment	смущение	noun	embarrassment
+communication	gratitude	благодарность	noun	gratitude
+communication	curiosity	любознательность	noun	curiosity (desire to know)
+communication	persuade	убеждать сделать что-либо	verb	persuade (someone to act)
+communication	apologise	извиняться	verb	apologise	apologize
+communication	complain	жаловаться	verb	complain
+communication	interrupt	перебивать собеседника	verb	interrupt (a speaker)
+communication	announce	объявлять публично	verb	announce
+communication	mention	упоминать	verb	mention
+communication	admit	признавать факт	verb	admit (a fact)
+communication	deny	отрицать факт	verb	deny (a fact)
+communication	recommend	рекомендовать	verb	recommend
+communication	refuse	отказываться	verb	refuse
+communication	warn	предупреждать об опасности	verb	warn (of danger)
+communication	encourage	ободрять и поддерживать	verb	encourage (someone)
+communication	keep a promise	сдерживать обещание	verb	keep a promise
+communication	get along with someone	ладить с человеком	verb	get along with someone	get on with someone
+communication	pay attention	обращать внимание	verb	pay attention
+communication	polite	вежливый	adjective	polite
+communication	rude	грубый в общении	adjective	rude
+communication	honest	честный	adjective	honest
+communication	patient	терпеливый	adjective	patient (person)
+communication	sensitive	легкоранимый	adjective	sensitive (to criticism)
+communication	confident	уверенный в себе	adjective	confident (person)	self-confident
+communication	anxious	тревожащийся	adjective	anxious (worried)
+communication	ashamed	испытывающий стыд	adjective	ashamed
+communication	grateful	благодарный	adjective	grateful	thankful
+communication	considerate	внимательный к другим	adjective	considerate (person)	thoughtful
+decisions	choice	выбор между вариантами	noun	choice (between options)
+decisions	decision	принятое решение	noun	decision
+decisions	purpose	цель действия	noun	purpose (of an action)
+decisions	priority	приоритет	noun	priority
+decisions	opportunity	возможность сделать что-либо	noun	opportunity	chance
+decisions	risk	риск	noun	risk
+decisions	consequence	последствие	noun	consequence
+decisions	advantage	преимущество	noun	advantage
+decisions	disadvantage	недостаток варианта	noun	disadvantage
+decisions	obstacle	препятствие	noun	obstacle
+decisions	effort	усилие	noun	effort
+decisions	progress	прогресс в работе	noun	progress
+decisions	success	успех	noun	success
+decisions	failure	неудача	noun	failure (unsuccessful attempt)
+decisions	experience	опыт деятельности	noun	experience (knowledge from doing)
+decisions	ability	способность	noun	ability
+decisions	expectation	ожидание результата	noun	expectation
+decisions	possibility	вероятная возможность	noun	possibility (something may happen)
+decisions	alternative	другой возможный вариант	noun	alternative
+decisions	solution	решение проблемы	noun	solution (to a problem)
+decisions	strategy	стратегия	noun	strategy
+decisions	preparation	подготовка	noun	preparation
+decisions	improvement	улучшение	noun	improvement
+decisions	challenge	сложная задача	noun	challenge (difficult task)
+decisions	uncertainty	неопределённость	noun	uncertainty
+decisions	achieve	достигать результата	verb	achieve (a result)	accomplish
+decisions	manage	справляться с задачей	verb	manage (to do something)
+decisions	avoid	избегать	verb	avoid
+decisions	prevent	предотвращать	verb	prevent
+decisions	require	требовать наличия чего-либо	verb	require
+decisions	depend on	зависеть от	verb	depend on
+decisions	consider	обдумывать вариант	verb	consider (an option)
+decisions	expect	ожидать результата	verb	expect
+decisions	arrange	организовывать заранее	verb	arrange (an event)
+decisions	suggest	предлагать идею	verb	suggest (an idea)
+decisions	make a decision	принимать решение	verb	make a decision
+decisions	give up	сдаваться и прекращать попытки	verb	give up (trying)
+decisions	carry on	продолжать начатое	verb	carry on (doing something)	continue
+decisions	deal with a problem	разбираться с проблемой	verb	deal with a problem
+decisions	work out a solution	находить решение проблемы	verb	work out a solution
+decisions	possible	возможный	adjective	possible
+decisions	unlikely	маловероятный	adjective	unlikely
+decisions	necessary	необходимый	adjective	necessary
+decisions	suitable	подходящий	adjective	suitable	appropriate
+decisions	effective	дающий нужный результат	adjective	effective
+decisions	urgent	срочный	adjective	urgent
+decisions	flexible	гибкий и допускающий изменения	adjective	flexible (plan)
+decisions	realistic	реалистичный	adjective	realistic (goal)
+decisions	achievable	достижимый	adjective	achievable (goal)	attainable
+decisions	risky	рискованный	adjective	risky
+environment	pollution	загрязнение окружающей среды	noun	pollution
+environment	climate	климат	noun	climate
+environment	drought	засуха	noun	drought
+environment	flood	наводнение	noun	flood
+environment	wildlife	дикая природа	noun	wildlife (wild animals)		дикие животные
+environment	habitat	среда обитания	noun	habitat
+environment	species	биологический вид	noun	species
+environment	predator	хищник	noun	predator
+environment	prey	добыча хищника	noun	prey
+environment	extinction	вымирание вида	noun	extinction
+environment	ecosystem	экосистема	noun	ecosystem
+environment	resource	природный ресурс	noun	resource (natural)
+environment	waste	отходы	noun	waste (unwanted material)
+environment	landfill	свалка для захоронения отходов	noun	landfill
+environment	conservation	сохранение природы	noun	conservation (of nature)
+environment	sustainability	экологическая устойчивость	noun	sustainability (environment)
+environment	atmosphere	атмосфера планеты	noun	atmosphere (of a planet)
+environment	gravity	сила тяжести	noun	gravity
+environment	radiation	излучение	noun	radiation
+environment	evaporation	испарение	noun	evaporation
+environment	precipitation	атмосферные осадки	noun	precipitation (weather)
+environment	emission	выброс в атмосферу	noun	emission (into the air)
+environment	recycling	переработка отходов	noun	recycling
+environment	discovery	научное открытие	noun	discovery (science)
+environment	experiment	научный эксперимент	noun	experiment
+environment	protect	защищать от вреда	verb	protect
+environment	preserve	сохранять в первоначальном состоянии	verb	preserve (a natural area)
+environment	conserve	бережно расходовать ресурсы	verb	conserve (resources)
+environment	recycle	перерабатывать отходы	verb	recycle
+environment	reuse	использовать повторно	verb	reuse
+environment	reduce	сокращать количество	verb	reduce (an amount)
+environment	pollute	загрязнять среду	verb	pollute
+environment	absorb	поглощать вещество	verb	absorb (a substance)
+environment	evaporate	испаряться	verb	evaporate
+environment	melt	таять	verb	melt
+environment	freeze	замерзать	verb	freeze
+environment	adapt	приспосабливаться	verb	adapt (to conditions)
+environment	survive	выживать	verb	survive
+environment	observe	наблюдать за явлением	verb	observe (a phenomenon)
+environment	carry out an experiment	проводить эксперимент	verb	carry out an experiment	conduct an experiment
+environment	renewable	возобновляемый	adjective	renewable (resource)
+environment	endangered	находящийся под угрозой вымирания	adjective	endangered (species)
+environment	extinct	вымерший	adjective	extinct (species)
+environment	toxic	токсичный	adjective	toxic	poisonous
+environment	harmful	вредный	adjective	harmful
+environment	biodegradable	биоразлагаемый	adjective	biodegradable
+environment	sustainable	экологически устойчивый	adjective	sustainable (use of resources)
+environment	artificial	искусственный	adjective	artificial
+environment	annual	ежегодный	adjective	annual (event)
+environment	environmentally friendly	безопасный для окружающей среды	adjective	environmentally friendly	eco-friendly
+health	symptom	симптом	noun	symptom
+health	diagnosis	диагноз	noun	diagnosis
+health	treatment	лечение	noun	treatment (medical)
+health	recovery	восстановление после болезни	noun	recovery (from illness)
+health	injury	травма	noun	injury
+health	infection	инфекция	noun	infection
+health	allergy	аллергия	noun	allergy
+health	prescription	врачебный рецепт	noun	prescription (for medicine)
+health	appointment	запись на приём	noun	appointment (with a doctor)
+health	emergency	неотложная ситуация	noun	emergency (medical)
+health	exhaustion	истощение сил	noun	exhaustion
+health	well-being	хорошее самочувствие	noun	well-being	wellbeing	благополучие
+health	posture	осанка	noun	posture
+health	stamina	выносливость	noun	stamina	endurance
+health	strength	физическая сила	noun	strength (physical)
+health	nutrition	питание организма	noun	nutrition
+health	diet	режим питания	noun	diet (usual food)
+health	nutrient	питательное вещество	noun	nutrient
+health	portion	порция еды	noun	portion (food)
+health	appetite	аппетит	noun	appetite
+health	hygiene	гигиена	noun	hygiene
+health	pulse	пульс	noun	pulse (heartbeat)
+health	blood pressure	кровяное давление	noun	blood pressure
+health	first aid	первая помощь	noun	first aid
+health	bandage	бинт	noun	bandage		повязка
+health	breathe	дышать	verb	breathe
+health	swallow	глотать	verb	swallow
+health	digest	переваривать пищу	verb	digest (food)
+health	stretch	растягивать мышцы	verb	stretch (muscles)
+health	injure	травмировать	verb	injure
+health	heal	заживать	verb	heal (a wound)
+health	recover	восстанавливаться после болезни	verb	recover (from illness)
+health	faint	терять сознание	verb	faint		падать в обморок
+health	cough	кашлять	verb	cough
+health	sneeze	чихать	verb	sneeze
+health	ache	болеть ноющей болью	verb	ache
+health	treat	лечить пациента	verb	treat (a patient)
+health	keep fit	поддерживать физическую форму	verb	keep fit	stay fit
+health	cut down on sugar	сокращать потребление сахара	verb	cut down on sugar
+health	get enough sleep	высыпаться	verb	get enough sleep
+health	nutritious	питательный	adjective	nutritious (food)
+health	balanced	сбалансированный	adjective	balanced (diet)
+health	dizzy	испытывающий головокружение	adjective	dizzy
+health	conscious	находящийся в сознании	adjective	conscious (patient)
+health	unconscious	без сознания	adjective	unconscious (patient)
+health	contagious	заразный	adjective	contagious (illness)	infectious
+health	chronic	хронический	adjective	chronic (illness)
+health	severe	тяжёлый по степени	adjective	severe (symptoms)
+health	mild	лёгкий по степени	adjective	mild (symptoms)
+health	beneficial	благотворный	adjective	beneficial (effect)
+work	vacancy	вакантное рабочее место	noun	vacancy (job)	job opening
+work	applicant	соискатель должности	noun	applicant (for a job)
+work	interview	собеседование при приёме на работу	noun	interview (job)
+work	employer	работодатель	noun	employer
+work	employee	наёмный работник	noun	employee
+work	colleague	коллега	noun	colleague	co-worker
+work	salary	регулярный оклад	noun	salary
+work	wages	заработная плата за часы или дни	noun	wages (hourly or daily pay)
+work	income	доход	noun	income
+work	expense	расход	noun	expense
+work	budget	бюджет	noun	budget
+work	savings	денежные сбережения	noun	savings
+work	debt	долг	noun	debt
+work	loan	заём	noun	loan (money)
+work	interest	проценты по займу	noun	interest (on a loan)
+work	profit	прибыль	noun	profit
+work	loss	финансовый убыток	noun	loss (financial)
+work	receipt	кассовый чек	noun	receipt (proof of purchase)
+work	invoice	счёт на оплату	noun	invoice
+work	refund	возврат уплаченных денег	noun	refund
+work	discount	скидка	noun	discount
+work	bargain	выгодная покупка	noun	bargain (good purchase)
+work	contract	контракт	noun	contract (agreement)
+work	promotion	повышение в должности	noun	promotion (at work)
+work	shift	рабочая смена	noun	shift (work period)
+work	earn	зарабатывать	verb	earn (money)
+work	borrow	брать взаймы	verb	borrow
+work	lend	давать взаймы	verb	lend
+work	afford	быть в состоянии оплатить	verb	afford (a purchase)
+work	owe	быть должным деньги	verb	owe (money)
+work	invest	вкладывать деньги	verb	invest (money)
+work	negotiate	вести переговоры	verb	negotiate
+work	hire	нанимать сотрудника	verb	hire (an employee)	employ
+work	resign	увольняться по собственному желанию	verb	resign (from a job)
+work	retire	выходить на пенсию	verb	retire
+work	apply for a job	подавать заявление на работу	verb	apply for a job
+work	pay back a loan	возвращать заём	verb	pay back a loan	repay a loan
+work	make a living	зарабатывать на жизнь	verb	make a living	earn a living
+work	set up a business	открывать своё дело	verb	set up a business	start a business
+work	run a company	управлять компанией	verb	run a company
+work	profitable	приносящий прибыль	adjective	profitable
+work	unemployed	безработный	adjective	unemployed
+work	self-employed	работающий на себя	adjective	self-employed
+work	permanent	постоянный	adjective	permanent (job)
+work	temporary	временный	adjective	temporary (job)
+work	affordable	доступный по цене	adjective	affordable
+work	overpriced	с завышенной ценой	adjective	overpriced
+work	valuable	имеющий большую ценность	adjective	valuable
+work	experienced	опытный	adjective	experienced (worker)
+work	qualified	имеющий нужную квалификацию	adjective	qualified (worker)
+technology	device	электронное устройство	noun	device (electronic)
+technology	hardware	компьютерное оборудование	noun	hardware (computing)
+technology	software	программное обеспечение	noun	software
+technology	application	компьютерное приложение	noun	application (software)	app
+technology	browser	браузер	noun	browser (web)
+technology	network	компьютерная сеть	noun	network (computing)
+technology	connection	соединение с сетью	noun	connection (to a network)
+technology	bandwidth	пропускная способность канала	noun	bandwidth (network)
+technology	storage	хранилище данных	noun	storage (data)
+technology	backup	резервная копия	noun	backup (data copy)
+technology	attachment	вложение в письме	noun	attachment (email)
+technology	privacy	конфиденциальность	noun	privacy (personal information)
+technology	security	защита системы	noun	security (computing)
+technology	encryption	шифрование	noun	encryption
+technology	password	пароль	noun	password
+technology	username	имя пользователя	noun	username	user name
+technology	account	учётная запись	noun	account (online service)
+technology	subscription	подписка на сервис	noun	subscription (service)
+technology	notification	уведомление	noun	notification
+technology	permission	право доступа в системе	noun	permission (system access)
+technology	error	ошибка программы	noun	error (software)
+technology	update	обновление программы	noun	update (software)
+technology	algorithm	алгоритм	noun	algorithm
+technology	artificial intelligence	искусственный интеллект	noun	artificial intelligence	AI
+technology	search engine	поисковая система	noun	search engine
+technology	download	скачивать данные	verb	download
+technology	upload	загружать данные на сервер	verb	upload
+technology	install	устанавливать программу	verb	install (software)
+technology	uninstall	удалять установленную программу	verb	uninstall
+technology	browse	просматривать сайты	verb	browse (websites)
+technology	access	получать доступ к ресурсу	verb	access (a resource)
+technology	synchronise	синхронизировать данные	verb	synchronise	synchronize
+technology	compress	сжимать данные	verb	compress (data)
+technology	encrypt	шифровать данные	verb	encrypt
+technology	restore	восстанавливать данные	verb	restore (data)
+technology	log in	входить в учётную запись	verb	log in	log on
+technology	log out	выходить из учётной записи	verb	log out	log off
+technology	back up files	создавать резервные копии файлов	verb	back up files
+technology	run out of storage	исчерпывать место в хранилище	verb	run out of storage
+technology	reset a password	сбрасывать пароль	verb	reset a password
+technology	compatible	совместимый	adjective	compatible (devices)
+technology	portable	переносной	adjective	portable (device)
+technology	wireless	беспроводной	adjective	wireless
+technology	encrypted	зашифрованный	adjective	encrypted (data)
+technology	digital	цифровой	adjective	digital
+technology	outdated	устаревший	adjective	outdated (software)
+technology	up-to-date	актуальный и обновлённый	adjective	up-to-date (software)
+technology	user-friendly	удобный для пользователя	adjective	user-friendly
+technology	automatic	автоматический	adjective	automatic
+technology	interactive	интерактивный	adjective	interactive

@@ -7,29 +7,62 @@ import java.util.Locale;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+/** Публикует только безопасный сигнал перечитать HTTP; rollback не порождает событий. */
 @Component
 public class QuizRoomEventPublisher {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(QuizRoomEventPublisher.class);
 
     private final SimpMessagingTemplate messagingTemplate;
     private final Clock clock;
+    private final java.util.concurrent.ConcurrentMap<String, Integer> announcedRounds = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Подключает транспорт и серверные часы. */
     public QuizRoomEventPublisher(SimpMessagingTemplate messagingTemplate, Clock clock) {
         this.messagingTemplate = messagingTemplate;
         this.clock = clock;
     }
 
+    /** Снимает только код/статус и отправляет после commit, без JPA-графа, ответов и условий. */
     public void publish(String type, QuizRoom room) {
         if (room == null || room.getCode() == null) {
             return;
         }
-        messagingTemplate.convertAndSend(
-                "/topic/quiz.rooms." + room.getCode(),
-                new QuizRoomEvent(
+        String destination = "/topic/quiz.rooms." + room.getCode();
+        QuizRoomEvent event = new QuizRoomEvent(
                         type,
                         room.getCode(),
                         room.getStatus().name().toLowerCase(Locale.ROOT),
                         OffsetDateTime.now(clock)
-                )
-        );
+                );
+        Runnable send = () -> {
+            // Наблюдаемость относится к уже зафиксированному состоянию. Ответы, снимки и аккаунты в лог не попадают.
+            log.info("quiz_event type={} room={} status={}", event.type(), event.code(), event.status());
+            if ("room.started".equals(type)) announcedRounds.put(event.code(), 1);
+            if ("room.finished".equals(type) || "room.cancelled".equals(type) || "room.expired".equals(type)) announcedRounds.remove(event.code());
+            messagingTemplate.convertAndSend(destination, event);
+        };
+        afterCommit(send);
+    }
+    /** Сообщает о новом серверном окне даже когда все ответили; после рестарта повтор сигнала безопасен. */
+    public void roundChanged(QuizRoom room, int orderNo) {
+        var event = new QuizRoomEvent("room.round_changed", room.getCode(), room.getStatus().name().toLowerCase(Locale.ROOT), OffsetDateTime.now(clock));
+        afterCommit(() -> announcedRounds.compute(event.code(), (code, previous) -> {
+            // Это только подавление повторных сигналов, расписание/finish всегда восстанавливаются из БД.
+            if (previous == null || previous != orderNo) messagingTemplate.convertAndSend("/topic/quiz.rooms." + code, event);
+            return orderNo;
+        }));
+    }
+    /** Журналирует идемпотентный повтор start после commit без лишнего WebSocket-сигнала. */
+    public void repeatedStart(QuizRoom room) {
+        String code=room.getCode(), status=room.getStatus().name().toLowerCase(Locale.ROOT);
+        afterCommit(()->log.info("quiz_command_repeated action=start room={} status={}",code,status));
+    }
+    private void afterCommit(Runnable send) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCommit() { send.run(); }
+                    });
+        } else send.run();
     }
 }

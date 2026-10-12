@@ -1,0 +1,266 @@
+{
+  "edition": "starter-v1",
+  "reviewedOn": "2026-10-10",
+  "gradeNo": 5,
+  "count": 5,
+  "seconds": 20,
+  "words": [
+    {
+      "en": "one",
+      "kk": "бір",
+      "ru": "один",
+      "alternatives": [
+        "одна",
+        "одно"
+      ],
+      "number": 1,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/one",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "two",
+      "kk": "екі",
+      "ru": "два",
+      "alternatives": [
+        "две"
+      ],
+      "number": 2,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/two",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "three",
+      "kk": "үш",
+      "ru": "три",
+      "alternatives": [],
+      "number": 3,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/three",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "four",
+      "kk": "төрт",
+      "ru": "четыре",
+      "alternatives": [],
+      "number": 4,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/four",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "five",
+      "kk": "бес",
+      "ru": "пять",
+      "alternatives": [],
+      "number": 5,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/five",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "six",
+      "kk": "алты",
+      "ru": "шесть",
+      "alternatives": [],
+      "number": 6,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/six",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "seven",
+      "kk": "жеті",
+      "ru": "семь",
+      "alternatives": [],
+      "number": 7,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/seven",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    },
+    {
+      "en": "eight",
+      "kk": "сегіз",
+      "ru": "восемь",
+      "alternatives": [],
+      "number": 8,
+      "enSource": "https://www.collinsdictionary.com/dictionary/english/eight",
+      "kkSource": "https://www.kaz-tili.kz/chislit01.htm"
+    }
+  ],
+  "facts": [
+    {
+      "ru": "В Солнечной системе восемь планет.",
+      "kk": "Күн жүйесінде сегіз ғаламшар бар.",
+      "truth": true,
+      "explanationRu": "Плутон относится к карликовым планетам.",
+      "explanationKk": "Плутон ергежейлі ғаламшарларға жатады.",
+      "source": "https://science.nasa.gov/solar-system/planets/"
+    },
+    {
+      "ru": "Солнце — планета.",
+      "kk": "Күн — ғаламшар.",
+      "truth": false,
+      "explanationRu": "Солнце является звездой.",
+      "explanationKk": "Күн — жұлдыз.",
+      "source": "https://science.nasa.gov/sun/facts/"
+    },
+    {
+      "ru": "Меркурий — ближайшая к Солнцу планета.",
+      "kk": "Меркурий — Күнге ең жақын ғаламшар.",
+      "truth": true,
+      "explanationRu": "Орбита Меркурия расположена ближе всего к Солнцу.",
+      "explanationKk": "Меркурийдің орбитасы Күнге ең жақын орналасқан.",
+      "source": "https://science.nasa.gov/mercury/facts/"
+    },
+    {
+      "ru": "Земля — вторая планета от Солнца.",
+      "kk": "Жер — Күннен санағанда екінші ғаламшар.",
+      "truth": false,
+      "explanationRu": "Земля третья; вторая — Венера.",
+      "explanationKk": "Жер — үшінші, ал Шолпан — екінші ғаламшар.",
+      "source": "https://science.nasa.gov/earth/facts/"
+    },
+    {
+      "ru": "Луна — естественный спутник Земли.",
+      "kk": "Ай — Жердің табиғи серігі.",
+      "truth": true,
+      "explanationRu": "Луна обращается вокруг Земли.",
+      "explanationKk": "Ай Жерді айналады.",
+      "source": "https://science.nasa.gov/moon/facts/"
+    },
+    {
+      "ru": "Венера холоднее Меркурия на поверхности.",
+      "kk": "Шолпанның беті Меркурийдің бетінен суық.",
+      "truth": false,
+      "explanationRu": "Венера — самая горячая планета благодаря плотной атмосфере.",
+      "explanationKk": "Қалың атмосферасының әсерінен Шолпан — ең ыстық ғаламшар.",
+      "source": "https://science.nasa.gov/venus/venus-facts/"
+    },
+    {
+      "ru": "Юпитер — самая большая планета Солнечной системы.",
+      "kk": "Юпитер — Күн жүйесіндегі ең үлкен ғаламшар.",
+      "truth": true,
+      "explanationRu": "Диаметр Юпитера больше диаметра остальных планет.",
+      "explanationKk": "Юпитердің диаметрі басқа ғаламшарлардың диаметрінен үлкен.",
+      "source": "https://science.nasa.gov/jupiter/jupiter-facts/"
+    },
+    {
+      "ru": "У Меркурия есть естественный спутник.",
+      "kk": "Меркурийдің табиғи серігі бар.",
+      "truth": false,
+      "explanationRu": "У Меркурия нет естественных спутников.",
+      "explanationKk": "Меркурийдің табиғи серіктері жоқ.",
+      "source": "https://science.nasa.gov/mercury/facts/"
+    }
+  ],
+  "sums": [
+    {
+      "ru": "Вычислите: 125 + 75.",
+      "kk": "Есептеңіз: 125 + 75.",
+      "answer": 200,
+      "options": [
+        190,
+        300,
+        200,
+        210
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 125 + 75 = 200.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 125 + 75 = 200.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 348 + 152.",
+      "kk": "Есептеңіз: 348 + 152.",
+      "answer": 500,
+      "options": [
+        490,
+        600,
+        500,
+        510
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 348 + 152 = 500.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 348 + 152 = 500.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 609 + 91.",
+      "kk": "Есептеңіз: 609 + 91.",
+      "answer": 700,
+      "options": [
+        690,
+        800,
+        700,
+        710
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 609 + 91 = 700.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 609 + 91 = 700.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 247 + 153.",
+      "kk": "Есептеңіз: 247 + 153.",
+      "answer": 400,
+      "options": [
+        390,
+        500,
+        400,
+        410
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 247 + 153 = 400.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 247 + 153 = 400.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 560 + 240.",
+      "kk": "Есептеңіз: 560 + 240.",
+      "answer": 800,
+      "options": [
+        790,
+        900,
+        800,
+        810
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 560 + 240 = 800.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 560 + 240 = 800.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 425 + 175.",
+      "kk": "Есептеңіз: 425 + 175.",
+      "answer": 600,
+      "options": [
+        590,
+        700,
+        600,
+        610
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 425 + 175 = 600.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 425 + 175 = 600.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 708 + 192.",
+      "kk": "Есептеңіз: 708 + 192.",
+      "answer": 900,
+      "options": [
+        890,
+        1000,
+        900,
+        910
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 708 + 192 = 900.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 708 + 192 = 900.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    },
+    {
+      "ru": "Вычислите: 134 + 166.",
+      "kk": "Есептеңіз: 134 + 166.",
+      "answer": 300,
+      "options": [
+        290,
+        400,
+        300,
+        310
+      ],
+      "explanationRu": "Сложите единицы, затем десятки и сотни с переносом: 134 + 166 = 300.",
+      "explanationKk": "Бірліктерді, содан кейін ондықтар мен жүздіктерді тасымалдап қосыңыз: 134 + 166 = 300.",
+      "source": "https://openstax.org/books/prealgebra-2e/pages/1-2-add-whole-numbers"
+    }
+  ]
+}

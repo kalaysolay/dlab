@@ -71,6 +71,11 @@ damulab:
   parent-link-invitations:
     token-ttl: ${PARENT_LINK_INVITATION_TOKEN_TTL:24h}
     resend-cooldown: ${PARENT_LINK_INVITATION_RESEND_COOLDOWN:1m}
+  quiz:
+    # DEC-01: аудит автора/проверяющего всегда сохраняется; строгий запрет opt-in.
+    strict-self-review: ${QUIZ_STRICT_SELF_REVIEW:false}
+    # ROOM-06: срок ожидающей комнаты; ACTIVE продолжает собственное серверное расписание.
+    waiting-timeout: ${QUIZ_WAITING_TIMEOUT:30m}
   testing:
     default-question-count: 12
     max-question-count: 20
@@ -102,7 +107,7 @@ damulab:
     real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:true}
     openai:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
-      api-key: ${OPENAI_API_KEY:}
+      api-key: ${OPENAI_API_KEY:}\
     deepseek:
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       api-key: ${DEEPSEEK_API_KEY:}

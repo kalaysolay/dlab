@@ -1,0 +1,7 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title th:text="#{quiz.ui.catalog}"></title>
+<link rel="stylesheet" th:href="@{/css/app.css}"><link rel="stylesheet" th:href="@{/css/quiz-games.css}"></head><body><div class="app-shell">
+<header th:replace="~{fragments/student-header :: studentHeader}"></header><main class="page qg-page"><section class="panel">
+<h1 th:text="#{quiz.ui.catalog}"></h1><p role="alert" th:text="${error}"></p>
+<a class="button" th:href="@{/student/profile}" th:text="#{quiz.ui.profile}"></a><a class="button" th:href="@{/student/quiz}" th:text="#{quiz.ui.back}"></a>
+</section></main></div></body></html>

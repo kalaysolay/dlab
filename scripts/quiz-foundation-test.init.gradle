@@ -1,0 +1,13 @@
+// Опциональный профиль проверки foundation на машине с ограниченной памятью.
+// Подключается только через -I: не меняет production JVM или обычную сборку проекта.
+allprojects {
+    tasks.withType(Test).configureEach {
+        minHeapSize = '64m'
+        maxHeapSize = '256m'
+        maxParallelForks = 1
+        // Ограничиваем число одновременно живых Spring-контекстов полного suite,
+        // чтобы они не удерживали десятки Hibernate factory и брокеров в малом heap.
+        systemProperty 'spring.test.context.cache.maxSize', '2'
+        jvmArgs '-XX:ActiveProcessorCount=2', '-XX:ReservedCodeCacheSize=64m', '-Xss512k'
+    }
+}

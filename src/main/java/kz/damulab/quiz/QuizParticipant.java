@@ -1,5 +1,9 @@
 package kz.damulab.quiz;
 
+import kz.damulab.quiz.catalog.*;
+import jakarta.persistence.*;
+import java.util.*;
+
 import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
@@ -16,7 +20,12 @@ import kz.damulab.users.StudentProfile;
 
 @Entity
 @Table(name = "quiz_participants")
+/** Компонент комнаты: nullable-поля сохраняют legacy, новые механики опираются на версию и снимки. */
 public class QuizParticipant {
+
+    @Column(name = "ready_revision")
+    private Long readyRevision;
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,6 +47,18 @@ public class QuizParticipant {
 
     @Column(name = "joined_at", nullable = false)
     private OffsetDateTime joinedAt = OffsetDateTime.now();
+
+    /** Возвращает readyRevision. */
+    public Long getReadyRevision() { return readyRevision; }
+
+    /** Подтверждает готовность именно к текущей редакции настроек. */
+    public void markReady(long revision) {
+        if (room.getStatus() != QuizRoomStatus.WAITING || revision != room.getSettingsRevision())
+            throw new IllegalStateException("Настройки комнаты изменились");
+        ready = true; readyRevision = revision;
+    }
+    /** Сбрасывает гостевую готовность после изменения настроек. */
+    public void resetReady() { ready = false; readyRevision = null; }
 
     protected QuizParticipant() {
     }

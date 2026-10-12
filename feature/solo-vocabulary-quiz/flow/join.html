@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Войти в игру — Damulab</title>
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/fonts.css">
+    <link rel="stylesheet" href="../../../src/main/resources/static/css/app.css">
+    <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="student-header compact-student-header"><div class="student-header-row"><a class="brand brand-link" href="index.html"><span class="brand-mark"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#sparkles"></use></svg></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a><a class="button" href="index.html">Все игры</a></div></header>
+    <main class="page join-page" data-join-page>
+        <a class="flow-back" href="index.html">← Назад к играм</a>
+        <section class="panel join-card">
+            <span class="room-game-icon"><svg class="lucide-icon"><use href="../../../src/main/resources/static/icons/lucide-sprite.svg#route"></use></svg></span>
+            <span class="flow-kicker">Игра с друзьями</span>
+            <h1 class="page-title">Введите код комнаты</h1>
+            <p class="lede">Код из шести символов покажет организатор игры.</p>
+            <form class="join-form" data-join-form>
+                <label class="field"><span>Код комнаты</span><input name="roomCode" value="" placeholder="QZ7K2M" maxlength="6" autocomplete="off" inputmode="text" required></label>
+                <button class="button primary" type="submit">Войти в игру</button>
+            </form>
+            <p class="join-error" data-join-error hidden>Проверьте код: должно быть 6 букв или цифр.</p>
+            <small class="join-hint">Для демонстрации введите любой код из шести символов.</small>
+        </section>
+    </main>
+</div>
+<script src="prototype.js"></script>
+</body>
+</html>

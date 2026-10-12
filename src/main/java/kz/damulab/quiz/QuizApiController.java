@@ -2,66 +2,85 @@ package kz.damulab.quiz;
 
 import java.net.URI;
 import java.security.Principal;
-
-import jakarta.validation.Valid;
-
+import java.util.Set;
+import com.fasterxml.jackson.databind.*;
+import kz.damulab.quiz.engine.QuizEngineException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+/** Единый API самостоятельных и каталожных игр; наружу выдаёт только безопасные DTO. */
 @RestController
 @RequestMapping("/api/quiz/rooms")
 public class QuizApiController {
-
-    private final QuizService quizService;
-
-    public QuizApiController(QuizService quizService) {
-        this.quizService = quizService;
+    private final QuizRoomService rooms;
+    private final ObjectMapper mapper;
+    /** Подключает единственный движок и строгую проверку JSON-полей. */
+    public QuizApiController(QuizRoomService rooms, ObjectMapper mapper) {
+        this.rooms = rooms; this.mapper = mapper;
     }
-
     @PostMapping
-    ResponseEntity<QuizRoomResponse> create(Principal principal, @Valid @RequestBody CreateQuizRoomRequest request) {
-        QuizRoomResponse response = quizService.createRoom(principal.getName(), request);
-        return ResponseEntity
-                .created(URI.create("/api/quiz/rooms/" + response.code()))
-                .body(response);
+    ResponseEntity<Object> create(Principal principal, @RequestBody JsonNode payload) {
+        if (payload == null || !payload.isObject()) throw new QuizEngineException("REQUEST_INVALID");
+        Object response; String code;
+        if (payload.has("gameCode")) {
+            fields(payload, Set.of("gameCode", "gradeId", "questionCount", "roundSeconds", "idempotencyKey"));
+            var value = rooms.create(principal.getName(), convert(payload, QuizGameRoomRequest.Create.class)); response = value; code = value.code();
+        } else {
+            fields(payload, Set.of("subjectId", "gradeId", "language", "questionCount", "roundSeconds", "idempotencyKey"));
+            var value = rooms.createCustom(principal.getName(), convert(payload, QuizGameRoomRequest.CustomCreate.class)); response = value; code = value.code();
+        }
+        return ResponseEntity.created(URI.create("/api/quiz/rooms/" + code)).body(response);
     }
-
     @GetMapping("/{code}")
-    QuizRoomResponse room(Principal principal, @PathVariable String code) {
-        return quizService.room(code, principal.getName());
+    Object room(Principal principal, @PathVariable String code) {
+        return rooms.state(code, principal.getName());
     }
-
+    @GetMapping("/{code}/preview")
+    Object preview(Principal principal, @PathVariable String code) { return rooms.preview(code, principal.getName()); }
     @PostMapping("/{code}/join")
-    QuizRoomResponse join(Principal principal, @PathVariable String code) {
-        return quizService.join(code, principal.getName());
+    Object join(Principal principal, @PathVariable String code) {
+        return rooms.join(code, principal.getName());
     }
-
     @PostMapping("/{code}/ready")
-    QuizRoomResponse ready(Principal principal, @PathVariable String code) {
-        return quizService.ready(code, principal.getName());
+    Object ready(Principal principal, @PathVariable String code, @RequestBody(required = false) JsonNode payload) {
+        fields(payload, Set.of("ready", "settingsRevision"));
+        if (!payload.path("ready").isBoolean() || !payload.path("settingsRevision").isIntegralNumber() || !payload.path("settingsRevision").canConvertToLong()) throw new QuizEngineException("REQUEST_INVALID");
+        return rooms.ready(code, principal.getName(), convert(payload, QuizGameRoomRequest.Ready.class));
     }
-
+    @PostMapping("/{code}/settings")
+    Object settings(Principal principal, @PathVariable String code, @RequestBody JsonNode payload) {
+        fields(payload, Set.of("gradeId", "questionCount", "roundSeconds", "settingsRevision"));
+        if (!payload.path("settingsRevision").isIntegralNumber() || !payload.path("settingsRevision").canConvertToLong()) throw new QuizEngineException("REQUEST_INVALID");
+        return rooms.settings(code, principal.getName(), convert(payload, QuizGameRoomRequest.Settings.class));
+    }
     @PostMapping("/{code}/start")
-    QuizRoomResponse start(Principal principal, @PathVariable String code) {
-        return quizService.start(code, principal.getName());
+    Object start(Principal principal, @PathVariable String code) {
+        return rooms.start(code, principal.getName());
     }
-
     @PostMapping("/{code}/answers")
-    QuizRoomResponse answer(
-            Principal principal,
-            @PathVariable String code,
-            @Valid @RequestBody SubmitQuizAnswerRequest request
-    ) {
-        return quizService.submitAnswer(code, principal.getName(), request);
+    Object answer(Principal principal, @PathVariable String code, @RequestBody JsonNode payload) {
+        fields(payload, Set.of("roundId", "answer", "skipped"));
+        if (payload.has("skipped") && !payload.path("skipped").isBoolean()) throw new QuizEngineException("ANSWER_INVALID");
+        return rooms.answer(code, principal.getName(), convert(payload, QuizGameRoomRequest.Answer.class));
     }
-
+    @PostMapping("/{code}/leave")
+    ResponseEntity<Void> leave(Principal principal, @PathVariable String code) { rooms.leave(code, principal.getName()); return ResponseEntity.noContent().build(); }
+    @PostMapping("/{code}/cancel")
+    Object cancel(Principal principal, @PathVariable String code) { return rooms.cancel(code, principal.getName()); }
     @GetMapping("/{code}/results")
-    QuizResultsResponse results(Principal principal, @PathVariable String code) {
-        return quizService.results(code, principal.getName());
+    Object results(Principal principal, @PathVariable String code) {
+        return rooms.results(code, principal.getName());
+    }
+    private <T> T convert(JsonNode payload, Class<T> type) {
+        try { return mapper.treeToValue(payload, type); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ex) { throw new QuizEngineException("REQUEST_INVALID"); }
+    }
+    private void fields(JsonNode payload, Set<String> allowed) {
+        if (payload == null || !payload.isObject()) throw new QuizEngineException("REQUEST_INVALID");
+        payload.fieldNames().forEachRemaining(field -> { if (!allowed.contains(field)) throw new QuizEngineException("REQUEST_INVALID"); });
+        for (String field : java.util.List.of("subjectId", "gradeId", "roundId", "settingsRevision", "questionCount", "roundSeconds"))
+            if (payload.hasNonNull(field) && (!payload.path(field).isIntegralNumber() || !payload.path(field).canConvertToLong())) throw new QuizEngineException("REQUEST_INVALID");
+        for (String field : java.util.List.of("gameCode", "idempotencyKey", "language"))
+            if (payload.hasNonNull(field) && !payload.path(field).isTextual()) throw new QuizEngineException("REQUEST_INVALID");
     }
 }

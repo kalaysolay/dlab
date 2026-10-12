@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Администрирование игр</title>
+<th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block><link rel="stylesheet" th:href="@{/css/app.css}"></head>
+<body><div class="app-shell admin-shell"><main class="page admin-layout">
+<aside th:replace="~{fragments/admin-sidebar :: adminSidebar}"></aside><section class="panel">
+<div class="alert danger" role="alert" th:each="error : ${formErrors}" th:text="${error}"></div>
+<div class="alert success" role="status" th:if="${successMessage}" th:text="${successMessage}"></div>
+<div class="page-head"><div><h1 class="page-title">Проверка и публикация игры</h1><p class="lede" th:text="${item.form.titleRu}"></p></div></div>
+<nav th:replace="~{fragments/quiz-game-admin :: tabs(${item})}"></nav><div th:replace="~{fragments/quiz-game-admin :: status(${item})}"></div>
+<div class="alert danger" th:each="error : ${item.errors}" th:text="${error}"></div><div class="alert warning" th:each="warning : ${item.warnings}" th:text="${warning}"></div>
+<p th:if="${#lists.isEmpty(item.errors)}">Блокирующих ошибок содержимого нет. Для публикации редакция должна быть APPROVED.</p>
+<div th:replace="~{fragments/quiz-game-admin :: coverage(${item})}"></div>
+<section class="subpanel"><h2>Предпросмотр карточки и правил</h2><div class="form-grid">
+<article><h3 lang="ru" th:text="${item.form.titleRu}"></h3><p lang="ru" th:text="${item.form.descriptionRu}"></p><span lang="ru" th:text="${item.form.mechanicLabelRu}"></span></article>
+<article><h3 lang="kk" th:text="${item.form.titleKk}"></h3><p lang="kk" th:text="${item.form.descriptionKk}"></p><span lang="kk" th:text="${item.form.mechanicLabelKk}"></span></article>
+</div><p>Вопросов: <span th:text="${item.form.defaultQuestionCount}"></span>; секунд: <span th:text="${item.form.defaultRoundSeconds}"></span>; игроков: 1–<span th:text="${item.form.maxPlayers}"></span>.</p>
+<p>Класс: <span th:text="${item.form.gradeSelectionMode}"></span>; аудитория: <span th:text="${item.form.audiencePolicy}"></span>.</p><p class="muted-line">Предпросмотр не создаёт комнату. Ключи ответов и будущие вопросы не загружаются в браузер.</p></section>
+<div class="row-actions" th:if="${item.game.status.name() != 'ARCHIVED'}">
+<form method="post" th:action="@{/admin/quiz-games/{id}/submit(id=${item.game.id})}" th:if="${item.game.draftVersion != null and item.version.status.name() == 'DRAFT'}"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><input type="hidden" name="expectedRevision" th:value="${item.game.adminRevision}"><button class="button" type="submit">Отправить на проверку</button></form>
+<form method="post" th:action="@{/admin/quiz-games/{id}/approve(id=${item.game.id})}" th:if="${item.game.draftVersion != null and item.version.status.name() == 'NEEDS_REVIEW'}"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><input type="hidden" name="expectedRevision" th:value="${item.game.adminRevision}"><button class="button" type="submit">Одобрить редакцию</button></form>
+<form method="post" th:action="@{/admin/quiz-games/{id}/publish(id=${item.game.id})}" th:if="${item.game.draftVersion != null}"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><input type="hidden" name="expectedRevision" th:value="${item.game.adminRevision}">
+<label th:if="${!#lists.isEmpty(item.warnings)}"><input type="checkbox" name="confirmWarnings" value="true" required> Подтверждаю перечисленные предупреждения</label>
+<button class="button primary" type="submit" th:disabled="${!#lists.isEmpty(item.errors) or item.version.status.name() != 'APPROVED'}">Опубликовать редакцию</button></form>
+<form method="post" th:action="@{/admin/quiz-games/{id}/visibility(id=${item.game.id})}" th:if="${item.game.publishedVersion != null}"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><input type="hidden" name="expectedRevision" th:value="${item.game.adminRevision}"><input type="hidden" name="visible" th:value="${!item.game.catalogVisible}"><button class="button" type="submit" th:text="${item.game.catalogVisible ? 'Скрыть игру' : 'Вернуть игру'}"></button></form>
+<form method="post" th:action="@{/admin/quiz-games/{id}/archive(id=${item.game.id})}"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><input type="hidden" name="expectedRevision" th:value="${item.game.adminRevision}"><button class="button danger" type="submit">Архивировать, сохранив историю</button></form>
+</div>
+<section class="subpanel"><h2>Аудит текущей редакции</h2><p>Автор: <span th:text="${item.version.createdBy}"></span>; проверяющий: <span th:text="${item.version.reviewedBy}"></span>; проверено: <span th:text="${item.version.reviewedAt}"></span>.</p><p>Последнее изменение видимости: <span th:text="${item.game.visibilityUpdatedAt}"></span>; автор: <span th:text="${item.game.visibilityUpdatedBy}"></span>.</p></section>
+</section></main></div></body></html>

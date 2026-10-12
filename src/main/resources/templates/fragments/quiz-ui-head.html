@@ -1,0 +1,9 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head th:fragment="head">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${quizPageTitle}">Викторины</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <meta name="_csrf" th:content="${_csrf.token}"><meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <link rel="stylesheet" th:href="@{/css/app.css}"><link rel="stylesheet" th:href="@{/css/quiz-games.css}">
+    <script th:inline="javascript">window.quizLabels = /*[[${quizLabels}]]*/ {};</script>
+    <script defer th:src="@{/js/quiz-game-core.js}"></script><script defer th:src="@{/js/quiz-games.js}"></script>
+</head></html>
