@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Приёмка SQL-поставки 300/400/300 в собственной схеме: игры, сохранение редакций и повтор. */
+/** Приёмка исходной SQL-поставки до тематической замены V59: игры, сохранение редакций и повтор. */
 @SpringBootTest(properties={"damulab.quiz.strict-self-review=true","damulab.quiz.timeout-worker-enabled=false"})
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -39,7 +39,7 @@ class BasicVocabularyPublicationTest {
         String url=System.getenv().getOrDefault("QUIZ_TEST_DB_URL","jdbc:h2:mem:"+schema+";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1");
         // Hikari задаёт текущую схему при первом соединении: она должна существовать до старта пула.
         Flyway.configure().dataSource(url,System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"),System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""))
-                .locations("classpath:db/migration").schemas(schema).defaultSchema(schema).load().migrate();
+                .locations("classpath:db/migration").schemas(schema).defaultSchema(schema).target("58").load().migrate();
         registry.add("spring.datasource.url",()->url);
         registry.add("spring.datasource.username",()->System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"));
         registry.add("spring.datasource.password",()->System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""));
@@ -47,6 +47,8 @@ class BasicVocabularyPublicationTest {
         registry.add("spring.datasource.hikari.schema",()->schema);
         registry.add("spring.flyway.schemas",()->schema);
         registry.add("spring.flyway.default-schema",()->schema);
+        // Эта историческая приёмка проверяет V57/V58; новый пакет отдельно проверяется на V59.
+        registry.add("spring.flyway.target",()->"58");
         registry.add("spring.jpa.properties.hibernate.default_schema",()->schema);
     }
 
@@ -71,6 +73,7 @@ class BasicVocabularyPublicationTest {
             assertThat(game.isCatalogVisible()).isTrue();
             assertThat(game.getPublishedVersion().getAudiencePolicy()).isEqualTo(AudiencePolicy.UNIVERSAL);
             assertThat(game.getPublishedVersion().getGradeIds()).isEmpty();
+            assertThat(game.getPublishedVersion().getMinRoundSeconds()).isEqualTo(5);
         }
         assertThat(jdbc.queryForObject("select count(*) from vocabulary_item_versions v join vocabulary_items i on i.published_version_id=v.id join vocabulary_sets s on i.set_id=s.id where s.code like 'basic-%' and v.reviewed_by is null and v.source_reference <> ''",Long.class)).isEqualTo(1000L);
         assertThat(jdbc.queryForObject("select count(*) from vocabulary_item_versions v join vocabulary_items i on v.item_id=i.id join vocabulary_sets s on i.set_id=s.id where s.code like 'basic-%' and v.version_no=1 and v.status='DRAFT'",Long.class)).isEqualTo(1000L);
@@ -81,7 +84,8 @@ class BasicVocabularyPublicationTest {
     @Test @Transactional
     void everyNewGameCreatesAndStartsWithUniqueSnapshotsAndFourSafeOptions() {
         for(String code:CODES) {
-            var room=rooms.create(student,new QuizGameRoomRequest.Create(code,null,5,null,UUID.randomUUID().toString()));
+            var room=rooms.create(student,new QuizGameRoomRequest.Create(code,null,5,5,UUID.randomUUID().toString()));
+            assertThat(room.minRoundSeconds()).isEqualTo(5);
             rooms.start(room.code(),student);
             var state=rooms.state(room.code(),student);
             assertThat(state.currentRound()).isNotNull();
@@ -106,8 +110,8 @@ class BasicVocabularyPublicationTest {
             sql.update("insert into quiz_games(code,status) values ('starter-en-numbers-v1','PUBLISHED')");
             sql.update("insert into quiz_game_versions(game_id,version_no,game_type,status,title_ru,title_kk) select id,1,'WORD_TRANSLATION','PUBLISHED','Старое название','Ескі атау' from quiz_games where code='starter-en-numbers-v1'");
             sql.update("update quiz_games set published_version_id=(select id from quiz_game_versions where game_id=quiz_games.id) where code='starter-en-numbers-v1'");
-            var upgrade=Flyway.configure().dataSource(url,user,password).locations("classpath:db/migration").schemas(schema).defaultSchema(schema).load();
-            assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+            var upgrade=Flyway.configure().dataSource(url,user,password).locations("classpath:db/migration").schemas(schema).defaultSchema(schema).target("58").load();
+            assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
             assertThat(sql.queryForObject("select count(*) from vocabulary_items where status='PUBLISHED'",Long.class)).isEqualTo(700L);
             assertThat(sql.queryForObject("select status from vocabulary_sets where code='basic-ru-en-300-v1'",String.class)).isEqualTo("DRAFT");
             assertThat(sql.queryForObject("select count(*) from vocabulary_set_versions where title_ru='Название редактора'",Long.class)).isEqualTo(1L);
@@ -134,7 +138,7 @@ class BasicVocabularyPublicationTest {
             sql.update("update vocabulary_sets set status='PUBLISHED',published_version_id=draft_version_id,draft_version_id=null where code='basic-en-ru-400-v1'");
             Long previousVersion=sql.queryForObject("select published_version_id from vocabulary_sets where code='basic-en-ru-400-v1'",Long.class);
             sql.update("insert into quiz_games(code,status) values ('starter-en-numbers-v1','PUBLISHED')");
-            var upgrade=Flyway.configure().dataSource(url,user,password).locations("classpath:db/migration").schemas(schema).defaultSchema(schema).load();
+            var upgrade=Flyway.configure().dataSource(url,user,password).locations("classpath:db/migration").schemas(schema).defaultSchema(schema).target("58").load();
             if(url.startsWith("jdbc:postgresql:")) {
                 // PostgreSQL откатывает и SQL-данные, и служебные таблицы Flyway-транзакции.
                 // H2 делает commit на DDL, поэтому это свойство проверяем именно на PostgreSQL.
@@ -145,7 +149,7 @@ class BasicVocabularyPublicationTest {
                 assertThat(sql.queryForObject("select count(*) from information_schema.tables where table_schema=? and table_name like 'quiz_v57_%'",Long.class,schema)).isZero();
                 sql.execute("alter table quiz_game_versions drop constraint test_v57_failure");
             }
-            assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+            assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
             assertThat(sql.queryForObject("select published_version_id from vocabulary_sets where code='basic-en-ru-400-v1'",Long.class)).isEqualTo(previousVersion);
             assertThat(sql.queryForObject("select count(*) from vocabulary_item_versions where source_reference='existing-source'",Long.class)).isEqualTo(400L);
             assertThat(sql.queryForObject("select count(*) from quiz_games where code like 'basic-%'",Long.class)).isEqualTo(3L);
