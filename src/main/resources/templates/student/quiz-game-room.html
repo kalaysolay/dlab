@@ -17,9 +17,8 @@
                     <option th:each="grade : ${gradeChoices}" th:value="${grade.id}" th:text="${grade.title}"></option></select></label>
             <label class="field"><span th:text="#{quiz.ui.rounds}"></span><input id="qg-count" type="number" required aria-describedby="qg-error"></label>
             <label class="field"><span th:text="#{quiz.ui.seconds}"></span><input id="qg-seconds" type="number" min="5" max="120" required aria-describedby="qg-error"></label>
-            <button class="button" type="submit" th:text="#{quiz.ui.save}"></button>
         </form>
-        <ul id="qg-blockers" class="qg-reason"></ul><a th:href="@{/student/profile}" th:text="#{quiz.ui.profile}"></a>
+        <ul id="qg-blockers" class="qg-reason"></ul>
         <div class="actions qg-actions"><button id="qg-start" class="button primary" type="button" th:text="#{quiz.ui.start}" hidden></button>
             <button id="qg-ready" class="button primary" type="button" th:text="#{quiz.ui.ready}" hidden></button>
             <button id="qg-invite" class="button" type="button" th:text="#{quiz.ui.invite}" hidden></button>
@@ -36,13 +35,23 @@
                 <button id="qg-skip" type="button" class="button" th:text="#{quiz.ui.skip}"></button></div></form>
     </section>
     <section id="qg-terminal" class="panel" hidden><h2 id="qg-terminal-title" tabindex="-1"></h2><a class="button" th:href="@{/student/quiz}" th:text="#{quiz.ui.back}"></a></section>
-    <section id="qg-results" class="panel" hidden><h2 tabindex="-1" id="qg-results-title" th:text="#{quiz.ui.results}"></h2><p id="qg-result-summary"></p>
+    <section id="qg-results" class="panel" hidden>
+        <div class="qg-result-hero"><div><span class="qg-eyebrow" th:text="#{quiz.ui.finished}"></span>
+            <h2 tabindex="-1" id="qg-results-title" th:text="#{quiz.ui.results}"></h2>
+            <p class="qg-result-game" th:text="${room.gameTitle}"></p><p id="qg-result-summary"></p></div>
+            <div class="qg-result-count"><strong id="qg-result-count"></strong><span th:text="#{quiz.ui.percent}"></span><small id="qg-result-percent"></small></div></div>
         <p th:if="${room.expiresAt != null}" th:text="#{quiz.ui.timeRule}"></p>
         <p th:if="${room.expiresAt == null}" th:text="#{quiz.legacy.noTime}"></p>
         <h3 th:text="#{quiz.ui.ranking}"></h3><div class="qg-table-wrap"><table class="qg-table"><thead><tr>
             <th th:text="#{quiz.ui.place}"></th><th th:text="#{quiz.ui.players}"></th><th th:text="#{quiz.ui.score}"></th><th th:text="#{quiz.ui.time}"></th>
         </tr></thead><tbody id="qg-ranking"></tbody></table></div>
-        <h3 th:text="#{quiz.ui.review}"></h3><div id="qg-review"></div>
+        <div class="qg-review-heading"><div><h3 id="qg-review-title" th:text="#{quiz.ui.review}"></h3><p th:text="#{quiz.ui.reviewHint}"></p></div>
+            <div id="qg-review-filters" class="qg-review-filters" role="group" th:attr="aria-label=#{quiz.ui.reviewFilters}">
+                <button type="button" data-review-filter="all" aria-pressed="true"><span th:text="#{quiz.ui.reviewAll}"></span> <span data-review-count="all"></span></button>
+                <button type="button" data-review-filter="wrong" aria-pressed="false"><span th:text="#{quiz.ui.reviewWrong}"></span> <span data-review-count="wrong"></span></button>
+                <button type="button" data-review-filter="unanswered" aria-pressed="false"><span th:text="#{quiz.ui.reviewUnanswered}"></span> <span data-review-count="unanswered"></span></button>
+            </div></div>
+        <div id="qg-review" aria-live="polite" aria-labelledby="qg-review-title"></div>
         <form th:if="${replayCard != null and replayCard.blocker == null}" th:action="@{/student/quiz/games/rooms}" method="post" data-create-game>
             <input type="hidden" name="gameCode" th:value="${replayCard.code}"><input type="hidden" name="idempotencyKey" th:value="${replayCard.key}">
             <label class="field" th:if="${replayCard.gradeMode != 'NONE'}"><span th:text="#{quiz.ui.grade}"></span><select name="gradeId" required>

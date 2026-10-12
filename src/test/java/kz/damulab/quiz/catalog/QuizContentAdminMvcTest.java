@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 /** MVC-приёмка ADMIN, CSRF, отсутствия изменяющих GET и HTML-экранирования банков. */
 @SpringBootTest
@@ -31,6 +32,30 @@ class QuizContentAdminMvcTest {
     @Autowired AppUserRepository users;
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void vocabularyEditorRendersWithoutOpenPersistenceContext() throws Exception {
+        // Форма должна открываться при обычном HTTP-запросе без транзакции теста.
+        mvc.perform(get("/admin/vocabulary/items/1/edit")
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/vocabulary-form"))
+                .andExpect(content().string(containsString("Редакция слова")));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void vocabularyBankRendersWithoutOpenPersistenceContext() throws Exception {
+        // Обычный HTTP-запрос не использует транзакцию теста: иначе ленивые связи
+        // остаются доступны и ошибка рендеринга при open-in-view=false скрывается.
+        mvc.perform(get("/admin/vocabulary").with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Ищите слова и переводы")));
+        mvc.perform(get("/admin/vocabulary").param("gradeId", "1")
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void adminPagesRenderButStudentCannotOpenThem() throws Exception {
         mvc.perform(get("/admin/vocabulary").with(user("admin@damulab.kz").roles("ADMIN")))
                 .andExpect(status().isOk()).andExpect(view().name("admin/vocabulary-bank"));
@@ -38,6 +63,45 @@ class QuizContentAdminMvcTest {
                 .andExpect(status().isOk()).andExpect(view().name("admin/fact-bank"));
         mvc.perform(get("/admin/vocabulary").with(user("student@damulab.kz").roles("STUDENT")))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/access-denied"));
+        mvc.perform(get("/admin/vocabulary/sets").with(user("student@damulab.kz").roles("STUDENT")))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/access-denied"));
+        mvc.perform(get("/admin/vocabulary/items").with(user("student@damulab.kz").roles("STUDENT")))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/access-denied"));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void setsAndWordsRenderAsSeparatePagesWithSetFilter() throws Exception {
+        mvc.perform(get("/admin/vocabulary/sets").with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(view().name("admin/vocabulary-sets"))
+                .andExpect(model().attribute("activeAdminNav", "vocabularySets"))
+                .andExpect(content().string(containsString("Слова набора")))
+                .andExpect(content().string(not(containsString("id=\"vocabulary-items\""))));
+        Long setId = vocabulary.listSets().getFirst().getId();
+        var result = mvc.perform(get("/admin/vocabulary/items").param("setId", setId.toString())
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(view().name("admin/vocabulary-bank"))
+                .andExpect(model().attribute("selectedSetId", setId))
+                .andExpect(content().string(containsString("id=\"admin-quiz-nav-title\"")))
+                .andExpect(content().string(not(containsString("Создать набор"))))
+                .andReturn();
+        @SuppressWarnings("unchecked")
+        var items = (java.util.List<VocabularyItem>) result.getModelAndView().getModel().get("items");
+        assertThat(items).isNotEmpty().allMatch(item -> item.getSet().getId().equals(setId));
+        mvc.perform(get("/admin/vocabulary/items").param("setId", "-1")
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Слова не найдены")));
+    }
+
+    @Test
+    void setCreationReturnsToSetsPage() throws Exception {
+        mvc.perform(post("/admin/vocabulary/sets").with(user("admin@damulab.kz").roles("ADMIN")).with(csrf())
+                        .param("code", "separate-" + UUID.randomUUID()).param("sourceLanguage", "en")
+                        .param("targetLanguage", "ru").param("titleRu", "Набор")
+                        .param("titleKk", "Жинақ").param("sourceReference", "Источник"))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/admin/vocabulary/sets"))
+                .andExpect(flash().attribute("successMessage", "Набор слов создан"));
     }
 
     @Test

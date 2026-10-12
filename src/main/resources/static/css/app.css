@@ -4540,10 +4540,10 @@ h2 {
 }
 
 .admin-layout > .sidebar {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow: auto;
+    /* Меню растёт вместе со страницей и использует общую прокрутку админки. */
+    position: relative;
+    height: auto;
+    overflow: visible;
     border: 0;
     border-right: 1px solid var(--line);
     border-radius: 0;
@@ -5106,7 +5106,7 @@ h2 {
 }
 
 .admin-layout > .sidebar {
-    height: 100vh;
+    height: auto;
     border-right: 1px solid #e2e8f0;
     background: #fff;
     padding: 16px;
@@ -9121,4 +9121,28 @@ html.biometric-resume body { visibility: hidden; }
     .vocabulary-dialog-head .button { min-height: 38px; padding: 0 10px; }
     .vocabulary-dialog-body, .vocabulary-dialog-footer { padding: 12px; }
     .vocabulary-dialog .quiz-basic-grid { grid-template-columns: 1fr; }
+}
+
+/* Игровые разделы объединены в отдельную группу и на узких экранах. */
+.admin-nav-group {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px 8px 8px;
+    border: 1px solid #c7d2fe;
+    border-radius: 16px;
+    background: #f8faff;
+}
+.admin-nav-group-title {
+    margin: 0 4px 4px;
+    color: #4338ca;
+    font-size: 0.875rem;
+    font-weight: 800;
+}
+@media (max-width: 1100px) {
+    .admin-nav-group {
+        flex-basis: 100%;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    .admin-nav-group-title { grid-column: 1 / -1; }
 }

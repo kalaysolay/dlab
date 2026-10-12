@@ -168,10 +168,10 @@ public class QuizGameAdminService {
         QuizGameForm form = form(game, v, configs); var content = diagnostics.diagnose(form, data);
         List<String> errors = new ArrayList<>(QuizGameValidation.errors(form, data.grades().keySet(), true)); errors.addAll(content.errors());
         if (game.getStatus() == EditorialStatus.ARCHIVED) errors.add("Игра архивирована");
-        if (content.worst().playable() < form.getMinQuestionCount()) errors.add("Пригодных раундов " + content.worst().playable() + "; минимум " + form.getMinQuestionCount());
+        if (content.worst().playable() < form.getMinQuestionCount()) errors.add("Пригодных вопросов " + content.worst().playable() + "; минимум " + form.getMinQuestionCount());
         List<String> warnings = new ArrayList<>();
-        if (content.worst().playable() < form.getDefaultQuestionCount()) warnings.add("Контента меньше значения раундов по умолчанию; фактический старт может быть недоступен");
-        if (content.worst().playable() < form.getMaxQuestionCount()) warnings.add("Контента недостаточно для максимального количества раундов");
+        if (content.worst().playable() < form.getDefaultQuestionCount()) warnings.add("Контента меньше значения вопросов по умолчанию; фактический старт может быть недоступен");
+        if (content.worst().playable() < form.getMaxQuestionCount()) warnings.add("Контента недостаточно для максимального количества вопросов");
         if (safe(form.getDescriptionRu()).isBlank() || safe(form.getDescriptionKk()).isBlank()) warnings.add("Описание карточки заполнено не на обоих языках");
         return new View(game, v, form, content, List.copyOf(errors), List.copyOf(warnings));
     }

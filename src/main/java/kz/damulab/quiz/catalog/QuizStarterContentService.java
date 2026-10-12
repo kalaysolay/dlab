@@ -92,6 +92,7 @@ public class QuizStarterContentService {
             var game=base(data,code,QuizGameType.TRUE_FALSE,grade,bank.path("titleRu").asText(),bank.path("titleKk").asText(),
                     bank.path("descriptionRu").asText(),bank.path("descriptionKk").asText(),"facts");
             game.setMechanicLabelRu("Верю / не верю"); game.setMechanicLabelKk("Сенемін / сенбеймін"); game.setFactSetId(set.getId());
+            game.setMaxQuestionCount(bank.path("facts").size());
             // Объяснение сохраняется в обычном снимке и выдаётся только после FINISHED; правила движка не меняются.
             publish(game,author,reviewer);
         }
@@ -114,6 +115,12 @@ public class QuizStarterContentService {
         f.setAudiencePolicy(AudiencePolicy.FIXED_GRADES); f.setGradeIds(List.of(grade.getId()));
         f.setDefaultQuestionCount(data.path("count").asInt()); f.setMinQuestionCount(f.getDefaultQuestionCount()); f.setMaxQuestionCount(f.getDefaultQuestionCount());
         f.setDefaultRoundSeconds(data.path("seconds").asInt()); f.setMinRoundSeconds(f.getDefaultRoundSeconds()); f.setMaxRoundSeconds(f.getDefaultRoundSeconds());
+        // В фактовых играх ведущий выбирает длительность и число утверждений перед стартом.
+        // Верхнюю границу вопросов вызывающий метод уточняет по размеру опубликованного банка.
+        if (type == QuizGameType.TRUE_FALSE) {
+            f.setQuestionCountEditable(true); f.setRoundSecondsEditable(true);
+            f.setMinQuestionCount(1); f.setMinRoundSeconds(5); f.setMaxRoundSeconds(120);
+        }
         f.setMaxPlayers(4); return f;
     }
     private QuizGameForm wordSet(JsonNode data,String language,String code,Grade grade,AppUser author,AppUser reviewer) {
@@ -139,7 +146,8 @@ public class QuizStarterContentService {
         var set=publishFactSet(data.path("facts"),CODES.get(3),"Солнечная система","Күн жүйесі",
                 "NASA Science; проверены 2026-10-10; только устойчивые базовые факты, без меняющихся чисел спутников.",grade,author,reviewer);
         var game=base(data,CODES.get(3),QuizGameType.TRUE_FALSE,grade,"Солнечная система: верю / не верю","Күн жүйесі: сенемін / сенбеймін","5 класс: проверьте базовые факты о Солнце, планетах и Луне. Объяснение и источник — после игры.","5-сынып: Күн, ғаламшарлар және Ай туралы негізгі деректерді тексеріңіз. Түсіндірме мен дереккөз ойыннан кейін беріледі.","facts");
-        game.setMechanicLabelRu("Верю / не верю"); game.setMechanicLabelKk("Сенемін / сенбеймін"); game.setFactSetId(set.getId()); return game;
+        game.setMechanicLabelRu("Верю / не верю"); game.setMechanicLabelKk("Сенемін / сенбеймін"); game.setFactSetId(set.getId());
+        game.setMaxQuestionCount(data.path("facts").size()); return game;
     }
     private FactSet publishFactSet(JsonNode rows,String code,String ru,String kk,String policy,Grade grade,AppUser author,AppUser reviewer) {
         var f=new FactSetForm(); f.setCode(code); f.setTitleRu(ru); f.setTitleKk(kk); f.setSourcePolicy(policy);

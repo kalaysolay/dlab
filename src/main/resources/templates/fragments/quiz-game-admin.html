@@ -14,9 +14,9 @@
 <div th:fragment="coverage(item)" class="subpanel">
 <h2>Покрытие контента</h2>
 <p>Источник: <a th:href="${item.content.bankUrl}" th:text="${item.content.source}"></a></p>
-<dl><dt>Опубликовано</dt><dd th:text="${item.content.worst.published}"></dd><dt>Подходит аудитории</dt><dd th:text="${item.content.worst.audience}"></dd><dt>Пригодно для раундов</dt><dd th:text="${item.content.worst.playable}"></dd></dl>
+<dl><dt>Опубликовано</dt><dd th:text="${item.content.worst.published}"></dd><dt>Подходит аудитории</dt><dd th:text="${item.content.worst.audience}"></dd><dt>Пригодно для вопросов</dt><dd th:text="${item.content.worst.playable}"></dd></dl>
 <p>Проверено сочетаний классов: <span th:text="${item.content.checkedScenarios}"></span>. Аудитория худшего покрытия: <span th:text="${item.content.audienceLabel}"></span>.</p>
-<p>Минимум / по умолчанию / максимум раундов: <span th:text="${item.form.minQuestionCount}"></span> / <span th:text="${item.form.defaultQuestionCount}"></span> / <span th:text="${item.form.maxQuestionCount}"></span>.</p>
-<p class="muted-line">Число записей банка не равно числу пригодных раундов. Финальная проверка выполняется при старте комнаты.</p>
+<p>Минимум / по умолчанию / максимум вопросов: <span th:text="${item.form.minQuestionCount}"></span> / <span th:text="${item.form.defaultQuestionCount}"></span> / <span th:text="${item.form.maxQuestionCount}"></span>.</p>
+<p class="muted-line">Число записей банка не равно числу пригодных вопросов. Финальная проверка выполняется при старте комнаты.</p>
 </div>
 </body></html>

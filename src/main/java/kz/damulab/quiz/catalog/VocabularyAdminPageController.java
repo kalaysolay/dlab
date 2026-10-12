@@ -24,8 +24,17 @@ public class VocabularyAdminPageController {
         this.grades = grades; this.currentAdmin = currentAdmin;
     }
 
-    /** Показывает наборы, фильтруемый список слов и массовую отправку на review. */
-    @GetMapping
+    /** Показывает настройки наборов отдельно от списка слов. */
+    @GetMapping("/sets")
+    public String sets(Model model) {
+        model.addAttribute("activeAdminNav", "vocabularySets");
+        model.addAttribute("sets", vocabulary.listSets());
+        model.addAttribute("setForm", new VocabularySetForm());
+        return "admin/vocabulary-sets";
+    }
+
+    /** Показывает фильтруемый список слов; прежний адрес банка остаётся доступным. */
+    @GetMapping({"", "/items"})
     public String list(@RequestParam(required = false) Long setId,
                        @RequestParam(required = false) EditorialStatus status,
                        @RequestParam(required = false) String sourceLanguage,
@@ -51,7 +60,7 @@ public class VocabularyAdminPageController {
         model.addAttribute("selectedSourceLanguage", sourceLanguage); model.addAttribute("selectedTargetLanguage", targetLanguage);
         model.addAttribute("selectedGradeId", gradeId); model.addAttribute("selectedDifficulty", difficulty);
         model.addAttribute("grades", grades.findAllByOrderByGradeNoAsc());
-        model.addAttribute("statuses", EditorialStatus.values()); model.addAttribute("setForm", new VocabularySetForm());
+        model.addAttribute("statuses", EditorialStatus.values());
         return "admin/vocabulary-bank";
     }
 
@@ -68,7 +77,7 @@ public class VocabularyAdminPageController {
     /** Открывает настройки набора; после публикации сохранение создаёт новую редакцию. */
     @GetMapping("/sets/{id}/edit")
     public String editSet(@PathVariable Long id, Model model) {
-        model.addAttribute("activeAdminNav", "vocabulary"); model.addAttribute("setId", id);
+        model.addAttribute("activeAdminNav", "vocabularySets"); model.addAttribute("setId", id);
         model.addAttribute("set", vocabulary.requireSet(id)); model.addAttribute("setForm", vocabulary.setForm(id));
         return "admin/vocabulary-set-form";
     }
@@ -78,7 +87,7 @@ public class VocabularyAdminPageController {
     public String saveSet(@PathVariable Long id, @ModelAttribute("setForm") VocabularySetForm form,
                           Authentication auth, Model model, RedirectAttributes redirect) {
         try { vocabulary.saveSetDraft(id, form, currentAdmin.requireId(auth)); redirect.addFlashAttribute("successMessage", "Редакция набора сохранена"); return "redirect:/admin/vocabulary/sets/" + id + "/edit"; }
-        catch (ContentValidationException ex) { model.addAttribute("formErrors", ex.getErrors()); model.addAttribute("activeAdminNav", "vocabulary"); model.addAttribute("setId", id); model.addAttribute("set", vocabulary.requireSet(id)); return "admin/vocabulary-set-form"; }
+        catch (ContentValidationException ex) { model.addAttribute("formErrors", ex.getErrors()); model.addAttribute("activeAdminNav", "vocabularySets"); model.addAttribute("setId", id); model.addAttribute("set", vocabulary.requireSet(id)); return "admin/vocabulary-set-form"; }
     }
 
     /** Создаёт слово; неполный черновик допустим, публикационные проверки выполняются при submit/publish. */
@@ -100,7 +109,7 @@ public class VocabularyAdminPageController {
     /** Создаёт новый набор с отдельной версией настроек. */
     @PostMapping("/sets")
     public String createSet(@ModelAttribute VocabularySetForm setForm, Authentication auth, RedirectAttributes redirect) {
-        return run(redirect, () -> vocabulary.createSet(setForm, currentAdmin.requireId(auth)), "Набор слов создан");
+        return run(redirect, () -> vocabulary.createSet(setForm, currentAdmin.requireId(auth)), "Набор слов создан", "/admin/vocabulary/sets");
     }
 
     /** Выполняет разрешённое редакционное действие над набором только через POST. */
@@ -109,7 +118,7 @@ public class VocabularyAdminPageController {
         return run(redirect, () -> { Long actor = currentAdmin.requireId(auth); switch (action) {
             case "submit" -> vocabulary.submitSet(id, actor); case "approve" -> vocabulary.approveSet(id, actor);
             case "publish" -> vocabulary.publishSet(id, actor); case "archive" -> vocabulary.archiveSet(id, actor);
-            default -> throw new ContentValidationException("Неизвестное действие"); } }, "Статус набора обновлён");
+            default -> throw new ContentValidationException("Неизвестное действие"); } }, "Статус набора обновлён", "/admin/vocabulary/sets");
     }
 
     /** Выполняет редакционный переход слова; GET-маршрутов для изменений нет. */
@@ -160,5 +169,13 @@ public class VocabularyAdminPageController {
                 || answers.findByItemVersionIdIn(List.of(v.getId())).stream().anyMatch(a -> a.getAnswerText().toLowerCase(Locale.ROOT).contains(query.strip().toLowerCase(Locale.ROOT))));
     }
     private VocabularyItemVersion shownVersion(VocabularyItem item) { return item.getDraftVersion() != null ? item.getDraftVersion() : item.getPublishedVersion(); }
-    private String run(RedirectAttributes redirect, Runnable action, String success) { try { action.run(); redirect.addFlashAttribute("successMessage", success); } catch (ContentValidationException ex) { redirect.addFlashAttribute("errorMessage", String.join("; ", ex.getErrors())); } return "redirect:/admin/vocabulary"; }
+    private String run(RedirectAttributes redirect, Runnable action, String success) {
+        return run(redirect, action, success, "/admin/vocabulary/items");
+    }
+
+    private String run(RedirectAttributes redirect, Runnable action, String success, String destination) {
+        try { action.run(); redirect.addFlashAttribute("successMessage", success); }
+        catch (ContentValidationException ex) { redirect.addFlashAttribute("errorMessage", String.join("; ", ex.getErrors())); }
+        return "redirect:" + destination;
+    }
 }

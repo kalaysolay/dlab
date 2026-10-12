@@ -11,7 +11,8 @@
 <section class="panel">
     <div class="page-head"><div><h1 class="page-title">Редакция набора слов</h1>
         <p class="lede">Направление и код стабильны; настройки после публикации сохраняются новой версией.</p>
-    </div><a class="button" th:href="@{/admin/vocabulary}">К банку</a></div>
+    </div><a class="button" th:href="@{/admin/vocabulary/sets}">К наборам</a></div>
+    <a class="button" th:href="@{/admin/vocabulary/items(setId=${setId})}">Слова набора</a>
     <div class="alert danger" th:each="error : ${formErrors}" th:text="${error}"></div>
     <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
     <form class="form wide-form" method="post" th:object="${setForm}"
@@ -26,6 +27,6 @@
         <label class="field"><span>Проверяемый источник</span><input th:field="*{sourceReference}" required></label>
         <label><input type="checkbox" th:field="*{crossSetDistractorsAllowed}"> Разрешить межнаборный подбор для этого набора</label>
         <div class="actions"><button class="button primary" type="submit">Сохранить редакцию</button>
-            <a class="button" th:href="@{/admin/vocabulary}">Отмена</a></div>
+            <a class="button" th:href="@{/admin/vocabulary/sets}">Отмена</a></div>
     </form>
 </section></main></div></body></html>

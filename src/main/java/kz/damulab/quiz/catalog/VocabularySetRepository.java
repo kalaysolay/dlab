@@ -12,6 +12,8 @@ public interface VocabularySetRepository extends JpaRepository<VocabularySet, Lo
     @Query("select s from VocabularySet s order by s.id")
     List<VocabularySet> findForGameDiagnostics();
     /** Возвращает наборы для административного списка в стабильном порядке. */
+    // Шаблон читает названия и статусы версий после закрытия сессии (open-in-view=false).
+    @EntityGraph(attributePaths = {"publishedVersion", "draftVersion"})
     List<VocabularySet> findAllByOrderByIdAsc();
     boolean existsByCodeIgnoreCase(String code);
 }

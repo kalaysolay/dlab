@@ -59,8 +59,9 @@
     const root = document.querySelector("[data-quiz-game-room]");
     if (!root) return;
     const base = `/api/quiz/rooms/${root.dataset.code}`;
-    let room, round, offset = 0, pending = false, polling = false, socket, stopped = false, reconnect, resultLoaded = false;
-    let previousSeconds = Infinity, announced = new Set(), dirtySettings = false, seenRevision, lostPayload;
+    let room, round, offset = 0, pending = false, polling = false, socket, stopped = false, reconnect, pollTimer, realtimeConnected = false, resultLoaded = false;
+    let previousSeconds = Infinity, announced = new Set(), dirtySettings = false, seenRevision, lostPayload, timeoutRefreshRoundId;
+    const FALLBACK_POLL_MS = 10000;
     // При нормальной работе сети ничего не показываем: техническое «состояние обновлено»
     // отвлекает ребёнка. Сообщение появляется только тогда, когда действительно есть проблема.
     function online(connected) { text("qg-network", connected ? "" : labels.connection); }
@@ -69,6 +70,15 @@
         try { apply(await api(base)); online(true); }
         catch (ex) { online(false); if (ex.status === 403 || ex.status === 404) { stopped = true; socket?.close(); error(ex.message); } }
         finally { polling = false; }
+    }
+    async function pollFallback() {
+        if (stopped || realtimeConnected) return;
+        await refresh(); scheduleFallbackPoll();
+    }
+    function scheduleFallbackPoll(delay = FALLBACK_POLL_MS) {
+        clearTimeout(pollTimer);
+        if (stopped || realtimeConnected) return;
+        pollTimer = setTimeout(pollFallback, delay);
     }
     function apply(next) {
         if (room && Date.parse(next.serverTime) < Date.parse(room.serverTime)) return;
@@ -91,7 +101,7 @@
                 list.append(item);
             });
             const blockers = byId("qg-blockers"); blockers.replaceChildren(...room.startBlockers.map(b => node("li", labels[b] || labels.requestError)));
-            show("qg-start", host); byId("qg-start").disabled = !room.canStart;
+            show("qg-start", host); byId("qg-start").disabled = pending || (!room.canStart && !dirtySettings);
             show("qg-ready", !host); byId("qg-ready").disabled = room.participants.find(p => p.current)?.ready || pending;
             show("qg-invite", host && room.canInvite); show("qg-cancel", host); show("qg-leave", !host);
             show("qg-settings", host && (room.gradeSelectionMode !== "NONE" || room.questionCountEditable || room.roundSecondsEditable)); show("qg-grade-field", room.gradeSelectionMode !== "NONE");
@@ -103,6 +113,8 @@
             for (const [id, editable, min, max] of [["qg-count",room.questionCountEditable,room.minQuestionCount,room.maxQuestionCount], ["qg-seconds",room.roundSecondsEditable,room.minRoundSeconds,room.maxRoundSeconds]]) {
                 byId(id).disabled = !editable; byId(id).min = min; byId(id).max = max;
             }
+            byId("qg-grade").disabled = room.gradeSelectionMode === "NONE";
+            byId("qg-grade").required = room.gradeSelectionMode !== "NONE";
             return;
         }
         if (room.status === "active") renderRound(room.currentRound);
@@ -121,7 +133,7 @@
     function renderRound(current) {
         if (!current) { round=null; byId("qg-options").replaceChildren(); lockAnswer(true); text("qg-question",labels.next); text("qg-timer",""); status(labels.next, false); return; }
         if (round?.id !== current.id) {
-            round = current; lostPayload = null; previousSeconds = Infinity;
+            round = current; lostPayload = null; previousSeconds = Infinity; timeoutRefreshRoundId = null;
             try { announced = new Set(JSON.parse(sessionStorage.getItem(`quiz-thresholds:${room.code}:${round.id}`) || "[]")); } catch { announced = new Set(); }
             text("qg-progress", `${labels.round} ${current.orderNo}/${room.questionCount}`); text("qg-question", current.prompt);
             byId("qg-question").lang = current.presentation?.sourceLanguage || current.locale;
@@ -186,6 +198,33 @@
         catch (ex) { pending = false; error(ex.message); await refresh(); }
         finally { pending = false; }
     }
+    async function startGame() {
+        if (pending || room?.status !== "waiting" || !room.currentParticipantHost) return;
+        const form = byId("qg-settings");
+        if (!form.hidden && !form.reportValidity()) return;
+        // Считываем поля до первого запроса: polling не должен изменить выбранные правила
+        // между их сохранением и запуском. Неизменённые настройки не сбрасывают готовность.
+        const settings = {settingsRevision:room.settingsRevision,
+            gradeId:room.gradeSelectionMode === "NONE" ? null : Number(byId("qg-grade").value),
+            questionCount:Number(byId("qg-count").value),roundSeconds:Number(byId("qg-seconds").value)};
+        const changed = settings.gradeId !== (room.gradeSelectionMode === "NONE" ? null : room.gradeId)
+            || settings.questionCount !== room.questionCount || settings.roundSeconds !== room.roundSeconds;
+        pending = true; byId("qg-start").disabled = true; form.inert = true; text("qg-error", "");
+        try {
+            if (changed) {
+                const updated = await api(`${base}/settings`, settings);
+                apply(updated);
+                // В групповой игре новые правила требуют готовности остальных участников.
+                // Сервер возвращает причины ожидания; запускать прежние правила нельзя.
+                if (!updated.canStart) return;
+            }
+            apply(await api(`${base}/start`, {}));
+        } catch (ex) { error(ex.message); }
+        finally {
+            pending = false; form.inert = false;
+            byId("qg-start").disabled = !room?.canStart && !dirtySettings;
+        }
+    }
     function tick() {
         if (!round || room?.status !== "active") return;
         const seconds = core.remaining(round.endsAt,offset,Date.now()); text("qg-timer", seconds);
@@ -193,28 +232,63 @@
         if (thresholds.length) text("qg-timer-live", labels.threshold.replace("{n}",thresholds.at(-1)));
         try { sessionStorage.setItem(`quiz-thresholds:${room.code}:${round.id}`,JSON.stringify([...announced])); } catch { /* Без storage дубли подавляются в текущей вкладке. */ }
         previousSeconds = seconds;
-        if (seconds === 0) { lockAnswer(true); status(labels.timeout,false); refresh(); }
+        if (seconds === 0) {
+            lockAnswer(true); status(labels.timeout,false);
+            if (timeoutRefreshRoundId !== round.id) { timeoutRefreshRoundId = round.id; refresh(); }
+        }
     }
     async function loadResults() {
         if (resultLoaded) return; resultLoaded = true;
         try {
             const result = await api(`${base}/results`), me = result.me;
-            text("qg-result-summary", `${labels.place}: ${me.place} · ${labels.score}: ${me.score}/${me.maxScore} · ${labels.percent}: ${me.correctAnswers}/${me.totalRounds} (${me.percent}%)`);
+            text("qg-result-summary", `${labels.place}: ${me.place} · ${labels.score}: ${me.score}/${me.maxScore}`);
+            text("qg-result-count", `${me.correctAnswers} / ${me.totalRounds}`);
+            text("qg-result-percent", `${me.percent}%`);
             byId("qg-ranking").replaceChildren(...result.leaderboard.map(p => {
                 const tr = node("tr"); [p.place,p.displayName,`${p.score}/${p.maxScore}`,p.totalResponseMs == null ? "—" : `${(p.totalResponseMs/1000).toFixed(3)} ${labels.secondUnit}`].forEach(v=>tr.append(node("td",v))); return tr;
             }));
-            byId("qg-review").replaceChildren(...result.review.map(r => {
-                const article = node("article",null,"qg-review-row"); article.append(node("h4",`${r.orderNo}. ${r.prompt}`));
-                article.append(node("p",r.skipped?labels.skipped:r.timedOut?labels.timedOut:r.correct?labels.correct:labels.incorrect));
-                article.append(node("p",`${labels.yourAnswer}: ${core.answerText(r.answer,r.options,labels)}`),node("p",`${labels.correctAnswer}: ${core.answerText(r.correctAnswer,r.options,labels)}`));
-                if (r.explanation) article.append(node("p",r.explanation)); if (r.sourceReference) article.append(node("p",`${labels.source}: ${r.sourceReference}`)); return article;
-            }));
+            // Пропуск и истечение времени отделены от ошибок с отправленным ответом.
+            const reviewState = r => r.skipped || r.timedOut ? "unanswered" : r.correct ? "correct" : "wrong";
+            const filters = byId("qg-review-filters");
+            filters.querySelectorAll("[data-review-count]").forEach(el => {
+                const filter = el.dataset.reviewCount;
+                el.textContent = result.review.filter(r => filter === "all" || reviewState(r) === filter).length;
+            });
+            function renderReview(filter) {
+                filters.querySelectorAll("[data-review-filter]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.reviewFilter === filter)));
+                const rows = result.review.filter(r => filter === "all" || reviewState(r) === filter);
+                byId("qg-review").replaceChildren(...rows.map(r => {
+                    const state = reviewState(r), article = node("article", null, "qg-review-row");
+                    const heading = node("div", null, "qg-review-top");
+                    heading.append(node("span", String(r.orderNo).padStart(2, "0"), "qg-review-number"), node("h4", r.prompt),
+                        node("span", r.skipped ? labels.skippedShort : r.timedOut ? labels.timedOutShort : r.correct ? labels.correct : labels.incorrect, `qg-review-badge is-${state}`));
+                    const answers = node("div", null, "qg-review-answers");
+                    const own = node("span", `${labels.yourAnswer}: `);
+                    own.append(node("strong", r.skipped ? labels.skippedShort : r.timedOut ? labels.timedOutShort : core.answerText(r.answer, r.options, labels), `is-${state}`));
+                    answers.append(own);
+                    // Верный ответ не дублируется; все форматы по-прежнему читаются из снимка игры.
+                    if (state !== "correct") {
+                        const expected = node("span", `${labels.correctAnswer}: `);
+                        expected.append(node("strong", core.answerText(r.correctAnswer, r.options, labels), "is-correct")); answers.append(expected);
+                    }
+                    article.append(heading, answers);
+                    if (r.explanation) {
+                        const explanation = node("div", null, "qg-review-explanation");
+                        explanation.append(node("span", labels.explanationTitle, "qg-review-explanation-label"), node("p", r.explanation)); article.append(explanation);
+                    }
+                    return article;
+                }));
+                if (!rows.length) byId("qg-review").append(node("p", labels.reviewEmpty, "qg-review-empty"));
+            }
+            renderReview("all");
+            filters.onclick = event => { const button = event.target.closest("[data-review-filter]"); if (button) renderReview(button.dataset.reviewFilter); };
             status(labels.results,false); byId("qg-results-title").focus();
         } catch (ex) { resultLoaded = false; error(ex.message); setTimeout(loadResults,3000); }
     }
     // Сокет передаёт только CONNECT/SUBSCRIBE; команда игры всегда проходит CSRF-защищённый HTTP.
     function connect() {
-        if (stopped || typeof window.WebSocket !== "function") return;
+        if (stopped) return;
+        if (typeof window.WebSocket !== "function") { scheduleFallbackPoll(0); return; }
         const url = new URL("/ws/quiz",location.href); url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
         socket = new WebSocket(url,["v12.stomp"]); let buffer = "";
         socket.onopen = () => socket.send("CONNECT\naccept-version:1.2\nheart-beat:0,0\n\n\0");
@@ -222,23 +296,28 @@
             buffer += String(event.data); const frames=buffer.split("\0"); buffer=frames.pop();
             for (const raw of frames) {
                 const frame=raw.replace(/^\s+/,"");
-                if (frame.startsWith("CONNECTED")) { socket.send(`SUBSCRIBE\nid:quiz-game\ndestination:/topic/quiz.rooms.${root.dataset.code}\n\n\0`); refresh(); }
+                if (frame.startsWith("CONNECTED")) {
+                    realtimeConnected = true; clearTimeout(pollTimer); online(true);
+                    socket.send(`SUBSCRIBE\nid:quiz-game\ndestination:/topic/quiz.rooms.${root.dataset.code}\n\n\0`); refresh();
+                }
                 if (frame.startsWith("MESSAGE")) refresh();
                 if (frame.startsWith("ERROR")) socket.close();
             }
         };
-        socket.onerror = () => socket.close(); socket.onclose = () => { if (!stopped) { text("qg-network",labels.reconnecting); reconnect=setTimeout(connect,3000); } };
+        socket.onerror = () => socket.close(); socket.onclose = () => {
+            realtimeConnected = false;
+            if (!stopped) { text("qg-network",labels.reconnecting); scheduleFallbackPoll(0); reconnect=setTimeout(connect,3000); }
+        };
     }
-    byId("qg-start").onclick = () => command("start"); byId("qg-ready").onclick = () => command("ready",{ready:true,settingsRevision:room.settingsRevision});
+    byId("qg-start").onclick = startGame; byId("qg-ready").onclick = () => command("ready",{ready:true,settingsRevision:room.settingsRevision});
     byId("qg-cancel").onclick = () => command("cancel"); byId("qg-leave").onclick = () => command("leave");
     byId("qg-invite").onclick = () => show("qg-invitation",byId("qg-invitation").hidden);
     byId("qg-copy").onclick = async () => { try { await navigator.clipboard.writeText(room.code); status(labels.copied,true); } catch { byId("qg-invite-code").select(); } };
-    byId("qg-settings").addEventListener("input",()=>{dirtySettings=true;});
-    byId("qg-settings").onsubmit = event => { event.preventDefault(); command("settings",{settingsRevision:room.settingsRevision,
-        gradeId:room.gradeSelectionMode === "NONE" ? null : Number(byId("qg-grade").value),questionCount:Number(byId("qg-count").value),roundSeconds:Number(byId("qg-seconds").value)}); };
+    byId("qg-settings").addEventListener("input",()=>{dirtySettings=true; byId("qg-start").disabled=pending;});
+    byId("qg-settings").onsubmit = event => { event.preventDefault(); startGame(); };
     byId("qg-answer-form").onsubmit = event => { event.preventDefault(); submitAnswer(false); }; byId("qg-skip").onclick = () => submitAnswer(true);
-    const poll = setInterval(refresh,3000), timer=setInterval(tick,250);
+    const timer=setInterval(tick,250);
     window.addEventListener("online",refresh); document.addEventListener("visibilitychange",()=>{if(!document.hidden) refresh();});
-    window.addEventListener("pagehide",()=>{stopped=true; clearInterval(poll); clearInterval(timer); clearTimeout(reconnect); socket?.close();});
-    refresh(); connect();
+    window.addEventListener("pagehide",()=>{stopped=true; clearInterval(timer); clearTimeout(reconnect); clearTimeout(pollTimer); socket?.close();});
+    refresh(); connect(); scheduleFallbackPoll();
 })();

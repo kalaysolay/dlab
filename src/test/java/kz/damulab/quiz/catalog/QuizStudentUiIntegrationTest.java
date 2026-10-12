@@ -91,6 +91,11 @@ class QuizStudentUiIntegrationTest extends QuizGameTestSupport {
                 .andExpect(model().attribute("studentQuizForm", org.hamcrest.Matchers.hasProperty("roundSeconds", org.hamcrest.Matchers.is(5))))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("min=\"5\"")));
     }
+    @Test void realtimeRoomClientPollsOnlyAsAWebSocketFallback() throws Exception {
+        String client=Files.readString(Path.of("src/main/resources/static/js/quiz-games.js"));
+        assertThat(client).contains("scheduleFallbackPoll", "realtimeConnected = true", "clearTimeout(pollTimer)")
+                .doesNotContain("setInterval(refresh");
+    }
     @Test void missingProfileGradeHasAnActionableCardAndUniversalDoesNotNeedIt() {
         String missing=profile(null,"ru"); var universal=tx(()->publish(factForm(1)));
         var restricted=tx(()->{var f=factForm(1); f.setAudiencePolicy(AudiencePolicy.PARTICIPANT_GRADES); return publish(f);});

@@ -13,13 +13,47 @@ import org.junit.jupiter.api.Test;
  */
 class QuizFoundationMigrationTest {
     @Test
+    void identicalTranslationsAreRemovedButGameHistorySurvives() throws Exception {
+        Database db = database(); db.flyway("60").migrate();
+        try (Connection connection = db.connection(); Statement sql = connection.createStatement()) {
+            seedLegacy(connection);
+            long itemId;
+            long versionId;
+            long setVersionId;
+            try (ResultSet result = sql.executeQuery("select i.id,v.id,s.published_version_id from vocabulary_items i join vocabulary_sets s on s.id=i.set_id join vocabulary_item_versions v on v.id=i.published_version_id where s.code='basic-ru-kk-300-v1' and v.source_text='кепка'")) {
+                assertThat(result.next()).isTrue();
+                itemId = result.getLong(1); versionId = result.getLong(2); setVersionId = result.getLong(3);
+            }
+            // Единственная пара уже участвовала в игре: её нельзя физически удалить.
+            sql.executeUpdate("update quiz_rounds set question_version_id=null,content_kind='VOCABULARY',vocabulary_item_version_id=" + versionId + ",vocabulary_set_version_id=" + setVersionId + " where id=900003");
+            Map<String, List<List<Object>>> before = new LinkedHashMap<>();
+            for (String table : List.of("quiz_rooms", "quiz_rounds", "quiz_answers", "quiz_results")) {
+                before.put(table, rows(connection, table, columns(connection, table)));
+            }
+            assertThat(db.flyway("61").migrate().migrationsExecuted).isEqualTo(1);
+            try (ResultSet result = sql.executeQuery("select status from vocabulary_items where id=" + itemId)) {
+                assertThat(result.next()).isTrue(); assertThat(result.getString(1)).isEqualTo("ARCHIVED");
+            }
+            try (ResultSet result = sql.executeQuery("select count(*) from vocabulary_items i join vocabulary_sets s on s.id=i.set_id join vocabulary_item_versions v on v.id=coalesce(i.draft_version_id,i.published_version_id) join vocabulary_item_answers a on a.item_version_id=v.id and a.is_primary=true where ((s.source_language='ru' and s.target_language='kk') or (s.source_language='kk' and s.target_language='ru')) and lower(trim(v.source_text))=lower(trim(a.answer_text))")) {
+                assertThat(result.next()).isTrue(); assertThat(result.getInt(1)).isEqualTo(1);
+            }
+            try (ResultSet result = sql.executeQuery("select count(*) from vocabulary_items i join vocabulary_sets s on s.id=i.set_id where s.code='basic-ru-kk-300-v1'")) {
+                assertThat(result.next()).isTrue(); assertThat(result.getInt(1)).isEqualTo(265);
+            }
+            for (String table : before.keySet()) {
+                assertThat(rows(connection, table, columns(connection, table))).as(table).isEqualTo(before.get(table));
+            }
+        }
+    }
+
+    @Test
     void stageTwoHistorySurvivesV52AndGameAuditIsAdditive() throws Exception {
         Database db = database(); db.flyway("51").migrate();
         try (Connection connection = db.connection(); Statement sql = connection.createStatement()) {
             sql.executeUpdate("insert into quiz_games(id, code, status) values (920001, 'upgrade-game', 'DRAFT')");
             sql.executeUpdate("insert into quiz_content_editorial_events(content_type, content_id, from_status, to_status) values ('FACT_STATEMENT', 920001, 'DRAFT', 'NEEDS_REVIEW')");
             List<List<Object>> events = rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"));
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(9);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(12);
             // V57 добавляет системные события поставки, V58 меняет только диапазон времени;
             // прежние строки аудита сохраняются целиком.
             assertThat(rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"))).containsAll(events);
@@ -37,8 +71,8 @@ class QuizFoundationMigrationTest {
     void emptyDatabaseMigratesAndSecondRunIsIdempotent() throws Exception {
         Database db = database();
         var flyway = db.flyway(null);
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(60);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("60");
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(63);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("63");
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
     }
@@ -57,7 +91,7 @@ class QuizFoundationMigrationTest {
                 columns.put(table, columns(connection, table));
                 before.put(table, rows(connection, table, columns.get(table)));
             }
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(14);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(17);
             for (String table : before.keySet()) assertThat(rows(connection, table, columns.get(table))).as(table + ": исходные поля").isEqualTo(before.get(table));
             try (Statement sql = connection.createStatement()) {
                 try (ResultSet result = sql.executeQuery("select game_id, game_version_id, game_type, expires_at, settings_revision, command_revision from quiz_rooms order by id")) {

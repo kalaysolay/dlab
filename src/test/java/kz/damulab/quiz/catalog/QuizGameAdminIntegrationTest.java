@@ -123,7 +123,7 @@ class QuizGameAdminIntegrationTest extends QuizGameTestSupport {
         var result = games.get(game.getId()); assertThat(result.content().worst().published()).isEqualTo(3);
         assertThat(result.content().worst().playable()).isZero();
         assertThat(result.content().worst().excluded()).allMatch(e -> e.reason().contains("Дистракторов"));
-        assertThatThrownBy(() -> games.publish(game.getId(), revision(game.getId()), true, admin())).hasMessageContaining("Пригодных раундов");
+        assertThatThrownBy(() -> games.publish(game.getId(), revision(game.getId()), true, admin())).hasMessageContaining("Пригодных вопросов");
     }
 
     @Test

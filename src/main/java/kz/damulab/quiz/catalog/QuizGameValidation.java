@@ -14,7 +14,7 @@ public final class QuizGameValidation {
         if (!validCode(f.getCode())) errors.add("Код: 2–96 строчных латинских букв, цифр, _ или -");
         if (f.getGameType() == null) errors.add("Выберите тип игры");
         if (!CARD_STYLES.contains(Objects.toString(f.getCardStyle(), ""))) errors.add("Выберите допустимый стиль карточки");
-        if (f.getMinQuestionCount() < 1 || f.getMinQuestionCount() > f.getDefaultQuestionCount() || f.getDefaultQuestionCount() > f.getMaxQuestionCount()) errors.add("Количество раундов: 1 ≤ минимум ≤ по умолчанию ≤ максимум");
+        if (f.getMinQuestionCount() < 1 || f.getMinQuestionCount() > f.getDefaultQuestionCount() || f.getDefaultQuestionCount() > f.getMaxQuestionCount()) errors.add("Количество вопросов: 1 ≤ минимум ≤ по умолчанию ≤ максимум");
         if (f.getMinRoundSeconds() < 1 || f.getMinRoundSeconds() > f.getDefaultRoundSeconds() || f.getDefaultRoundSeconds() > f.getMaxRoundSeconds()) errors.add("Время: 1 ≤ минимум ≤ по умолчанию ≤ максимум");
         if (f.getMaxPlayers() < 1 || f.getMaxPlayers() > 4) errors.add("Максимум игроков должен быть от 1 до 4");
         if (f.getGradeSelectionMode() == null || f.getAudiencePolicy() == null) errors.add("Выберите обе политики класса и аудитории");

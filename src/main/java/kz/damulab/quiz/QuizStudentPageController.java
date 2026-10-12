@@ -105,6 +105,8 @@ public class QuizStudentPageController {
         for (String key:List.of("PARTICIPANT_NOT_READY","GAME_CONFIGURATION_INVALID","INSUFFICIENT_PUBLISHED_CONTENT","INVALID_GRADE","PROFILE_GRADE_REQUIRED","ROOM_EXPIRED","ROOM_CANCELLED","ROOM_ALREADY_STARTED","ROOM_FULL","ROOM_CODE_INVALID","ANSWER_INVALID"))
             labels.put(key,messages.getMessage("quiz.api."+key,null,locale));
         labels.put("secondUnit",messages.getMessage("quiz.ui.secondUnit",null,locale));
+        for (String key:List.of("skippedShort","timedOutShort","explanationTitle","reviewEmpty"))
+            labels.put(key,messages.getMessage("quiz.ui."+key,null,locale));
         model.addAttribute("quizLabels",labels); model.addAttribute("activeStudentNav","quiz");
         model.addAttribute("quizPageTitle",labels.get("catalog"));
     }
