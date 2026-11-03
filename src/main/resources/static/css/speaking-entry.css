@@ -1,0 +1,3 @@
+/* Уроки, разговорник и переводчик остаются равноправными пунктами одного размера. */
+.student-home .student-lessons-link-icon{width:52px;height:52px;flex:0 0 52px;border-radius:16px;background:#fff;color:var(--primary)}
+.student-home .student-lessons-link-icon .lucide-icon{width:26px;height:26px;stroke-width:2}

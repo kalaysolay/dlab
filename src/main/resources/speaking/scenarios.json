@@ -1,0 +1,157 @@
+[
+  {
+    "code": "favourite_movie",
+    "version": 1,
+    "titleRu": "Мой любимый фильм",
+    "titleKk": "Менің сүйікті фильмім",
+    "englishTitle": "My Favourite Movie",
+    "descriptionRu": "Расскажи о героях и сюжете. Посоветуй фильм и объясни, почему он тебе нравится.",
+    "descriptionKk": "Өзіңе ұнайтын фильм туралы айтып бер.",
+    "icon": "film",
+    "opening": "Hi! Let's talk about films. I'll ask you a few questions, and you can ask me for help at any time.",
+    "firstQuestions": {
+      "A2": "What is a film you really like?",
+      "B1": "Which film would you recommend, and what do you like about it?",
+      "B2": "Which film has stayed with you, and what makes it worth recommending?"
+    },
+    "questions": [
+      "What is a film you really like?",
+      "What do you like about the main character?",
+      "What is your favourite part of the film?",
+      "Why did you enjoy that part?",
+      "How is it different from other films you know?",
+      "Who would enjoy watching this film?",
+      "Would you watch it again? Why?",
+      "How would you recommend this film in one sentence?"
+    ],
+    "hints": [
+      "My favourite film is…",
+      "I like it because…",
+      "I would recommend it to…"
+    ]
+  },
+  {
+    "code": "holiday_plans",
+    "version": 1,
+    "titleRu": "Планы на праздник",
+    "titleKk": "Мерекеге жоспарлар",
+    "englishTitle": "New Year and Holiday Plans",
+    "descriptionRu": "Придумай идеальный праздник: занятия, игры и то, чего ждёшь больше всего.",
+    "descriptionKk": "Өзің ойлаған мерекені жоспарла.",
+    "icon": "calendar-days",
+    "opening": "Hi! Let's imagine a holiday together. I'll help you make a plan, one question at a time.",
+    "firstQuestions": {
+      "A2": "What would you like to do for New Year or another holiday?",
+      "B1": "Choose a holiday. What are you planning to do, and why?",
+      "B2": "What would your ideal holiday celebration look like, and how would you organise it?"
+    },
+    "questions": [
+      "What would you like to do for New Year or another holiday?",
+      "What are you going to do first?",
+      "Which activity are you looking forward to?",
+      "Why would you choose that activity?",
+      "What game could you play?",
+      "What could you do if the weather changes?",
+      "What would make this holiday special?",
+      "How would you describe your plan in one sentence?"
+    ],
+    "hints": [
+      "I am going to…",
+      "First, we could…",
+      "I would like to…"
+    ]
+  },
+  {
+    "code": "weekend_story",
+    "version": 1,
+    "titleRu": "Как прошли выходные",
+    "titleKk": "Демалыс күндерім",
+    "englishTitle": "My Weekend",
+    "descriptionRu": "Поделись маленькой историей: что было сначала, что потом и что запомнилось.",
+    "descriptionKk": "Демалыс күндерің туралы әңгімеле.",
+    "icon": "sun",
+    "opening": "Hi! Let's talk about your weekend. You can tell me a real story or make one up. I'll start with a question.",
+    "firstQuestions": {
+      "A2": "What did you do last weekend? You can tell a real or imaginary story.",
+      "B1": "Tell me about your weekend. What happened first?",
+      "B2": "What made your last real or imaginary weekend memorable?"
+    },
+    "questions": [
+      "What did you do last weekend? You can tell a real or imaginary story.",
+      "What did you watch?",
+      "What did you enjoy most about it?",
+      "What happened after that?",
+      "How did you feel about your day?",
+      "Was it different from your usual weekend?",
+      "What would you like to do again?",
+      "What was the best part of your weekend?"
+    ],
+    "hints": [
+      "Last weekend, I…",
+      "After that, I…",
+      "The best part was…"
+    ]
+  },
+  {
+    "code": "hotel_booking",
+    "version": 1,
+    "titleRu": "Бронируем отель",
+    "titleKk": "Қонақүйден бөлме брондау",
+    "englishTitle": "Booking a Hotel Room",
+    "descriptionRu": "Выбери номер в вымышленном отеле. Спроси о цене, завтраке и удобствах.",
+    "descriptionKk": "Ойдан шығарылған қонақүйден бөлме таңда.",
+    "icon": "hotel",
+    "opening": "Hello! I'm the receptionist in our imaginary hotel. Let's practise choosing a room together.",
+    "firstQuestions": {
+      "A2": "Welcome to our imaginary hotel. What kind of room would you like?",
+      "B1": "Welcome to Maple Hotel. What room would you like for your imaginary trip?",
+      "B2": "Welcome to Maple Hotel. How can I help you choose a room for this role-play?"
+    },
+    "questions": [
+      "Welcome to our imaginary hotel. What kind of room would you like?",
+      "For how many imaginary nights would you like to stay?",
+      "A double room is £60 per night. What would you like to ask about it?",
+      "Breakfast is £5 per person. Would you like to include it?",
+      "What else would you like to know about the room?",
+      "Would you prefer a different type of room?",
+      "Could you confirm your room and number of nights?",
+      "Thank you! What did you choose in our role-play?"
+    ],
+    "hints": [
+      "I would like a… room",
+      "How much is…?",
+      "Is breakfast included?"
+    ]
+  },
+  {
+    "code": "store_shopping",
+    "version": 1,
+    "titleRu": "Покупки в магазине",
+    "titleKk": "Дүкенде сауда жасау",
+    "englishTitle": "Shopping at a Store",
+    "descriptionRu": "Найди нужную вещь, уточни цвет или размер и выбери подходящий вариант.",
+    "descriptionKk": "Оқу дүкенінен өзіңе ұнайтын затты таңда.",
+    "icon": "shopping-bag",
+    "opening": "Hello! I'm the shop assistant in our imaginary shop. Let's find something you like together.",
+    "firstQuestions": {
+      "A2": "Hello! Would you like a T-shirt, a notebook or a backpack?",
+      "B1": "Welcome to our imaginary shop. What are you looking for today?",
+      "B2": "Welcome! What would you like to find in our shop, and what matters most to you?"
+    },
+    "questions": [
+      "Hello! Would you like a T-shirt, a notebook or a backpack?",
+      "Which colour would you like?",
+      "What would you like to know about the item?",
+      "The T-shirt is £15. Would you like to try a different option?",
+      "Would you like to compare it with another item?",
+      "Is there anything else you would like to ask?",
+      "Which option would you choose?",
+      "How would you politely finish this conversation?"
+    ],
+    "hints": [
+      "I am looking for…",
+      "Do you have it in…?",
+      "How much does it cost?"
+    ]
+  }
+]

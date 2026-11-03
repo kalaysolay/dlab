@@ -40,6 +40,9 @@ class BasicVocabularyPublicationTest {
         // Hikari задаёт текущую схему при первом соединении: она должна существовать до старта пула.
         Flyway.configure().dataSource(url,System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"),System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""))
                 .locations("classpath:db/migration").schemas(schema).defaultSchema(schema).target("58").load().migrate();
+        kz.damulab.speaking.HistoricalSpeakingSchema.install(url,
+                System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"),
+                System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""),schema);
         registry.add("spring.datasource.url",()->url);
         registry.add("spring.datasource.username",()->System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"));
         registry.add("spring.datasource.password",()->System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""));

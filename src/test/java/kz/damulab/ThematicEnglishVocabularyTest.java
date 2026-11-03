@@ -54,6 +54,7 @@ class ThematicEnglishVocabularyTest {
     static void isolated(DynamicPropertyRegistry registry) {
         // Сначала прежняя версия БД: до V59 успевают начаться и завершиться реальные игры.
         flyway(SCHEMA,"58").migrate();
+        kz.damulab.speaking.HistoricalSpeakingSchema.install(URL,USER,PASSWORD,SCHEMA);
         registry.add("spring.datasource.url",()->URL);
         registry.add("spring.datasource.username",()->USER);
         registry.add("spring.datasource.password",()->PASSWORD);

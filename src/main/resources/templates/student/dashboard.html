@@ -6,6 +6,7 @@
     <title th:text="#{dashboard.student.title}">Кабинет ученика</title>
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link th:if="${speakingAvailable}" rel="stylesheet" th:href="@{/css/speaking-entry.css}">
 </head>
 <body>
 <div class="app-shell">
@@ -60,7 +61,19 @@
             <span class="chev" aria-hidden="true">›</span>
         </a>
 
-        <!-- Переводчик расположен сразу после уроков как ежедневный языковой инструмент. -->
+        <!-- Разговорник — отдельный модуль; скрытой ссылки недостаточно, доступ проверяется также на сервере. -->
+        <a th:if="${speakingAvailable}" class="student-lessons-link" th:href="@{/student/speaking}">
+            <span class="student-lessons-link-icon" aria-hidden="true">
+                <svg class="lucide-icon"><use th:href="@{/icons/speaking.svg#mic}"></use></svg>
+            </span>
+            <span class="student-lessons-link-copy">
+                <strong th:text="#{speaking.title}">Разговорный английский</strong>
+                <small th:text="#{speaking.entry}">Практикуй английский по 5–10 минут</small>
+            </span>
+            <span class="chev" aria-hidden="true">›</span>
+        </a>
+
+        <!-- Переводчик завершает группу языковых инструментов. -->
         <a class="student-lessons-link student-translator-link" th:href="@{/student/translator}">
             <span class="student-lessons-link-icon" aria-hidden="true">
                 <svg class="lucide-icon"><use th:href="@{/icons/lucide-sprite.svg#languages}"></use></svg>

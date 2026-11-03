@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1668dc">
+  <title>Разговорный английский — DamuLab</title>
+  <link rel="stylesheet" href="../../src/main/resources/static/css/app.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="speaking-prototype">
+  <div class="prototype-strip"><a href="../index.html">← Все макеты</a><span>HTML-макет · без записи голоса и ИИ</span><button id="mobile-toggle" type="button">Вид телефона</button></div>
+  <div class="app-shell" id="prototype-shell">
+    <header class="student-header">
+      <div class="student-header-row">
+        <a class="brand brand-link" href="#home"><span class="brand-mark" data-icon="sparkles"></span><span class="brand-copy"><strong>Damulab.kz</strong><small>Мой путь развития</small></span></a>
+        <div class="student-header-actions"><span class="language-label">Русский</span><details class="student-user-menu"><summary class="student-user-button" aria-label="Профиль ученика">А</summary><div class="student-user-dropdown"><strong>Алия · 6 класс</strong><small>Демонстрационный профиль</small><a href="#home">Мой кабинет</a></div></details></div>
+      </div>
+      <nav class="student-nav-grid" aria-label="Навигация ученика">
+        <a href="#home" data-nav="home"><span data-icon="home"></span><span>Главная</span></a>
+        <button data-notice="Тесты остаются в текущем приложении. Здесь показан путь в разговорник."><span data-icon="clipboard-check"></span><span>Тесты</span></button>
+        <button data-notice="Это раздел общей учебной аналитики. История разговоров доступна внутри разговорника."><span data-icon="bar-chart-3"></span><span>Аналитика</span></button>
+        <button data-notice="Викторины остаются в текущем приложении."><span data-icon="gamepad-2"></span><span>Викторина</span></button>
+        <button data-notice="Достижения остаются в текущем приложении."><span data-icon="award"></span><span>Достижения</span></button>
+      </nav>
+    </header>
+    <main class="page" id="screen" tabindex="-1"></main>
+    <footer class="mock-footer"><span>Damulab.kz · Мой путь развития</span><a href="#home">Главная ученика</a></footer>
+  </div>
+  <div id="toast" role="status" hidden></div>
+  <dialog id="modal"><div id="modal-body"></div></dialog>
+  <script src="prototype.js"></script>
+</body>
+</html>

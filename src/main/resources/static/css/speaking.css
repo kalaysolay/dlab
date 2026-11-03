@@ -1,0 +1,46 @@
+/* Компоненты разговорника используют типографику и токены текущего кабинета. */
+.speaking-page{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+.sp-back{display:inline-flex;align-items:center;min-height:44px;color:var(--muted);text-decoration:none}
+.sp-heading,.sp-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.sp-heading h1{margin:6px 0 12px;font-size:clamp(23px,3vw,30px)}
+.sp-mode{border:1px solid #e4d6a3;background:#fff9e9;border-radius:10px;padding:14px;color:#735a22;font-size:13px;line-height:1.6}
+.sp-error{padding:14px;border-radius:10px;border:1px solid #f1c2bf;background:#fff4f2;color:#9d2820}
+.speaking-page [hidden]{display:none!important}
+.speaking-page .button{min-height:48px;cursor:pointer;white-space:normal}
+.speaking-page button:disabled{opacity:.55;cursor:wait}
+.sp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:22px}
+.sp-card{display:flex;flex-direction:column;gap:12px;padding:22px;border:1px solid var(--line);border-radius:14px;background:white;min-width:0}
+.sp-card h2{margin:0;font-size:18px}.sp-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
+.sp-card .button{margin-top:auto}.sp-card small{color:var(--muted)}
+.sp-setup{max-width:680px;margin:20px auto;padding:24px;border:1px solid var(--line);border-radius:14px;background:white}
+.sp-setup p{line-height:1.7;color:var(--muted)}
+.sp-field{display:grid;gap:8px;margin:18px 0;font-size:14px;font-weight:700}
+.sp-field select,.sp-field textarea{font:inherit;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--text);width:100%;box-sizing:border-box}
+.sp-field textarea{min-height:100px;resize:vertical;font-weight:500}
+.sp-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.sp-actions>*{flex:1}
+.sp-facts{display:flex;gap:14px;margin:16px 0;color:var(--muted);font-size:13px;flex-wrap:wrap}
+.sp-session-head h2{margin:0 0 5px}.sp-session-head small{color:var(--muted)}
+.sp-progress{height:4px;border-radius:4px;background:#e7edf6;overflow:hidden;margin:18px 0}
+.sp-progress>span{display:block;height:100%;background:var(--primary)}
+.sp-chat-frame{position:relative;max-width:850px;margin:0 auto}
+.sp-chat{max-height:clamp(300px,54dvh,620px);overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;scrollbar-width:thin;padding:4px 10px 4px 4px;border-radius:14px;scrollbar-color:#aab8cf #eef2f8}
+.sp-chat:focus-visible{outline:2px solid #87baff;outline-offset:3px}
+.sp-message{padding:20px;border:1px solid #d9e4f6;border-radius:14px;background:#f3f7ff;margin-bottom:16px;min-width:0}
+.sp-message p{margin:8px 0;line-height:1.65;overflow-wrap:anywhere}
+.sp-message .sp-question{font-size:19px;font-weight:800}
+.sp-message-label{font-size:11px;font-weight:800;letter-spacing:.03em;color:#64748b}
+.sp-learner{background:#eef9f2;border-color:#d6e9dd;margin-left:36px}
+.sp-jump{position:absolute;right:24px;bottom:14px;padding:10px 16px;border-radius:24px;border:1px solid #c8d7ec;background:white;color:var(--primary);min-height:44px;font:inherit;font-size:13px;font-weight:800;box-shadow:0 3px 14px #17203320;cursor:pointer}
+.sp-compose{max-width:850px;box-sizing:border-box;margin:18px auto 0;padding:20px;border:1px solid var(--line);border-radius:14px;background:white}
+.sp-compose .sp-field{margin-top:0}.sp-compose .button.primary{width:100%}
+.sp-help{background:#fff9e9;border:1px solid #eadfbf;border-radius:10px;padding:14px;margin:12px 0}
+.sp-help p{margin:5px 0;font-size:14px}
+.sp-feedback{background:#fffcf4;border:1px solid #edddb7;border-radius:10px;padding:14px;margin-top:12px}
+.sp-feedback summary{cursor:pointer;font-size:13px;font-weight:800;color:#8a6519}
+.sp-feedback p{font-size:14px}.sp-feedback del{color:#a25656}.sp-feedback strong{color:#147d64}
+.sp-feedback .button{font-size:12px;background:transparent;min-height:44px}
+.sp-history{padding:18px;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:white;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.sp-history>div{flex:1;min-width:150px}.sp-history h2{font-size:16px;margin:0 0 8px}.sp-history small{color:var(--muted)}
+.sp-difficulties{padding:18px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:18px}.sp-difficulties p{font-size:14px;color:var(--muted)}
+@media(max-width:700px){.sp-grid{grid-template-columns:1fr}.sp-heading{flex-wrap:wrap}.sp-card{padding:18px}.sp-setup{padding:18px}.sp-message{padding:16px}.sp-learner{margin-left:22px}.sp-compose{padding:16px}.sp-session-head .button{font-size:12px;padding:8px}.sp-heading h1{font-size:24px}}
+@media(prefers-reduced-motion:reduce){.speaking-page *{scroll-behavior:auto!important}}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title th:text="#{speaking.title}">Разговорный английский</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/speaking.css}">
+</head>
+<body>
+<div class="app-shell">
+    <header th:replace="~{fragments/student-header :: studentHeader}"></header>
+    <main class="page speaking-page" id="speaking-app" th:attr="data-language=${#locale.language}">
+        <a class="sp-back" th:href="@{/student}" th:text="#{speaking.back}">← На главную</a>
+        <div class="sp-heading"><div><p class="section-kicker" th:text="#{speaking.kicker}">Английский · разговорная практика</p>
+            <h1 th:text="#{speaking.title}">Разговорный английский</h1></div>
+            <a class="button" href="#history" th:text="#{speaking.history}">Мои разговоры</a></div>
+        <p class="sp-mode" th:text="#{speaking.stub}">Тестовый собеседник: ответы по сценарию, без внешнего ИИ. Пока доступен ответ текстом; это не оценка уровня.</p>
+        <p id="sp-error" class="sp-error" role="alert" hidden></p>
+        <div id="sp-status" role="status" aria-live="polite"></div>
+        <div id="sp-screen"></div>
+        <noscript th:text="#{speaking.javascript}">Для разговорника нужен JavaScript.</noscript>
+    </main>
+</div>
+<script th:src="@{/js/speaking.js}" defer></script>
+</body>
+</html>
