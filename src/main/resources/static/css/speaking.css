@@ -33,6 +33,10 @@
 .sp-jump{position:absolute;right:24px;bottom:14px;padding:10px 16px;border-radius:24px;border:1px solid #c8d7ec;background:white;color:var(--primary);min-height:44px;font:inherit;font-size:13px;font-weight:800;box-shadow:0 3px 14px #17203320;cursor:pointer}
 .sp-compose{max-width:850px;box-sizing:border-box;margin:18px auto 0;padding:20px;border:1px solid var(--line);border-radius:14px;background:white}
 .sp-compose .sp-field{margin-top:0}.sp-compose .button.primary{width:100%}
+.sp-voice{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center}.sp-voice audio{width:100%;max-width:100%}
+.sp-voice-info{display:block;width:100%;font-size:13px;color:var(--muted);line-height:1.6}.sp-recording{width:100%;color:#a52e31;font-weight:700}
+.sp-file{position:relative;overflow:hidden;cursor:pointer}.sp-file input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.sp-file:focus-within{outline:2px solid var(--primary);outline-offset:3px}
 .sp-help{background:#fff9e9;border:1px solid #eadfbf;border-radius:10px;padding:14px;margin:12px 0}
 .sp-help p{margin:5px 0;font-size:14px}
 .sp-feedback{background:#fffcf4;border:1px solid #edddb7;border-radius:10px;padding:14px;margin-top:12px}

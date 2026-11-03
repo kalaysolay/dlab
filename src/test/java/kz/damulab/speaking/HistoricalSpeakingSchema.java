@@ -17,7 +17,8 @@ public final class HistoricalSpeakingSchema {
             try(var tables=connection.getMetaData().getTables(null,schema,"speaking_sessions",new String[]{"TABLE"})) {
                 if(tables.next()) return;
             }
-            new ResourceDatabasePopulator(new ClassPathResource("db/migration/V67__speaking_module.sql")).populate(connection);
+            new ResourceDatabasePopulator(new ClassPathResource("db/migration/V67__speaking_module.sql"),
+                    new ClassPathResource("db/migration/V68__speaking_voice.sql")).populate(connection);
         } catch(SQLException exception) {
             throw new IllegalStateException("Cannot prepare historical speaking schema",exception);
         }

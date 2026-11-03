@@ -1,4 +1,4 @@
-/* Реальный текстовый срез: данные принадлежат серверу; ответы и наблюдения не хранятся в localStorage. */
+/* Данные беседы принадлежат серверу. Звук живёт только в памяти вкладки до отправки/отмены. */
 (() => {
     'use strict';
     const root = document.querySelector('#speaking-app');
@@ -29,6 +29,21 @@
     words.accepted=['Принято ответов','Қабылданған жауаптар'];
     words.inProgress=['В процессе','Жалғасуда'];
     words.count=['Наблюдений по разным ответам','Әртүрлі жауаптардағы ескертулер'];
+    Object.assign(words,{
+        record:['🎙 Ответить голосом','🎙 Дауыспен жауап беру'],stop:['■ Закончить запись','■ Жазуды тоқтату'],
+        recording:['Идёт запись','Жазылып жатыр'],recognizing:['Распознаём запись…','Жазбаны тануда…'],
+        heard:['Я услышал так. Проверь и при необходимости поправь текст','Мен осылай естідім. Мәтінді тексеріп, қажет болса түзет'],
+        confirmVoice:['Верно, ответить','Дұрыс, жауап беру'],again:['Перезаписать','Қайта жазу'],
+        typed:['Ответить текстом','Мәтінмен жауап беру'],upload:['Выбрать аудиозапись','Аудиожазбаны таңдау'],
+        cancel:['Отменить запись','Жазуды болдырмау'],retry:['Повторить отправку записи','Жазбаны қайта жіберу'],
+        permission:['Разреши доступ к микрофону в браузере. Можно также выбрать запись или ответить текстом.','Браузерде микрофонға рұқсат бер. Жазбаны таңдауға немесе мәтінмен жауап беруге де болады.'],
+        interrupted:['Запись прервана. Начни заново, когда будешь готов.','Жазба үзілді. Дайын болғанда қайта баста.'],
+        voiceInfo:['До 60 секунд. После остановки появится текст — отправишь его после проверки. Запись обрабатывается на сервере DamuLab и затем удаляется.','60 секундқа дейін. Тоқтаған соң мәтін шығады — тексеріп, өзің жібересің. Жазба DamuLab серверінде өңделіп, содан кейін жойылады.'],
+        voiceOff:['Голосовой ввод сейчас недоступен. Можно ответить текстом.','Дауыстық енгізу қазір қолжетімсіз. Мәтінмен жауап беруге болады.'],
+        voiceSource:['Ты · голос, текст подтверждён','Сен · дауыс, мәтін расталды'],editedSource:['Ты · текст после правки расшифровки','Сен · танылған мәтінді түзеттің'],
+        editedNote:['Текст расшифровки изменён — замечание не учитывается как самостоятельная речевая ошибка','Танылған мәтін өзгертілді — ескерту дербес сөйлеу қатесі ретінде есептелмейді'],
+        requesting:['Ожидаем разрешения микрофона…','Микрофон рұқсатын күтудеміз…']
+    });
     const t = key => words[key]?.[kk ? 1 : 0] || key;
     const skillName = code => code==='grammar.past_simple'
         ? (kk?'Past Simple · өткен шақ':'Past Simple · прошедшее время')
@@ -37,6 +52,7 @@
     const title = s => kk ? s.titleKk : s.titleRu;
     const api = '/api/student/speaking';
     let scenarios = [], current = null, busy = false, draft = '', pending = null, observer;
+    let voice=null, recording=null, voiceEpoch=0, typing=false;
     const csrf = document.querySelector('meta[name="_csrf"]')?.content;
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
 
@@ -49,18 +65,29 @@
     }
     function button(label, action, primary = false) {
         const node = el('button', `button${primary ? ' primary' : ''}`, label);
-        node.type = 'button'; node.disabled = busy; node.addEventListener('click', action); return node;
+        node.type = 'button'; node.disabled = busy || !!recording; node.addEventListener('click', action); return node;
     }
     function link(label, hash, className = 'button') {
         const node = el('a', className, label); node.href = hash; return node;
     }
     function setBusy(value) {
         busy = value; root.setAttribute('aria-busy', String(value));
-        screen.querySelectorAll('button, textarea, select').forEach(node => node.disabled = value);
+        screen.querySelectorAll('button, textarea, select, input').forEach(node => node.disabled = value);
         status.textContent = value ? t('busy') : '';
     }
     function showError(code) {
         const messages = {
+            speaking_voice_unavailable:t('voiceOff'), speaking_audio_size:kk?'Жазба 10 МБ-тан аспауы тиіс.':'Запись должна быть не больше 10 МБ.',
+            speaking_audio_duration:kk?'0,4–60 секундтық жазбаны таңда.':'Нужна запись длительностью от 0,4 до 60 секунд.',
+            speaking_audio_invalid:kk?'Бұл аудионы оқу мүмкін емес. Қайта жазып көр.':'Не удалось прочитать аудио. Попробуй записать заново.',
+            speaking_audio_empty:kk?'Сөзді анық ести алмадым. Қайта жазып көр.':'Не удалось уверенно распознать речь. Попробуй перезаписать.',
+            speaking_voice_failed:kk?'Дыбысты тану орындалмады. Қайталап көр.':'Не удалось распознать запись. Попробуй ещё раз.',
+            speaking_voice_timeout:kk?'Дыбысты тану тым ұзаққа созылды. Қайталап көр.':'Распознавание заняло слишком много времени. Попробуй ещё раз.',
+            speaking_voice_busy:kk?'Дыбысты тану бос емес. Сәлден кейін қайталап көр.':'Распознавание сейчас занято. Повтори чуть позже.',
+            speaking_voice_processing:kk?'Алдыңғы жазба әлі өңделуде.':'Предыдущая запись ещё обрабатывается. Подожди немного.',
+            speaking_voice_expired:kk?'Жазба мерзімі бітті. Қайта жаз.':'Черновик записи истёк или уже использован. Перезапиши ответ.',
+            speaking_voice_rate_limit:kk?'Бір минутта 6 жазбадан артық емес. Сәл күте тұр.':'Не больше 6 записей в минуту. Подожди немного.',
+            speaking_audio_daily_limit:kk?'Бүгінгі аудио шегіне жеттің. Мәтінмен жалғастыруға болады.':'Дневной лимит аудио исчерпан. Можно продолжить текстом.',
             speaking_active_session_exists: kk ? 'Белсенді әңгіме бар. Оны тарихтан жалғастыр.' : 'Уже есть активная беседа. Продолжи её из истории.',
             speaking_version_conflict: kk ? 'Әңгіме басқа қойындыда өзгерді. Жаңартылған сұрақты тексер.' : 'Беседа изменилась в другой вкладке. Проверь обновлённый вопрос.',
             speaking_daily_limit: kk ? 'Бүгінгі 3 әңгіме шегіне жеттің.' : 'Достигнут лимит: 3 новых разговора в день.',
@@ -94,7 +121,125 @@
             setBusy(false);
         }
     }
-    function clearScreen() { observer?.disconnect(); screen.replaceChildren(); }
+    function clearScreen() {
+        observer?.disconnect();
+        screen.querySelectorAll('audio').forEach(audio=>{audio.pause();audio.removeAttribute('src');audio.load();});
+        screen.replaceChildren();
+    }
+
+    // При уходе со страницы/в фон останавливаем микрофон, но не запускаем распознавание.
+    function clearVoice() {
+        voiceEpoch++;
+        if(recording) {
+            recording.cancelled=true;clearInterval(recording.timer);
+            if(recording.recorder?.state==='recording')recording.recorder.stop();
+            recording.stream?.getTracks().forEach(track=>track.stop());recording=null;
+        }
+        screen.querySelectorAll('audio').forEach(audio=>{audio.pause();audio.removeAttribute('src');audio.load();});
+        if(voice?.url)URL.revokeObjectURL(voice.url);
+        voice=null;
+    }
+    async function transcribe(session,blob) {
+        const epoch=voiceEpoch,hash=location.hash;
+        if(!voice || voice.blob!==blob)voice={blob,key:crypto.randomUUID(),url:URL.createObjectURL(blob),version:session.version};
+        const attempt=voice;
+        await run(async()=>{
+            attempt.failed=false;
+            renderSession(session);status.textContent=t('recognizing');
+            try {
+                const response=await fetch(`${api}/sessions/${session.id}/transcriptions?expectedVersion=${attempt.version}`,{
+                    method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':blob.type||'application/octet-stream',
+                        ...(csrf?{[csrfHeader]:csrf}:{}),'Idempotency-Key':attempt.key},body:blob});
+                const result=await response.json().catch(()=>({}));
+                if(!response.ok){const failure=new Error(result.code||'network');failure.status=response.status;throw failure;}
+                if(epoch!==voiceEpoch||hash!==location.hash)return;
+                attempt.transcript=result;draft=result.text;pending=null;typing=true;renderSession(session);
+                screen.querySelector('#sp-answer')?.focus({preventScroll:true});
+            } catch(failure) {
+                if(epoch!==voiceEpoch||hash!==location.hash)return;
+                if(['speaking_version_conflict','speaking_session_closed'].includes(failure.message)) {
+                    clearVoice();draft='';pending=null;
+                    const updated=await request('/sessions/'+session.id);
+                    if(hash===location.hash)renderSession(updated);
+                    throw failure;
+                }
+                // При потере сети повторяем тот же файл с тем же ключом. Бизнес-отказ требует новой попытки.
+                if(failure.status && failure.status!==409 && failure.status<500)attempt.key=crypto.randomUUID();
+                attempt.failed=true;renderSession(session);throw failure;
+            }
+        });
+    }
+    async function beginRecording(session) {
+        if(busy||recording)return;
+        clearVoice();draft='';pending=null;error.hidden=true;
+        const epoch=voiceEpoch;
+        const state={cancelled:false,stream:null,recorder:null,timer:null};recording=state;renderSession(session);
+        try {
+            const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+            if(state.cancelled||epoch!==voiceEpoch){stream.getTracks().forEach(track=>track.stop());return;}
+            state.stream=stream;
+            const mime=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(value=>MediaRecorder.isTypeSupported(value));
+            const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:{});state.recorder=recorder;
+            const chunks=[];let bytes=0;
+            recorder.addEventListener('dataavailable',event=>{
+                if(state.cancelled||epoch!==voiceEpoch)return;
+                bytes+=event.data.size;if(bytes>10*1024*1024){cancelRecording(session,'speaking_audio_size');return;}
+                if(event.data.size)chunks.push(event.data);
+            });
+            recorder.addEventListener('stop',()=>{
+                clearInterval(state.timer);stream.getTracks().forEach(track=>track.stop());
+                if(recording===state)recording=null;
+                if(state.cancelled||epoch!==voiceEpoch)return;
+                const blob=new Blob(chunks,{type:recorder.mimeType});
+                transcribe(session,blob);
+            });
+            recorder.addEventListener('error',()=>{if(!state.cancelled&&epoch===voiceEpoch)cancelRecording(session,'interrupted');});
+            stream.getAudioTracks().forEach(track=>track.addEventListener('ended',()=>{
+                if(recording===state)cancelRecording(session,'interrupted');
+            }));
+            state.started=Date.now();recorder.start(500);renderSession(session);
+            state.timer=setInterval(()=>{
+                const seconds=Math.min(60,Math.floor((Date.now()-state.started)/1000));
+                const timer=screen.querySelector('.sp-recording');if(timer)timer.textContent=`● ${t('recording')} · ${seconds} / 60`;
+                if(Date.now()-state.started>=59900 && recorder.state==='recording')recorder.stop();
+            },200);
+        } catch(failure) {
+            if(state.cancelled||epoch!==voiceEpoch)return;
+            clearVoice();renderSession(session);showError('permission');error.textContent=t('permission');
+        }
+    }
+    function cancelRecording(session,code) {
+        clearVoice();renderSession(session);if(code){error.textContent=words[code]?t(code):'';if(!words[code])showError(code);error.hidden=false;}
+    }
+    function voiceControls(composer,session) {
+        if(!session.voiceAvailable){composer.append(el('p','sp-voice-info',t('voiceOff')));return;}
+        const panel=el('div','sp-voice');
+        if(recording) {
+            panel.append(el('p','sp-recording',recording.recorder?`${t('recording')} · 0 / 60`:t('requesting')));
+            if(recording.recorder){const stop=button(t('stop'),()=>{if(recording?.recorder?.state==='recording')recording.recorder.stop();},true);stop.disabled=false;panel.append(stop);}
+            const cancel=button(t('cancel'),()=>cancelRecording(session));cancel.disabled=false;panel.append(cancel);
+        } else if(voice?.transcript) {
+            const audio=el('audio');audio.controls=true;audio.src=voice.url;audio.preload='metadata';panel.append(audio);
+            panel.append(button(t('again'),()=>run(async()=>{
+                await request(`/sessions/${session.id}/transcriptions/${voice.transcript.id}`,'DELETE');
+                clearVoice();draft='';pending=null;typing=false;renderSession(session);
+            }).then(()=>{
+                if(!voice&&location.hash==='#session/'+session.id&&navigator.mediaDevices?.getUserMedia&&window.MediaRecorder)beginRecording(session);
+            })));
+        } else if(busy&&voice&&!voice.failed) {
+            panel.append(el('p','',t('recognizing')));
+        } else {
+            if(navigator.mediaDevices?.getUserMedia&&window.MediaRecorder)panel.append(button(t('record'),()=>beginRecording(session),true));
+            if(voice?.failed)panel.append(button(t('retry'),()=>transcribe(session,voice.blob)));
+            const label=el('label','button sp-file',t('upload'));const file=el('input');file.type='file';file.accept='audio/*';file.disabled=busy;
+            file.addEventListener('change',()=>{const selected=file.files[0];if(!selected)return;
+                if(selected.size>10*1024*1024){showError('speaking_audio_size');file.value='';return;}
+                clearVoice();draft='';pending=null;transcribe(session,selected);
+            });label.append(file);panel.append(label);
+            panel.append(button(t('typed'),()=>{typing=true;renderSession(session);screen.querySelector('#sp-answer')?.focus();}));
+        }
+        panel.append(el('small','sp-voice-info',t('voiceInfo')));composer.append(panel);
+    }
 
     function renderCatalog() {
         current = null; clearScreen();
@@ -151,7 +296,7 @@
         const head=el('div','sp-row sp-session-head'); const copy=el('div');
         copy.append(el('h2','',title(session.scenario)),el('small','',`${session.level} · ${t('accepted')}: ${session.acceptedTurns} / 8`));head.append(copy);
         if (session.status==='ACTIVE') head.append(button(t('finish'),()=>{
-            if (window.confirm(t('confirmFinish'))) run(async()=>{current=await request(`/sessions/${session.id}/finish`,'POST',{expectedVersion:session.version});draft='';renderSession(current);});
+                if (window.confirm(t('confirmFinish'))) run(async()=>{current=await request(`/sessions/${session.id}/finish`,'POST',{expectedVersion:session.version});draft='';clearVoice();renderSession(current);});
         }));screen.append(head);
         const progress=el('div','sp-progress');const bar=el('span');bar.style.width=`${session.acceptedTurns/8*100}%`;progress.append(bar);screen.append(progress);
         const frame=el('section','sp-chat-frame');const chat=el('div','sp-chat');
@@ -159,12 +304,13 @@
         addAgent(chat,session.openingText,session.firstQuestion);
         for (const turn of session.turns) {
             const node=el('article','sp-message sp-learner');node.dataset.speaker='learner';
-            node.append(el('div','sp-message-label',t('learner')),el('p','',turn.text || t('cleared')));
+            node.append(el('div','sp-message-label',t(turn.source==='voice'?'voiceSource':turn.source==='edited'?'editedSource':'learner')),el('p','',turn.text || t('cleared')));
             for (const note of session.observations.filter(o=>o.turnId===turn.id)) {
                 const details=el('details','sp-feedback');details.append(el('summary','',`${t('correction')} · ${skillName(note.skillCode)}`));
                 const change=el('p');change.append(el('del','',note.original),document.createTextNode(' → '),el('strong','',note.corrected));
                 details.append(change,el('p','',note.explanation));
                 if(note.assisted)details.append(el('small','',t('assisted')));
+                if(note.source==='edited')details.append(el('small','',t('editedNote')));
                 if(note.evidence==='disputed') details.append(el('small','',t('disputed')));
                 else details.append(button(t('dispute'),()=>run(async()=>{
                     const updated=await request(`/sessions/${session.id}/observations/${note.id}/dispute`,'POST',{expectedVersion:session.version});renderSession(updated);
@@ -181,27 +327,32 @@
         chat.addEventListener('scroll',update,{passive:true});observer=new ResizeObserver(update);observer.observe(chat);for(const node of chat.children)observer.observe(node);update();
         const composer=el('section','sp-compose');
         if(session.status==='ACTIVE') {
-            const label=el('label','sp-field',t('answer'));const input=el('textarea');input.id='sp-answer';input.maxLength=2000;input.value=draft;
+            voiceControls(composer,session);
+            const showText=!recording&&(!session.voiceAvailable||typing||voice?.transcript);
+            const label=el('label','sp-field',t(voice?.transcript?'heard':'answer'));const input=el('textarea');input.id='sp-answer';input.maxLength=2000;input.value=draft;
             input.addEventListener('input',()=>{draft=input.value;});label.append(input);composer.append(label);
-            composer.append(button(t('send'),()=>run(async()=>{
+            label.hidden=!showText;
+            const send=button(t(voice?.transcript?'confirmVoice':'send'),()=>run(async()=>{
                 const text=input.value.trim();if(!text)return;
                 const path=`/sessions/${session.id}/turns`;
+                const voiceAttemptId=voice?.transcript?.id||null;
                 // При сетевой ошибке повторяем именно прежнее тело и ключ; 409 требует перечитать беседу.
-                if(!pending || pending.path!==path || pending.text!==text)pending={path,text,key:crypto.randomUUID(),body:{text,expectedVersion:session.version}};
+                if(!pending || pending.path!==path || pending.text!==text || pending.body.voiceAttemptId!==voiceAttemptId)
+                    pending={path,text,key:crypto.randomUUID(),body:{text,expectedVersion:session.version,voiceAttemptId}};
                 try {
-                    const updated=await request(path,'POST',pending.body,pending.key);pending=null;draft='';renderSession(updated);
+                    const updated=await request(path,'POST',pending.body,pending.key);pending=null;draft='';clearVoice();typing=false;renderSession(updated);
                 } catch(failure) {
                     if(failure.status>=400&&failure.status<500){pending=null;current=await request('/sessions/'+session.id);renderSession(current);}
                     throw failure;
                 }
-            }),true));
+            }),true);send.hidden=!showText;composer.append(send);
             const actions=el('div','sp-actions');actions.append(button(t('hint'),()=>run(async()=>{
                 const previousHelp=composer.querySelector('.sp-help');if(previousHelp){previousHelp.remove();return;}
-                const updated=await request(`/sessions/${session.id}/help`,'POST',{expectedVersion:session.version});renderSession(updated);
+                const updated=await request(`/sessions/${session.id}/help`,'POST',{expectedVersion:session.version});clearVoice();renderSession(updated);
                 const help=el('div','sp-help',t('help'));session.scenario.hints.forEach(h=>help.append(el('p','',h)));screen.querySelector('.sp-compose').append(help);
             })));
             if(session.scenario.code==='weekend_story')actions.append(button(t('sample'),()=>run(async()=>{
-                const updated=await request(`/sessions/${session.id}/help`,'POST',{expectedVersion:session.version});draft='Yesterday I go to the cinema.';renderSession(updated);
+                const updated=await request(`/sessions/${session.id}/help`,'POST',{expectedVersion:session.version});clearVoice();typing=true;draft='Yesterday I go to the cinema.';renderSession(updated);
             })));
             composer.append(actions,el('p','sp-mode',t('demo')));
         } else {
@@ -233,6 +384,8 @@
         else if(page==='history')await renderHistory();
         else renderCatalog();
     }
-    window.addEventListener('hashchange',()=>{run(route);});
+    window.addEventListener('hashchange',()=>{clearVoice();draft='';pending=null;typing=false;run(route);});
+    window.addEventListener('pagehide',clearVoice);
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&recording)cancelRecording(current,'interrupted');});
     run(async()=>{status.textContent=t('loading');scenarios=await request('/scenarios');await route();});
 })();

@@ -47,12 +47,16 @@ class SpeakingIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired SpeakingMaintenance maintenance;
     @SpyBean StubSpeakingTutor tutor;
+    @SpyBean LocalWhisperTranscriber transcriber;
+    @Autowired SpeakingVoiceAttemptRepository voiceAttempts;
+    @Autowired SpeakingVoiceStore voiceStore;
 
     @BeforeEach
     void resetModuleOnly() {
         observations.deleteAll(); turns.deleteAll(); sessions.deleteAll(); usage.deleteAll();
         properties.setEnabled(true); properties.setPilotOnly(false); properties.setAllowedStudentIds(List.of());
         Mockito.reset(tutor);
+        Mockito.reset(transcriber);
         if(students.findByUserEmailIgnoreCase("speaking-other@test.local").isEmpty()) {
             var other=users.save(new AppUser("speaking-other@test.local","unused","Speaking test",null));
             students.save(new StudentProfile(other,6,"ru"));
@@ -238,6 +242,148 @@ class SpeakingIntegrationTest {
         assertThat(turns.count()).isEqualTo(1);assertThat(observations.count()).isEqualTo(1);
     }
 
+    @Test
+    void transcriptionIsOnlyADraftAndConfirmationSetsVerifiedVoiceSource() throws Exception {
+        voiceResult("Yesterday I go to the cinema.",5);
+        var session=create(UUID.randomUUID());UUID key=UUID.randomUUID();
+        var candidate=json(upload(session,key,wavHeader()).andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control","no-store")).andReturn());
+        assertThat(turns.count()).isZero(); assertThat(observations.count()).isZero();
+        assertThat(candidate.path("text").asText()).isEqualTo("Yesterday I go to the cinema.");
+        assertThat(json(upload(session,key,wavHeader()).andExpect(status().isOk()).andReturn()).path("id")).isEqualTo(candidate.path("id"));
+        upload(session,key,"RIFF0000WAVEdifferent-audio".getBytes(StandardCharsets.US_ASCII)).andExpect(status().isConflict());
+        Mockito.verify(transcriber,Mockito.times(1)).transcribe(Mockito.any());
+        assertThat(usage.findAll().get(0).audioSeconds).isEqualTo(5);
+        UUID answerKey=UUID.randomUUID();
+        var accepted=json(confirmVoice(session,candidate,answerKey,candidate.path("text").asText()).andExpect(status().isCreated()).andReturn());
+        confirmVoice(session,candidate,answerKey,candidate.path("text").asText()).andExpect(status().isCreated());
+        assertThat(accepted.path("turns").get(0).path("source").asText()).isEqualTo("voice");
+        assertThat(accepted.path("observations").get(0).path("source").asText()).isEqualTo("voice");
+        assertThat(turns.findAll().get(0).audioSeconds).isEqualTo(5);
+        assertThat(voiceAttempts.findAll().get(0).transcript).isNull();
+        confirmVoice(accepted,candidate,UUID.randomUUID(),candidate.path("text").asText()).andExpect(status().isConflict());
+    }
+
+    @Test
+    void editedTranscriptIsExcludedFromIndependentDifficultyAndClientCannotForgeSource() throws Exception {
+        voiceResult("Yesterday I went to the cinema.",4);
+        var session=create(UUID.randomUUID());
+        var candidate=json(upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk()).andReturn());
+        var accepted=json(confirmVoice(session,candidate,UUID.randomUUID(),"Yesterday I go to the cinema.")
+                .andExpect(status().isCreated()).andReturn());
+        assertThat(accepted.path("turns").get(0).path("source").asText()).isEqualTo("edited");
+        assertThat(observations.findAll().get(0).source).isEqualTo("edited");
+        mvc.perform(get(BASE+"/difficulties").with(user(STUDENT).roles("STUDENT"))).andExpect(content().json("[]"));
+        confirmVoice(accepted,mapper.readTree("{\"id\":\""+UUID.randomUUID()+"\"}"),UUID.randomUUID(),"Forged.")
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void voiceChecksOwnershipCsrfDisabledModeAndByteLimitBeforeCallingAsr() throws Exception {
+        voiceResult("A real test transcript.",3);var session=create(UUID.randomUUID());
+        String path=BASE+"/sessions/"+session.path("id").asText()+"/transcriptions?expectedVersion=0";
+        mvc.perform(post(path).with(user(STUDENT).roles("STUDENT")).header("Idempotency-Key",UUID.randomUUID())
+                .content(wavHeader())).andExpect(status().isForbidden());
+        mvc.perform(post(path).with(user("speaking-other@test.local").roles("STUDENT")).with(csrf())
+                .header("Idempotency-Key",UUID.randomUUID()).content(wavHeader())).andExpect(status().isNotFound());
+        upload(session,UUID.randomUUID(),new byte[12]).andExpect(status().isUnsupportedMediaType());
+        upload(session,UUID.randomUUID(),new byte[SpeakingVoiceService.MAX_BYTES+1]).andExpect(status().isPayloadTooLarge());
+        properties.setEnabled(false);upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isNotFound());
+        properties.setEnabled(true);Mockito.doReturn(false).when(transcriber).available();
+        upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isServiceUnavailable());
+        Mockito.verify(transcriber,Mockito.never()).transcribe(Mockito.any());
+    }
+
+    @Test
+    void failedAsrDoesNotAcceptTurnAndKeepsBudgetAfterHistoryDeletion() throws Exception {
+        voiceResult("Unused.",3);var session=create(UUID.randomUUID());
+        Mockito.doThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.GATEWAY_TIMEOUT,
+                "speaking_voice_timeout")).when(transcriber).transcribe(Mockito.any());
+        upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isGatewayTimeout());
+        assertThat(voiceAttempts.findAll().get(0).state).isEqualTo("FAILED");
+        assertThat(voiceAttempts.findAll().get(0).activeSlot).isNull();
+        assertThat(turns.count()).isZero();assertThat(observations.count()).isZero();
+        assertThat(usage.findAll().get(0).audioSeconds).isEqualTo(60);
+        mvc.perform(delete(BASE+"/sessions/"+session.path("id").asText()).with(user(STUDENT).roles("STUDENT")).with(csrf()))
+                .andExpect(status().isNoContent());
+        assertThat(voiceAttempts.count()).isZero();assertThat(usage.findAll().get(0).audioSeconds).isEqualTo(60);
+    }
+
+    @Test
+    void staleQuestionAndDiscardedOrExpiredDraftCannotBeConfirmed() throws Exception {
+        voiceResult("I watched a film.",3);var session=create(UUID.randomUUID());
+        var candidate=json(upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk()).andReturn());
+        mvc.perform(delete(BASE+"/sessions/"+session.path("id").asText()+"/transcriptions/"+candidate.path("id").asText())
+                .with(user("speaking-other@test.local").roles("STUDENT")).with(csrf())).andExpect(status().isNotFound());
+        mvc.perform(delete(BASE+"/sessions/"+session.path("id").asText()+"/transcriptions/"+candidate.path("id").asText())
+                .with(user(STUDENT).roles("STUDENT")).with(csrf())).andExpect(status().isNoContent());
+        confirmVoice(session,candidate,UUID.randomUUID(),"I watched a film.").andExpect(status().isConflict());
+        candidate=json(upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk()).andReturn());
+        jdbc.update("update speaking_voice_attempts set expires_at=?",OffsetDateTime.now().minusSeconds(1));
+        confirmVoice(session,candidate,UUID.randomUUID(),"I watched a film.").andExpect(status().isConflict());
+        properties.setEnabled(false);voiceStore.purge();assertThat(voiceAttempts.count()).isZero();properties.setEnabled(true);
+        candidate=json(upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk()).andReturn());
+        var accepted=answer(session,UUID.randomUUID(),"A typed answer.");
+        confirmVoice(accepted,candidate,UUID.randomUUID(),"I watched a film.").andExpect(status().isConflict());
+        assertThat(turns.count()).isEqualTo(1);
+    }
+
+    @Test
+    void voiceBudgetAndMinuteRateAreServerSideAndSurviveDeletionOfDrafts() throws Exception {
+        voiceResult("I watched a film.",3);var session=create(UUID.randomUUID());
+        for(int i=0;i<6;i++)upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk());
+        upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("speaking_voice_rate_limit"));
+        voiceAttempts.deleteAll();jdbc.update("update speaking_daily_usage set audio_seconds=900,voice_requests=0");
+        upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("speaking_audio_daily_limit"));
+    }
+
+    @Test
+    void slowRecognitionHoldsNoTransactionAndLateResultIsDiscardedWhenQuestionChanged() throws Exception {
+        voiceResult("I watched a film.",3);var session=create(UUID.randomUUID());
+        var entered=new java.util.concurrent.CountDownLatch(1);var release=new java.util.concurrent.CountDownLatch(1);
+        Mockito.doAnswer(call->{
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            entered.countDown();assertThat(release.await(15,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            return new SpeakingTranscriber.Transcript("I watched a film.",3);
+        }).when(transcriber).transcribe(Mockito.any());
+        try(var executor=java.util.concurrent.Executors.newSingleThreadExecutor()) {
+            var result=executor.submit(()->upload(session,UUID.randomUUID(),wavHeader()).andReturn().getResponse().getStatus());
+            try {
+                assertThat(entered.await(10,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isConflict())
+                        .andExpect(jsonPath("$.code").value("speaking_voice_processing"));
+                // Если ASR держит профиль/транзакцию, этот независимый ответ зависнет до release.
+                answer(session,UUID.randomUUID(),"Another answer.");
+            } finally { release.countDown(); }
+            assertThat(result.get(15,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(409);
+        }
+        assertThat(voiceAttempts.findAll().get(0).state).isEqualTo("FAILED");
+        assertThat(voiceAttempts.findAll().get(0).transcript).isNull();assertThat(turns.count()).isEqualTo(1);
+    }
+
+    private void voiceResult(String text,int seconds) {
+        // Тестовый double проверяет контракт хранения; настоящее распознавание проверяется отдельно на локальном WAV.
+        Mockito.doReturn(true).when(transcriber).available();
+        Mockito.doAnswer(call->{
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            return new SpeakingTranscriber.Transcript(text,seconds);
+        }).when(transcriber).transcribe(Mockito.any());
+    }
+    private byte[] wavHeader() { return "RIFF0000WAVEtest-audio-payload".getBytes(StandardCharsets.US_ASCII); }
+    private org.springframework.test.web.servlet.ResultActions upload(JsonNode session,UUID key,byte[] audio) throws Exception {
+        return mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/transcriptions")
+                .param("expectedVersion",session.path("version").asText()).with(user(STUDENT).roles("STUDENT")).with(csrf())
+                .header("Idempotency-Key",key).contentType("audio/wav").content(audio));
+    }
+    private org.springframework.test.web.servlet.ResultActions confirmVoice(JsonNode session,JsonNode candidate,UUID key,String text) throws Exception {
+        return mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/turns").with(user(STUDENT).roles("STUDENT")).with(csrf())
+                .header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(new SpeakingViews.AnswerRequest(session.path("version").asLong(),text,
+                        UUID.fromString(candidate.path("id").asText())))));
+    }
+
     private JsonNode create(UUID key) throws Exception { return json(createCall(key).andExpect(status().isCreated()).andReturn()); }
     private org.springframework.test.web.servlet.ResultActions createCall(UUID key) throws Exception {
         return mvc.perform(post(BASE+"/sessions").with(user(STUDENT).roles("STUDENT")).with(csrf())
@@ -250,7 +396,7 @@ class SpeakingIntegrationTest {
     private org.springframework.test.web.servlet.ResultActions postAnswer(JsonNode session,UUID key,String text) throws Exception {
         return mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/turns").with(user(STUDENT).roles("STUDENT")).with(csrf())
                 .header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(new SpeakingViews.AnswerRequest(session.path("version").asLong(),text))));
+                .content(mapper.writeValueAsString(new SpeakingViews.AnswerRequest(session.path("version").asLong(),text,null))));
     }
     private JsonNode json(MvcResult result) throws Exception { return mapper.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8)); }
 }

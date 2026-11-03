@@ -12,7 +12,8 @@ public final class SpeakingViews {
             @NotNull @Pattern(regexp="A2|B1|B2") String level,
             @NotNull @Pattern(regexp="ru|kk") String explanationLanguage) {}
     public record AnswerRequest(@NotNull @PositiveOrZero Long expectedVersion,
-            @NotBlank @Size(max=2000) String text) {}
+            @NotBlank @Size(max=2000) String text, UUID voiceAttemptId) {}
+    public record Transcription(UUID id, long sessionVersion, String text, int audioSeconds, OffsetDateTime expiresAt) {}
     public record VersionRequest(@NotNull @PositiveOrZero Long expectedVersion) {}
     public record Observation(UUID id, UUID turnId, String skillCode, String original, String corrected,
             String explanation, String kind, String evidence, String source, boolean assisted) {}
@@ -20,7 +21,7 @@ public final class SpeakingViews {
             String questionText, OffsetDateTime createdAt) {}
     public record Session(UUID id, String status, long version, SpeakingScenario scenario, String level,
             String explanationLanguage, String openingText, String firstQuestion, int acceptedTurns,
-            String providerMode, List<Turn> turns, List<Observation> observations) {}
+            String providerMode, boolean voiceAvailable, List<Turn> turns, List<Observation> observations) {}
     public record HistoryItem(UUID id, String title, String status, int acceptedTurns, OffsetDateTime createdAt) {}
     public record Difficulty(String skillCode, long observations, long sessions, OffsetDateTime lastObserved,
             String status) {}

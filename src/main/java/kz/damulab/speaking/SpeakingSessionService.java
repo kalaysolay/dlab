@@ -23,12 +23,17 @@ public class SpeakingSessionService {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final SpeakingDailyUsageRepository usage;
+    private final SpeakingVoiceAttemptRepository voiceAttempts;
+    private final SpeakingVoiceStore voiceStore;
+    private final SpeakingTranscriber transcriber;
     public SpeakingSessionService(SpeakingAccess access, SpeakingScenarioCatalog catalog,
             SpeakingSessionRepository sessions, SpeakingTurnRepository turns,
             SpeakingObservationRepository observations, SpeakingFeedbackService feedback,
-            SpeakingTutor tutor, ObjectMapper mapper, Clock clock, SpeakingDailyUsageRepository usage) {
+            SpeakingTutor tutor, ObjectMapper mapper, Clock clock, SpeakingDailyUsageRepository usage,
+            SpeakingVoiceAttemptRepository voiceAttempts,SpeakingVoiceStore voiceStore,SpeakingTranscriber transcriber) {
         this.access=access; this.catalog=catalog; this.sessions=sessions; this.turns=turns;
         this.observations=observations; this.feedback=feedback; this.tutor=tutor; this.mapper=mapper; this.clock=clock; this.usage=usage;
+        this.voiceAttempts=voiceAttempts; this.voiceStore=voiceStore; this.transcriber=transcriber;
     }
 
     /** Создаёт сессию с первой репликой ИИ без входа ученика; повтор ключа не создаёт вторую запись. */
@@ -77,16 +82,30 @@ public class SpeakingSessionService {
         String text=request.text().strip();
         var existing=turns.findBySessionIdAndRequestId(id, requestId);
         if (existing.isPresent()) {
-            if (!existing.get().learnerText.equals(text)) throw conflict("speaking_request_reused");
+            if (!existing.get().learnerText.equals(text) || !Objects.equals(existing.get().voiceAttemptId,request.voiceAttemptId()))
+                throw conflict("speaking_request_reused");
             return view(session);
         }
         requireVersion(session, request.expectedVersion());
         requireActive(session);
+        SpeakingVoiceAttempt voice=null;
+        if(request.voiceAttemptId()!=null) {
+            voice=voiceAttempts.findByIdAndStudentIdAndSessionId(request.voiceAttemptId(),session.studentId,id)
+                    .orElseThrow(SpeakingSessionService::missing);
+            voiceStore.requireReady(voice);
+            if(voice.sessionVersion!=session.revision) throw conflict("speaking_version_conflict");
+        }
         var scenario=snapshot(session);
         // Только stub: реальный провайдер потребует отдельного этапа с lease и вызовом вне этой транзакции.
         var reply=tutor.answer(scenario, session.acceptedTurns+1, text, session.language);
         var turn=new SpeakingTurn();
         turn.sessionId=id; turn.requestId=requestId; turn.sequenceNo=session.acceptedTurns+1;
+        if(voice!=null) {
+            // Происхождение определяет сервер по исходной ASR-расшифровке, а не флагу от клиента.
+            turn.source=text.equals(voice.transcript)?"voice":"edited";
+            turn.voiceAttemptId=voice.id; turn.audioSeconds=voice.audioSeconds;
+            voice.close("CONSUMED"); voice.transcript=null;
+        }
         turn.learnerText=text; turn.reactionText=reply.reaction(); turn.questionText=reply.question(); turn.createdAt=now();
         turn=turns.saveAndFlush(turn);
         feedback.accept(session, turn, reply.feedback(), turn.createdAt);
@@ -171,7 +190,7 @@ public class SpeakingSessionService {
         var notes=observations.findBySessionIdOrderByCreatedAt(session.id).stream().map(o ->
                 new SpeakingViews.Observation(o.id,o.turnId,o.skillCode,o.original,o.corrected,o.explanation,o.kind,o.evidence,o.source,o.assisted)).toList();
         return new SpeakingViews.Session(session.id,session.status,session.revision,scenario,session.level,session.language,
-                scenario.opening(),scenario.firstQuestions().get(session.level),session.acceptedTurns,"STUB",history,notes);
+                scenario.opening(),scenario.firstQuestions().get(session.level),session.acceptedTurns,"STUB",transcriber.available(),history,notes);
     }
     private SpeakingScenario snapshot(SpeakingSession session) {
         try { return mapper.readValue(session.scenarioSnapshot, SpeakingScenario.class); }
