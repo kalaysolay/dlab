@@ -55,6 +55,7 @@
         support:['Сделаем паузу','Үзіліс жасайық'],supportNote:['Сейчас важнее получить помощь взрослого. Исправления английского здесь отключены.','Қазір ересек адамның көмегі маңыздырақ. Ағылшын тілін түзету бұл жерде тоқтатылды.'],
         change:['Выбрать другую ситуацию','Басқа жағдайды таңдау'],style:['Можно сказать иначе','Басқаша айтуға болады']
     });
+    words.suggested=['Предложение ИИ — пока не учитывается в сводке трудностей','ЖИ ұсынысы — әзірге қиындықтар есебіне кірмейді'];
     if(root.dataset.stt==='deepgram')words.voiceInfo=['До 60 секунд. Запись распознаёт Deepgram без использования для обучения. Проверь текст перед отправкой собеседнику.','60 секундқа дейін. Жазбаны Deepgram оқыту үшін пайдаланбай таниды. Көмекшіге жібермес бұрын мәтінді тексер.'];
     const t = key => words[key]?.[kk ? 1 : 0] || key;
     const skillNames={
@@ -64,6 +65,7 @@
         'grammar.articles':['Артикли','Артикльдер'],'grammar.prepositions':['Предлоги','Предлогтар'],'grammar.word_order':['Порядок слов','Сөз тәртібі'],
         'grammar.agreement':['Согласование','Сөздердің қиысуы'],'grammar.plural':['Множественное число','Көпше түр'],
         'grammar.comparatives':['Сравнения','Салыстыру'],'grammar.questions':['Вопросы','Сұрақтар'],'grammar.negation':['Отрицание','Болымсыздық'],
+        'grammar.verb_patterns':['Формы глаголов · to / -ing','Етістік үлгілері · to / -ing'],
         'vocabulary.word_choice':['Выбор слова','Сөз таңдау']
     };
     const skillName=code=>skillNames[code]?.[kk?1:0]||(kk?'Тілдік дағды':'Языковой навык');
@@ -375,6 +377,7 @@
                 details.append(change,el('p','',note.explanation));
                 if(note.assisted)details.append(el('small','',t('assisted')));
                 if(note.source==='edited')details.append(el('small','',t('editedNote')));
+                if(note.evidence==='suggested')details.append(el('small','',t('suggested')));
                 if(note.evidence==='disputed') details.append(el('small','',t('disputed')));
                 else details.append(button(t('dispute'),()=>run(async()=>{
                     const updated=await request(`/sessions/${session.id}/observations/${note.id}/dispute`,'POST',{expectedVersion:session.version});renderSession(updated);

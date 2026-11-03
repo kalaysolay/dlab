@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 class SpeakingFeedbackService {
     static final Set<String> SKILLS=Set.of("grammar.past_simple","grammar.present_simple","grammar.present_continuous",
             "grammar.present_perfect","grammar.future","grammar.articles","grammar.prepositions","grammar.word_order",
-            "grammar.agreement","grammar.plural","grammar.comparatives","grammar.questions","grammar.negation","vocabulary.word_choice");
+            "grammar.agreement","grammar.plural","grammar.comparatives","grammar.questions","grammar.negation","grammar.verb_patterns","vocabulary.word_choice");
     private final SpeakingObservationRepository observations;
     SpeakingFeedbackService(SpeakingObservationRepository observations) { this.observations = observations; }
 
@@ -34,8 +34,8 @@ class SpeakingFeedbackService {
             fact.explanation = item.explanation();
             fact.source = turn.source;
             fact.assisted = session.assistedNext;
-            // confirmed означает проверенный вход и точное правило, а не оценку преподавателем.
-            fact.evidence = "confirmed";
+            // confirmed означает прохождение технических и модельных проверок, а не оценку преподавателем.
+            fact.evidence = item.classificationConfirmed()?"confirmed":"suggested";
             fact.createdAt = now;
             fact.expiresAt = now.plusDays(180);
             observations.save(fact);

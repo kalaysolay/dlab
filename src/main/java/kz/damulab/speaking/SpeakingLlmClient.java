@@ -34,7 +34,7 @@ class SpeakingLlmClient {
             body.put("messages",List.of(Map.of("role","system","content",system),Map.of("role","user","content",mapper.writeValueAsString(user))));
             body.put("response_format",Map.of("type","json_object"));
             if(route.provider()==AiProviderCode.OPENAI){body.put("store",false);body.put("max_completion_tokens",1400);}
-            else {body.put("max_tokens",1400);body.put("thinking",Map.of("type","disabled"));}
+            else {body.put("max_tokens",1400);body.put("thinking",Map.of("type","disabled"));body.put("temperature",0.2);}
             byte[] raw=http.post(endpoint(route),"Bearer "+key(route),"application/json",mapper.writeValueAsBytes(body),128*1024);
             var choice=mapper.readTree(raw).path("choices").path(0);
             if(!choice.path("finish_reason").asText().equals("stop")||!choice.path("message").path("refusal").asText("").isBlank())throw unavailable();

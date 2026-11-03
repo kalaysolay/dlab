@@ -164,12 +164,33 @@ class SpeakingLiveIntegrationTest {
         assertThat(result.path("turns").get(0).path("disposition").asText()).isEqualTo("REDIRECT");assertThat(observations.count()).isZero();
     }
 
-    @Test void hallucinatedCorrectionOrUnknownSkillCannotBeSaved()throws Exception{
-        var session=create();guard("ALLOW");completion(normal().replace("Yesterday I go","This never occurred"));
-        answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isServiceUnavailable());
-        assertThat(turns.count()).isZero();assertThat(observations.count()).isZero();
+    @Test void hallucinatedCorrectionIsOmittedAndUnknownSkillStillFailsClosed()throws Exception{
+        var session=create();chain(normal().replace("Yesterday I go","This never occurred"));
+        session=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        assertThat(turns.count()).isEqualTo(1);assertThat(observations.count()).isZero();
+        assertThat(new String(CALLS.get(2).body(),StandardCharsets.UTF_8)).doesNotContain("This never occurred");
         guard("ALLOW");completion(normal().replace("grammar.past_simple","invented.skill"));
-        answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isServiceUnavailable());assertThat(turns.count()).isZero();
+        answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isServiceUnavailable());assertThat(turns.count()).isEqualTo(1);
+    }
+
+    @Test void correctionFromHistoryCannotPolluteCurrentAnswerButCurrentNegationCorrectionIsKept()throws Exception{
+        var session=create();chain(normal());session=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        chain("{\"reaction\":\"The ending was not your favourite.\",\"question\":\"What did you like about the animation?\",\"feedback\":[{\"skillCode\":\"grammar.past_simple\",\"original\":\"didn't liked\",\"corrected\":\"didn't like\",\"explanation\":\"После didn't нужна начальная форма.\",\"kind\":\"error\"},{\"skillCode\":\"grammar.past_simple\",\"original\":\"Yesterday I go\",\"corrected\":\"Yesterday I went\",\"explanation\":\"Ошибка из прошлого сообщения.\",\"kind\":\"error\"}]}");
+        var result=json(answer(session,UUID.randomUUID(),"I didn't liked the ending.").andExpect(status().isCreated()).andReturn());
+        assertThat(result.path("observations").size()).isEqualTo(2);
+        var latest=result.path("turns").get(1).path("id").asText();
+        var notes=observations.findAll().stream().filter(note->note.turnId.toString().equals(latest)).toList();
+        assertThat(notes).hasSize(1);assertThat(notes.get(0).original).isEqualTo("didn't liked");
+        var review=JSON.readTree(JSON.readTree(CALLS.get(5).body()).path("messages").path(1).path("content").asText()).path("candidate").path("feedback");
+        assertThat(review.size()).isEqualTo(1);assertThat(review.get(0).path("corrected").asText()).isEqualTo("didn't like");
+    }
+
+    @Test void missingErrorStyleClassificationKeepsSuggestionOutOfIndependentStatistics()throws Exception{
+        var session=create();chain(normal().replace(",\"kind\":\"error\"",""));
+        var result=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        assertThat(result.path("observations").get(0).path("evidence").asText()).isEqualTo("suggested");
+        assertThat(observations.findAll().get(0).corrected).isEqualTo("Yesterday I went");
+        mvc.perform(get(BASE+"/difficulties").with(user(STUDENT).roles("STUDENT"))).andExpect(content().json("[]"));
     }
 
     @Test void generationDoesNotHoldProfileLockAndLateAnswerAfterFinishIsDiscarded()throws Exception{
@@ -197,16 +218,32 @@ class SpeakingLiveIntegrationTest {
         answer(session,UUID.randomUUID(),"A film.").andExpect(status().isServiceUnavailable());assertThat(CALLS).isEmpty();
     }
 
-    @Test void kazakhContextAndStyleAlternativesAreKeptSeparateFromIndependentErrors()throws Exception{
+    @Test void kazakhContextIsKeptButOptionalStyleRewriteIsOmitted()throws Exception{
         var session=create("kk");
         chain("{\"reaction\":\"That sounds enjoyable!\",\"question\":\"What did you like most about the film?\",\"feedback\":[{\"skillCode\":\"vocabulary.word_choice\",\"original\":\"very good\",\"corrected\":\"excellent\",\"explanation\":\"Осылай да айтуға болады.\",\"kind\":\"style\"}]}");
         answer(session,UUID.randomUUID(),"The movie was very good.").andExpect(status().isCreated());
-        assertThat(observations.findAll().get(0).kind).isEqualTo("style");
+        assertThat(observations.count()).isZero();
+        assertThat(new String(CALLS.get(2).body(),StandardCharsets.UTF_8)).doesNotContain("excellent");
         mvc.perform(get(BASE+"/difficulties").with(user(STUDENT).roles("STUDENT"))).andExpect(content().json("[]"));
         for(var call:CALLS){
             var input=JSON.readTree(JSON.readTree(call.body()).path("messages").path(1).path("content").asText());
             assertThat(input.path("explanationLanguage").asText()).isEqualTo("kk");
         }
+    }
+
+    @Test void explanationLanguageCannotChangeConversationLanguage()throws Exception{
+        var session=create("kk");chain(normal().replace("Going to the cinema sounds fun!","Кино қызықты екен!"));
+        var result=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        assertThat(result.path("turns").get(0).path("reactionText").asText()).isEqualTo("Thanks for sharing.");
+        guard("ALLOW");completion(normal().replace("What film did you watch?","Қандай фильм көрдің?"));
+        answer(result,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isServiceUnavailable());
+        assertThat(turns.count()).isEqualTo(1);
+    }
+
+    @Test void verbPatternCorrectionUsesItsOwnSkillRatherThanPastTense()throws Exception{
+        var session=create("kk");chain("{\"reaction\":\"Of course!\",\"question\":\"Which room would you like?\",\"feedback\":[{\"skillCode\":\"grammar.verb_patterns\",\"original\":\"would like book\",\"corrected\":\"would like to book\",\"explanation\":\"Would like тіркесінен кейін to қажет.\",\"kind\":\"error\"}]}");
+        answer(session,UUID.randomUUID(),"I would like book a room.").andExpect(status().isCreated());
+        assertThat(observations.findAll().get(0).skillCode).isEqualTo("grammar.verb_patterns");
     }
 
     @Test void arbitraryGuardJsonAndUnknownDecisionsAreNotTreatedAsApproval()throws Exception{
