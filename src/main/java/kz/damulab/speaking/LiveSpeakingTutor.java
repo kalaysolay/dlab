@@ -19,7 +19,7 @@ class LiveSpeakingTutor {
         }catch(Exception ex){throw new IllegalStateException("Speaking policy missing");}
     }
     record Context(SpeakingScenario scenario,String level,String language,String question,int acceptedTurns,
-            List<Map<String,String>> history,String text){}
+            List<Map<String,String>> history,String text,List<String> focusSkills){}
 
     SpeakingTutor.Reply answer(Context context,AiRuntimeSelection route){
         var local=safety.local(context.text());
@@ -44,7 +44,7 @@ class LiveSpeakingTutor {
     private Map<String,Object> context(Context c){
         return Map.of("scenario",Map.of("code",c.scenario().code(),"title",c.scenario().englishTitle(),"instructions",brief(c.scenario().code()),"progression",c.scenario().questions()),
                 "level",c.level(),"explanationLanguage",c.language(),"currentQuestion",c.question(),"acceptedTurns",c.acceptedTurns(),
-                "history",c.history(),"learnerText",c.text());
+                "history",c.history(),"learnerText",c.text(),"practiceFocus",c.focusSkills());
     }
     private String brief(String code){
         // Сценарные роли — доверенная часть tutor-v1, ученик не может прислать или заменить эти инструкции.
@@ -115,6 +115,8 @@ class LiveSpeakingTutor {
         Ask ONE concrete question about ONE information target, ending in ?. Do not combine two questions with 'and' or 'or'.
         React to what the learner actually said; do not restart or recite the question bank. Use history for relevant follow-ups.
         Ask about fictional hotel/store details, never actual names, addresses, contacts, booking references or payment information.
+        practiceFocus contains at most two known skill codes from earlier independent observations. When natural, ask a question
+        that gives a chance to practise them within the scenario. Do not announce weaknesses, force a grammar drill or assume a new error.
         Match A2/B1/B2 vocabulary. Feedback explanations use explanationLanguage (ru=Russian, kk=Kazakh).
         At most TWO useful corrections. Original must be an EXACT short substring of learnerText. Do not invent errors.
         EVERY feedback item must contain ALL FIVE keys: skillCode, original, corrected, explanation, kind.

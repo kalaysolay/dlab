@@ -126,7 +126,8 @@ public class SpeakingSessionService {
         turn.questionText=normal&&session.acceptedTurns+1>=scenario.questions().size()?"":reply.question(); turn.createdAt=now();
         turn=turns.saveAndFlush(turn);
         if(normal)feedback.accept(session, turn, reply.feedback(), turn.createdAt);
-        session.assistedNext=false;
+        // Возврат к тому же вопросу не отменяет уже показанную подсказку: следующий содержательный ответ всё ещё assisted.
+        if(normal)session.assistedNext=false;
         if(normal){session.acceptedTurns++;session.offTopicCount=0;}
         else if(reply.disposition().equals("REDIRECT"))session.offTopicCount++;
         session.updatedAt=turn.createdAt;
@@ -168,7 +169,8 @@ public class SpeakingSessionService {
         var safeHistory=history.stream().skip(Math.max(0,history.size()-4)).map(t->Map.of("learner",t.learnerText,"assistant",t.reactionText+" "+t.questionText)).toList();
         String question=turns.findBySessionIdOrderBySequenceNo(id).stream().reduce((a,b)->b).map(t->t.questionText)
                 .orElse(snapshot(session).firstQuestions().get(session.level));
-        var context=new LiveSpeakingTutor.Context(snapshot(session),session.level,session.language,question,session.acceptedTurns,safeHistory,request.text().strip());
+        var focus=feedback.focus(session.studentId,session.scenarioCode,session.id,now());
+        var context=new LiveSpeakingTutor.Context(snapshot(session),session.level,session.language,question,session.acceptedTurns,safeHistory,request.text().strip(),focus);
         return new Prepared(lease.id,route,context,null);
     }
 
@@ -226,7 +228,9 @@ public class SpeakingSessionService {
         requireActive(session);
         if (!session.assistedNext) {
             requireVersion(session, expectedVersion);
-            session.assistedNext=true; session.updatedAt=now(); sessions.flush();
+            session.assistedNext=true; session.updatedAt=now();
+            if(session.helpUses!=null)session.helpUses++;
+            sessions.flush();
         }
         return view(session);
     }
@@ -234,9 +238,10 @@ public class SpeakingSessionService {
     /** Оспоренное замечание немедленно исключается из вычисляемой сводки трудностей. */
     public SpeakingViews.Session dispute(UUID sessionId, UUID observationId, long expectedVersion) {
         var session=owned(sessionId, true);
-        requireVersion(session, expectedVersion);
         var observation=observations.findByIdAndStudentIdAndSessionId(observationId, session.studentId, sessionId)
                 .orElseThrow(() -> missing());
+        if(observation.evidence.equals("disputed"))return view(session);
+        requireVersion(session, expectedVersion);
         observation.evidence="disputed";
         session.updatedAt=now();
         sessions.flush();
@@ -245,6 +250,15 @@ public class SpeakingSessionService {
 
     /** Удаляет свою сессию; БД каскадно удаляет ходы и наблюдения, поэтому статистика не хранит удалённые цитаты. */
     public void delete(UUID id) { sessions.delete(owned(id, true)); sessions.flush(); }
+
+    /** Удаляет всю собственную историю, включая записи за пределами первых 20; дневные квоты сохраняются. */
+    public List<UUID> deleteAll(){
+        Long student=access.student(true).getId();
+        var own=sessions.findByStudentId(student);
+        var ids=own.stream().map(s->s.id).toList();
+        // FK с cascade удаляют ходы, наблюдения, ASR-черновики и leases в той же транзакции.
+        sessions.deleteAll(own);sessions.flush();return ids;
+    }
 
     /** История ограничена последними 20 сессиями; идентификатор ученика никогда не принимается от клиента. */
     @Transactional(readOnly=true)
@@ -277,13 +291,25 @@ public class SpeakingSessionService {
     }
     private SpeakingViews.Session view(SpeakingSession session) {
         var scenario=snapshot(session);
-        var history=turns.findBySessionIdOrderBySequenceNo(session.id).stream().map(t ->
+        var savedTurns=turns.findBySessionIdOrderBySequenceNo(session.id);
+        var history=savedTurns.stream().map(t ->
                 new SpeakingViews.Turn(t.id,t.sequenceNo,t.source,t.learnerText,t.reactionText,t.questionText,t.disposition,t.createdAt)).toList();
         var notes=observations.findBySessionIdOrderByCreatedAt(session.id).stream().map(o ->
                 new SpeakingViews.Observation(o.id,o.turnId,o.skillCode,o.original,o.corrected,o.explanation,o.kind,o.evidence,o.source,o.assisted)).toList();
+        var focus=feedback.focus(session.studentId,session.scenarioCode,session.id,now());
+        SpeakingViews.Summary summary=null;
+        if(!session.status.equals("ACTIVE")&&!session.status.equals("PAUSED_SUPPORT")){
+            var accepted=savedTurns.stream().filter(t->t.disposition.equals("NORMAL")).toList();
+            var recorded=accepted.stream().filter(t->t.source.equals("voice")||t.source.equals("edited")).toList();
+            // Длительность принятой записи включает паузы: это не VAD-оценка чистого времени речи.
+            summary=new SpeakingViews.Summary(session.acceptedTurns,session.totalTurns,recorded.size(),
+                    recorded.stream().mapToInt(t->t.audioSeconds).sum(),session.helpUses,
+                    feedback.sessionDifficulties(session.studentId,session.id,now()),
+                    feedback.focus(session.studentId,session.scenarioCode,null,now()),session.scenarioCode);
+        }
         return new SpeakingViews.Session(session.id,session.status,session.revision,scenario,session.level,session.language,
                 scenario.opening(),scenario.firstQuestions().get(session.level),session.acceptedTurns,session.providerVersion.equals("stub-v1")?"STUB":"LIVE",
-                transcriber.available(),llm.speechAvailable(),session.offTopicCount>=2,history,notes);
+                transcriber.available(),llm.speechAvailable(),session.offTopicCount>=2,history,notes,focus,summary);
     }
     private SpeakingScenario snapshot(SpeakingSession session) {
         try { return mapper.readValue(session.scenarioSnapshot, SpeakingScenario.class); }

@@ -56,6 +56,19 @@
         change:['Выбрать другую ситуацию','Басқа жағдайды таңдау'],style:['Можно сказать иначе','Басқаша айтуға болады']
     });
     words.suggested=['Предложение ИИ — пока не учитывается в сводке трудностей','ЖИ ұсынысы — әзірге қиындықтар есебіне кірмейді'];
+    Object.assign(words,{
+        summary:['Итог практики','Жаттығу қорытындысы'],allTurns:['Всего принятых реплик','Қабылданған барлық репликалар'],
+        voiceAnswers:['Ответов с записью','Жазбасы бар жауаптар'],audioDuration:['Длительность принятых записей','Қабылданған жазбалардың ұзақтығы'],
+        audioNote:['Длительность включает паузы в записи.','Ұзақтыққа жазбадағы үзілістер кіреді.'],
+        helpUses:['Открыто подсказок','Ашылған көмектер'],unknown:['Нет данных','Дерек жоқ'],
+        summaryTrouble:['Что можно потренировать','Нені жаттықтыруға болады'],
+        independentNote:['Учитываем независимые ответы за последние 30 дней. Это наблюдения ИИ, а не оценка знаний.','Соңғы 30 күндегі дербес жауаптар есептеледі. Бұл білім бағасы емес, ЖИ ескертулері.'],
+        summaryEmpty:['В этой практике пока нет подходящих независимых наблюдений. Это не означает, что ошибок не было.','Бұл жаттығуда әзірге сәйкес дербес ескертулер жоқ. Бұл қате болмады дегенді білдірмейді.'],
+        practiceFocus:['Фокус этой практики','Жаттығудың бағыты'],focusNote:['Можно ещё потренировать эти темы в разговоре.','Осы тақырыптарды сөйлесу барысында тағы жаттықтыруға болады.'],
+        nextFocus:['В следующей практике','Келесі жаттығуда'],practiceAgain:['Продолжить практику','Жаттығуды жалғастыру'],
+        deleteAll:['Удалить всю историю','Бүкіл тарихты жою'],
+        deleteAllConfirm:['Удалить все разговоры и учебные замечания разговорника? Это действие нельзя отменить.','Сөйлесу жаттығуының барлық әңгімелері мен ескертулерін жою керек пе? Бұл әрекетті қайтару мүмкін емес.']
+    });
     if(root.dataset.stt==='deepgram')words.voiceInfo=['До 60 секунд. Запись распознаёт Deepgram без использования для обучения. Проверь текст перед отправкой собеседнику.','60 секундқа дейін. Жазбаны Deepgram оқыту үшін пайдаланбай таниды. Көмекшіге жібермес бұрын мәтінді тексер.'];
     const t = key => words[key]?.[kk ? 1 : 0] || key;
     const skillNames={
@@ -353,6 +366,25 @@
         }
         chat.append(node);
     }
+    function renderSummary(parent,summary) {
+        parent.append(el('h2','',t('summary')));
+        const facts=el('dl','sp-summary-facts');
+        const duration=`${Math.floor(summary.audioSeconds/60)}:${String(summary.audioSeconds%60).padStart(2,'0')}`;
+        for(const [label,value] of [['accepted',summary.acceptedAnswers],['voiceAnswers',summary.voiceAnswers],
+                ['audioDuration',duration],['helpUses',summary.helpUses===null?t('unknown'):summary.helpUses]]){
+            const fact=el('div');fact.append(el('dt','',t(label)),el('dd','',String(value)));facts.append(fact);
+        }
+        parent.append(facts,el('p','sp-voice-info',`${t('allTurns')}: ${summary.totalTurns}. ${t('audioNote')}`),
+            el('h3','',t('summaryTrouble')),el('p','sp-voice-info',t('independentNote')));
+        if(!summary.difficulties.length)parent.append(el('p','',t('summaryEmpty')));
+        for(const item of summary.difficulties)parent.append(el('p','',`${skillName(item.skillCode)} · ${t(item.status)} · ${t('count')}: ${item.observations}`));
+        if(summary.nextFocus.length){
+            const focus=el('section','sp-focus');focus.append(el('h3','',t('nextFocus')),
+                el('p','',summary.nextFocus.map(skillName).join(' · ')),el('p','sp-voice-info',t('focusNote')));parent.append(focus);
+        }
+        const actions=el('div','sp-actions');actions.append(link(t('practiceAgain'),'#setup/'+summary.nextScenarioCode,'button primary'),link(t('back'),'#catalog'));
+        parent.append(actions);
+    }
     function renderSession(session) {
         const old=screen.querySelector('.sp-chat');
         const previous=old?{top:old.scrollTop,bottom:old.scrollHeight-old.clientHeight-old.scrollTop<32,count:Number(old.dataset.count)}:null;
@@ -363,6 +395,10 @@
         if (session.status==='ACTIVE'||session.status==='PAUSED_SUPPORT') head.append(button(t('finish'),()=>{
                 if (window.confirm(t('confirmFinish'))) run(async()=>{current=await request(`/sessions/${session.id}/finish`,'POST',{expectedVersion:session.version});draft='';clearVoice();renderSession(current);});
         }));screen.append(head);
+        if(session.status==='ACTIVE'&&session.focusSkills?.length){
+            const focus=el('section','sp-focus');focus.append(el('strong','',t('practiceFocus')),
+                el('p','',session.focusSkills.map(skillName).join(' · ')));screen.append(focus);
+        }
         const progress=el('div','sp-progress');const bar=el('span');bar.style.width=`${session.acceptedTurns/8*100}%`;progress.append(bar);screen.append(progress);
         const frame=el('section','sp-chat-frame');const chat=el('div','sp-chat');
         chat.tabIndex=0;chat.role='region';chat.setAttribute('aria-label',kk?'Әңгіме тарихы':'История разговора');chat.dataset.count=session.turns.length;
@@ -427,15 +463,20 @@
             })));
             composer.append(actions,el('p','sp-mode',t(session.providerMode==='LIVE'?'liveInfo':'demo')));
         } else {
-            composer.append(el('h2','',t(session.status==='PAUSED_SUPPORT'?'support':session.status==='COMPLETED'?'ended':session.status==='EXPIRED'?'expired':'finished')),
-                ...(session.status==='PAUSED_SUPPORT'?[el('p','',t('supportNote'))]:[]),
-                el('p','',`${t('turn')}: ${session.acceptedTurns} / 8`),link(t('choose'),'#catalog'));
+            composer.append(el('h2','',sessionStatus(session.status)));
+            if(session.status==='PAUSED_SUPPORT')composer.append(el('p','',t('supportNote')),link(t('choose'),'#catalog'));
+            else if(session.summary)renderSummary(composer,session.summary);
         }
         screen.append(composer);
     }
     async function renderHistory() {
         const [items,difficulties]=await Promise.all([request('/sessions'),request('/difficulties')]);
         clearScreen();screen.append(link(t('back'),'#catalog','sp-back'),el('h2','',t('history')));
+        if(items.length)screen.append(button(t('deleteAll'),()=>{
+            if(window.confirm(t('deleteAllConfirm')))run(async()=>{
+                await request('/sessions','DELETE');clearVoice();clearSpeech();current=null;await renderHistory();
+            });
+        }));
         if(!items.length)screen.append(el('p','',t('empty')));
         for(const item of items){
             const card=el('article','sp-history');const text=el('div');
@@ -444,7 +485,7 @@
                 if(window.confirm(t('deleteConfirm')))run(async()=>{await request('/sessions/'+item.id,'DELETE');await renderHistory();});
             }));screen.append(card);
         }
-        const section=el('section','sp-difficulties');section.append(el('h2','',t('trouble')));
+        const section=el('section','sp-difficulties');section.append(el('h2','',t('trouble')),el('p','',t('independentNote')));
         if(!difficulties.length)section.append(el('p','',t('none')));
         for(const item of difficulties)section.append(el('p','',`${skillName(item.skillCode)} · ${t(item.status)}. ${t('count')}: ${item.observations}`));
         screen.append(section);

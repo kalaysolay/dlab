@@ -73,4 +73,6 @@ public class SpeakingApiController {
     }
     @DeleteMapping("/sessions/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable UUID id) { service.delete(id);speech.evict(id); }
+    @DeleteMapping("/sessions") @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteAll(){service.deleteAll().forEach(speech::evict);}
 }

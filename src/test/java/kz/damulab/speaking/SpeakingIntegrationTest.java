@@ -214,6 +214,131 @@ class SpeakingIntegrationTest {
     }
 
     @Test
+    void summaryCountsRecordingsAndHelpButOnlyIndependentErrors() throws Exception {
+        var session=create(UUID.randomUUID());var original=session;
+        session=help(session);var repeat=help(original);
+        assertThat(repeat.path("version")).isEqualTo(session.path("version"));
+        session=answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.");
+        voiceResult("Yesterday I go to the cinema.",7);
+        var candidate=json(upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk()).andReturn());
+        session=json(confirmVoice(session,candidate,UUID.randomUUID(),candidate.path("text").asText()).andExpect(status().isCreated()).andReturn());
+        voiceResult("I watched a film.",9);
+        candidate=json(upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk()).andReturn());
+        session=json(confirmVoice(session,candidate,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        session=finish(session);var summary=session.path("summary");
+        assertThat(summary.path("acceptedAnswers").asInt()).isEqualTo(3);
+        assertThat(summary.path("totalTurns").asInt()).isEqualTo(3);
+        assertThat(summary.path("voiceAnswers").asInt()).isEqualTo(2);
+        assertThat(summary.path("audioSeconds").asInt()).isEqualTo(16);
+        assertThat(summary.path("helpUses").asInt()).isEqualTo(1);
+        assertThat(summary.path("difficulties").size()).isEqualTo(1);
+        assertThat(summary.path("difficulties").get(0).path("observations").asInt()).isEqualTo(1);
+        assertThat(summary.path("nextFocus").isEmpty()).isTrue();
+        var voiceNote=session.path("observations").get(1);
+        session=dispute(session,voiceNote.path("id").asText());
+        assertThat(session.path("summary").path("difficulties").isEmpty()).isTrue();
+    }
+
+    @Test
+    void focusUsesPriorCompatibleRepeatsAndRecalculatesAfterTtlDisputeAndDeletion() throws Exception {
+        var previous=answer(create(UUID.randomUUID()),UUID.randomUUID(),"Yesterday I go to the cinema.");
+        previous=finish(answer(previous,UUID.randomUUID(),"Yesterday I go to the cinema."));
+        var hotel=json(mvc.perform(post(BASE+"/sessions").with(user(STUDENT).roles("STUDENT")).with(csrf())
+                .header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                .content(createBody().replace("weekend_story","hotel_booking"))).andExpect(status().isCreated()).andReturn());
+        assertThat(hotel.path("focusSkills").isEmpty()).isTrue();finish(hotel);
+        var next=create(UUID.randomUUID());assertThat(next.path("focusSkills").get(0).asText()).isEqualTo("grammar.past_simple");
+        UUID priorId=UUID.fromString(previous.path("id").asText());
+        jdbc.update("update speaking_observations set expires_at=? where session_id=?",OffsetDateTime.now().minusMinutes(1),priorId);
+        assertThat(reload(next).path("focusSkills").isEmpty()).isTrue();
+        jdbc.update("update speaking_observations set expires_at=?,created_at=? where session_id=?",OffsetDateTime.now().plusDays(100),OffsetDateTime.now().minusDays(31),priorId);
+        assertThat(reload(next).path("focusSkills").isEmpty()).isTrue();
+        jdbc.update("update speaking_observations set created_at=? where session_id=?",OffsetDateTime.now(),priorId);
+        assertThat(reload(next).path("focusSkills").size()).isEqualTo(1);
+        previous=dispute(previous,previous.path("observations").get(0).path("id").asText());
+        assertThat(reload(next).path("focusSkills").isEmpty()).isTrue();
+        next=answer(next,UUID.randomUUID(),"Yesterday I go to the cinema.");
+        // Текущая практика не превращает своё первое замечание в «ранее повторявшуюся» трудность.
+        assertThat(next.path("focusSkills").isEmpty()).isTrue();next=finish(next);
+        assertThat(next.path("summary").path("nextFocus").size()).isEqualTo(1);
+        mvc.perform(delete(BASE+"/sessions/"+priorId).with(user(STUDENT).roles("STUDENT")).with(csrf())).andExpect(status().isNoContent());
+        assertThat(reload(next).path("summary").path("nextFocus").isEmpty()).isTrue();
+    }
+
+    @Test
+    void focusRanksDistinctTurnsByFrequencyThenFreshnessAndLimitsToTwo() throws Exception {
+        var session=create(UUID.randomUUID());
+        for(int i=0;i<7;i++)session=answer(session,UUID.randomUUID(),"I buy a apple and a orange in Monday.");
+        var stored=sessions.findById(UUID.fromString(session.path("id").asText())).orElseThrow();
+        var history=turns.findBySessionIdOrderBySequenceNo(stored.id);var now=OffsetDateTime.now();
+        // Два замечания об артиклях в одном ходе дают одно независимое наблюдение.
+        seedNote(stored,history.get(0),"grammar.articles","a apple","an apple",now.minusHours(4));
+        seedNote(stored,history.get(0),"grammar.articles","a orange","an orange",now.minusHours(4));
+        seedNote(stored,history.get(1),"grammar.articles","a apple","an apple",now.minusHours(3));
+        seedNote(stored,history.get(2),"grammar.prepositions","in Monday","on Monday",now.minusHours(2));
+        seedNote(stored,history.get(3),"grammar.prepositions","in Monday","on Monday",now.minusHours(1));
+        for(int i=4;i<7;i++)seedNote(stored,history.get(i),"grammar.past_simple","buy","bought",now.minusHours(5));
+        session=finish(session);var next=create(UUID.randomUUID());
+        assertThat(next.path("focusSkills").toString()).isEqualTo("[\"grammar.past_simple\",\"grammar.prepositions\"]");
+        var difficulties=session.path("summary").path("difficulties");assertThat(difficulties.size()).isEqualTo(3);
+        assertThat(difficulties.get(2).path("observations").asInt()).isEqualTo(2);
+    }
+
+    @Test
+    void deletingAllHistoryIncludesHiddenOlderSessionsButPreservesOtherStudentsAndQuotas() throws Exception {
+        var session=answer(create(UUID.randomUUID()),UUID.randomUUID(),"Yesterday I go to the cinema.");
+        voiceResult("A draft that must disappear.",4);upload(session,UUID.randomUUID(),wavHeader()).andExpect(status().isOk());
+        var template=sessions.findById(UUID.fromString(session.path("id").asText())).orElseThrow();
+        for(int i=0;i<22;i++)sessions.saveAndFlush(pastSession(template,template.studentId));
+        Long other=students.findByUserEmailIgnoreCase("speaking-other@test.local").orElseThrow().getId();
+        var foreign=sessions.saveAndFlush(pastSession(template,other));
+        long mastery=jdbc.queryForObject("select count(*) from skill_mastery",Long.class);
+        mvc.perform(get(BASE+"/sessions").with(user(STUDENT).roles("STUDENT"))).andExpect(jsonPath("$.length()").value(20));
+        mvc.perform(delete(BASE+"/sessions").with(user(STUDENT).roles("STUDENT"))).andExpect(status().isForbidden());
+        mvc.perform(delete(BASE+"/sessions").with(user(STUDENT).roles("STUDENT")).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(delete(BASE+"/sessions").with(user(STUDENT).roles("STUDENT")).with(csrf())).andExpect(status().isNoContent());
+        assertThat(sessions.findAll()).extracting(s->s.id).containsExactly(foreign.id);
+        assertThat(observations.count()).isZero();assertThat(turns.count()).isZero();assertThat(voiceAttempts.count()).isZero();
+        assertThat(usage.findAll().get(0).sessionsStarted).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from skill_mastery",Long.class)).isEqualTo(mastery);
+        mvc.perform(get(BASE+"/difficulties").with(user(STUDENT).roles("STUDENT"))).andExpect(content().json("[]"));
+    }
+
+    @Test
+    void historicalSessionsDoNotInventZeroHelpCount() throws Exception {
+        var session=create(UUID.randomUUID());
+        jdbc.update("update speaking_sessions set help_uses=null where id=?",UUID.fromString(session.path("id").asText()));
+        session=finish(help(session));
+        assertThat(session.path("summary").path("helpUses").isNull()).isTrue();
+        assertThat(session.path("summary").path("audioSeconds").asInt()).isZero();
+        assertThat(session.path("summary").path("difficulties").isEmpty()).isTrue();
+    }
+
+    private JsonNode help(JsonNode session)throws Exception{return versionPost(session,"help");}
+    private JsonNode finish(JsonNode session)throws Exception{return versionPost(session,"finish");}
+    private JsonNode dispute(JsonNode session,String id)throws Exception{return versionPost(session,"observations/"+id+"/dispute");}
+    private JsonNode versionPost(JsonNode session,String action)throws Exception{
+        return json(mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/"+action)
+                .with(user(STUDENT).roles("STUDENT")).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedVersion\":"+session.path("version").asLong()+"}")).andExpect(status().isOk()).andReturn());
+    }
+    private JsonNode reload(JsonNode session)throws Exception{
+        return json(mvc.perform(get(BASE+"/sessions/"+session.path("id").asText()).with(user(STUDENT).roles("STUDENT")))
+                .andExpect(status().isOk()).andReturn());
+    }
+    private void seedNote(SpeakingSession session,SpeakingTurn turn,String skill,String original,String corrected,OffsetDateTime when){
+        var note=new SpeakingObservation();note.studentId=session.studentId;note.sessionId=session.id;note.turnId=turn.id;
+        note.skillCode=skill;note.kind="error";note.evidence="confirmed";note.source="typed";note.original=original;
+        note.corrected=corrected;note.explanation="Контрольный факт для проверки счётчиков.";note.createdAt=when;note.expiresAt=when.plusDays(180);
+        observations.saveAndFlush(note);
+    }
+    private SpeakingSession pastSession(SpeakingSession template,Long owner){
+        var s=new SpeakingSession();s.studentId=owner;s.createRequestId=UUID.randomUUID();s.scenarioCode=template.scenarioCode;
+        s.scenarioSnapshot=template.scenarioSnapshot;s.level=template.level;s.language=template.language;s.status="ENDED";s.activeSlot=null;
+        s.createdAt=OffsetDateTime.now().minusDays(1);s.updatedAt=s.createdAt;return s;
+    }
+
+    @Test
     void retentionClearsExpiredTextAndObservationsEvenWhenUiDisabled() throws Exception {
         var session=answer(create(UUID.randomUUID()),UUID.randomUUID(),"Yesterday I go to the cinema.");
         UUID id=UUID.fromString(session.path("id").asText());

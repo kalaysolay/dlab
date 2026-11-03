@@ -44,11 +44,41 @@ class SpeakingFeedbackService {
 
     /** Два независимых хода дают сигнал recurring, но не процент незнания и не школьную оценку. */
     List<SpeakingViews.Difficulty> difficulties(Long studentId, OffsetDateTime now) {
+        return summarize(qualifying(studentId,now));
+    }
+
+    /** Итог занятия использует те же правила независимости, что и общий профиль модуля. */
+    List<SpeakingViews.Difficulty> sessionDifficulties(Long studentId,UUID sessionId,OffsetDateTime now){
+        return summarize(qualifying(studentId,now).stream().filter(o->o.sessionId.equals(sessionId)).toList()).stream().limit(3).toList();
+    }
+
+    /** Для новой практики передаются только два кода: без цитат, частот, идентификаторов и всего профиля. */
+    List<String> focus(Long studentId,String scenarioCode,UUID excludedSession,OffsetDateTime now){
+        var compatible=tenses(scenarioCode);
+        return summarize(qualifying(studentId,now).stream().filter(o->!o.sessionId.equals(excludedSession)).toList()).stream()
+                .filter(d->d.status().equals("recurring"))
+                .filter(d->!TENSES.contains(d.skillCode())||compatible.contains(d.skillCode()))
+                .limit(2).map(SpeakingViews.Difficulty::skillCode).toList();
+    }
+    private static final Set<String> TENSES=Set.of("grammar.past_simple","grammar.present_simple","grammar.present_continuous","grammar.present_perfect","grammar.future");
+    private Set<String> tenses(String scenario){
+        // Общие правила (артикли, согласование и т.п.) полезны в любой ситуации; времена выбираем по её учебной цели.
+        return switch(scenario){
+            case "weekend_story"->Set.of("grammar.past_simple","grammar.present_perfect");
+            case "holiday_plans"->Set.of("grammar.future","grammar.present_continuous","grammar.present_simple");
+            case "favourite_movie"->Set.of("grammar.present_simple","grammar.past_simple");
+            case "hotel_booking","store_shopping"->Set.of("grammar.present_simple","grammar.future");
+            default->Set.of();
+        };
+    }
+    private List<SpeakingObservation> qualifying(Long studentId,OffsetDateTime now){
+        return observations.findByStudentIdAndEvidenceAndCreatedAtGreaterThanEqualAndExpiresAtGreaterThan(
+                studentId,"confirmed",now.minusDays(30),now).stream()
+                .filter(o->o.kind.equals("error")&&!o.assisted&&!o.source.equals("edited")&&SKILLS.contains(o.skillCode)).toList();
+    }
+    private List<SpeakingViews.Difficulty> summarize(List<SpeakingObservation> eligible){
         var grouped = new TreeMap<String, List<SpeakingObservation>>();
-        observations.findByStudentIdAndEvidenceAndCreatedAtGreaterThanEqualAndExpiresAtGreaterThan(
-                studentId, "confirmed", now.minusDays(30), now).stream()
-                .filter(o -> o.kind.equals("error") && !o.assisted && !o.source.equals("edited"))
-                .forEach(o -> grouped.computeIfAbsent(o.skillCode, key -> new ArrayList<>()).add(o));
+        eligible.forEach(o->grouped.computeIfAbsent(o.skillCode,key->new ArrayList<>()).add(o));
         return grouped.entrySet().stream().map(entry -> {
             var items = entry.getValue();
             long turns = items.stream().map(o -> o.turnId).distinct().count();
@@ -56,6 +86,8 @@ class SpeakingFeedbackService {
                     items.stream().map(o -> o.sessionId).distinct().count(),
                     items.stream().map(o -> o.createdAt).max(Comparator.naturalOrder()).orElseThrow(),
                     turns >= 2 ? "recurring" : "observed");
-        }).toList();
+        }).sorted(Comparator.comparingLong(SpeakingViews.Difficulty::observations).reversed()
+                .thenComparing(SpeakingViews.Difficulty::lastObserved,Comparator.reverseOrder())
+                .thenComparing(SpeakingViews.Difficulty::skillCode)).toList();
     }
 }

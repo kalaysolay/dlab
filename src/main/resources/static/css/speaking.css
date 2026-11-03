@@ -47,5 +47,7 @@
 .sp-history{padding:18px;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:white;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .sp-history>div{flex:1;min-width:150px}.sp-history h2{font-size:16px;margin:0 0 8px}.sp-history small{color:var(--muted)}
 .sp-difficulties{padding:18px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:18px}.sp-difficulties p{font-size:14px;color:var(--muted)}
+.sp-focus{padding:16px;border:1px solid #d9e4f6;border-radius:12px;background:#f3f7ff;margin:16px 0;overflow-wrap:anywhere}.sp-focus p{margin:8px 0;line-height:1.6}.sp-focus h3{margin:0;font-size:16px}
+.sp-summary-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}.sp-summary-facts>div{padding:14px;border:1px solid var(--line);border-radius:12px;min-width:0}.sp-summary-facts dt{font-size:13px;color:var(--muted);line-height:1.5}.sp-summary-facts dd{font-size:24px;font-weight:800;margin:6px 0 0;overflow-wrap:anywhere}
 @media(max-width:700px){.sp-grid{grid-template-columns:1fr}.sp-heading{flex-wrap:wrap}.sp-card{padding:18px}.sp-setup{padding:18px}.sp-message{padding:16px}.sp-learner{margin-left:22px}.sp-compose{padding:16px}.sp-session-head .button{font-size:12px;padding:8px}.sp-heading h1{font-size:24px}}
 @media(prefers-reduced-motion:reduce){.speaking-page *{scroll-behavior:auto!important}}

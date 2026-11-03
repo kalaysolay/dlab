@@ -22,6 +22,8 @@ class SpeakingSession {
     @Column(name="total_turns",nullable=false) int totalTurns;
     @Column(name="off_topic_count",nullable=false) int offTopicCount;
     @Column(name="assisted_next", nullable=false) boolean assistedNext;
+    // null у сессий до V70: старую помощь нельзя достоверно восстановить по одним замечаниям.
+    @Column(name="help_uses") Integer helpUses=0;
     @Version @Column(nullable=false) long revision;
     @Column(name="created_at", nullable=false) OffsetDateTime createdAt;
     @Column(name="updated_at", nullable=false) OffsetDateTime updatedAt;

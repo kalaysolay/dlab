@@ -21,7 +21,10 @@ public final class SpeakingViews {
             String questionText,String disposition, OffsetDateTime createdAt) {}
     public record Session(UUID id, String status, long version, SpeakingScenario scenario, String level,
             String explanationLanguage, String openingText, String firstQuestion, int acceptedTurns,
-            String providerMode, boolean voiceAvailable,boolean speechAvailable,boolean changeSuggested,List<Turn> turns, List<Observation> observations) {}
+            String providerMode, boolean voiceAvailable,boolean speechAvailable,boolean changeSuggested,List<Turn> turns, List<Observation> observations,
+            List<String> focusSkills,Summary summary) {}
+    public record Summary(int acceptedAnswers,int totalTurns,int voiceAnswers,int audioSeconds,Integer helpUses,
+            List<Difficulty> difficulties,List<String> nextFocus,String nextScenarioCode) {}
     public record SpeechRequest(UUID turnId){}
     public record HistoryItem(UUID id, String title, String status, int acceptedTurns, OffsetDateTime createdAt) {}
     public record Difficulty(String skillCode, long observations, long sessions, OffsetDateTime lastObserved,
