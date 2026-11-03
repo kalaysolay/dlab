@@ -12,6 +12,8 @@ class SpeakingDailyUsage {
     @Column(name="usage_day", nullable=false) LocalDate day;
     @Column(name="sessions_started", nullable=false) int sessionsStarted;
     @Column(name="audio_seconds", nullable=false) int audioSeconds;
+    @Column(name="llm_calls",nullable=false) int llmCalls;
+    @Column(name="speech_calls",nullable=false) int speechCalls;
     @Column(name="voice_window") java.time.OffsetDateTime voiceWindow;
     @Column(name="voice_requests", nullable=false) int voiceRequests;
     protected SpeakingDailyUsage() {}

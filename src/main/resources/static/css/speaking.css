@@ -29,6 +29,7 @@
 .sp-message p{margin:8px 0;line-height:1.65;overflow-wrap:anywhere}
 .sp-message .sp-question{font-size:19px;font-weight:800}
 .sp-message-label{font-size:11px;font-weight:800;letter-spacing:.03em;color:#64748b}
+.sp-speech{margin-top:16px}.sp-speech .button{font-size:13px}.sp-speech small{flex-basis:100%;margin-top:0}
 .sp-learner{background:#eef9f2;border-color:#d6e9dd;margin-left:36px}
 .sp-jump{position:absolute;right:24px;bottom:14px;padding:10px 16px;border-radius:24px;border:1px solid #c8d7ec;background:white;color:var(--primary);min-height:44px;font:inherit;font-size:13px;font-weight:800;box-shadow:0 3px 14px #17203320;cursor:pointer}
 .sp-compose{max-width:850px;box-sizing:border-box;margin:18px auto 0;padding:20px;border:1px solid var(--line);border-radius:14px;background:white}

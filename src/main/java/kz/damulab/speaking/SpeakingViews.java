@@ -18,10 +18,11 @@ public final class SpeakingViews {
     public record Observation(UUID id, UUID turnId, String skillCode, String original, String corrected,
             String explanation, String kind, String evidence, String source, boolean assisted) {}
     public record Turn(UUID id, int sequence, String source, String text, String reactionText,
-            String questionText, OffsetDateTime createdAt) {}
+            String questionText,String disposition, OffsetDateTime createdAt) {}
     public record Session(UUID id, String status, long version, SpeakingScenario scenario, String level,
             String explanationLanguage, String openingText, String firstQuestion, int acceptedTurns,
-            String providerMode, boolean voiceAvailable, List<Turn> turns, List<Observation> observations) {}
+            String providerMode, boolean voiceAvailable,boolean speechAvailable,boolean changeSuggested,List<Turn> turns, List<Observation> observations) {}
+    public record SpeechRequest(UUID turnId){}
     public record HistoryItem(UUID id, String title, String status, int acceptedTurns, OffsetDateTime createdAt) {}
     public record Difficulty(String skillCode, long observations, long sessions, OffsetDateTime lastObserved,
             String status) {}

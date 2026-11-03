@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Оркестратор первого рабочего среза: только локальный stub, атомарное сохранение, доступ владельца и повторы. */
+/** Транзакционные этапы беседы. Локальный stub выполняется здесь, внешний диалог — между beginLive и completeLive. */
 @Service
 @Transactional
 public class SpeakingSessionService {
@@ -26,14 +26,19 @@ public class SpeakingSessionService {
     private final SpeakingVoiceAttemptRepository voiceAttempts;
     private final SpeakingVoiceStore voiceStore;
     private final SpeakingTranscriber transcriber;
+    private final SpeakingGenerationRepository generations;
+    private final SpeakingCloudProperties cloud;
+    private final SpeakingLlmClient llm;
     public SpeakingSessionService(SpeakingAccess access, SpeakingScenarioCatalog catalog,
             SpeakingSessionRepository sessions, SpeakingTurnRepository turns,
             SpeakingObservationRepository observations, SpeakingFeedbackService feedback,
             SpeakingTutor tutor, ObjectMapper mapper, Clock clock, SpeakingDailyUsageRepository usage,
-            SpeakingVoiceAttemptRepository voiceAttempts,SpeakingVoiceStore voiceStore,SpeakingTranscriber transcriber) {
+            SpeakingVoiceAttemptRepository voiceAttempts,SpeakingVoiceStore voiceStore,SpeakingTranscriber transcriber,
+            SpeakingGenerationRepository generations,SpeakingCloudProperties cloud,SpeakingLlmClient llm) {
         this.access=access; this.catalog=catalog; this.sessions=sessions; this.turns=turns;
         this.observations=observations; this.feedback=feedback; this.tutor=tutor; this.mapper=mapper; this.clock=clock; this.usage=usage;
         this.voiceAttempts=voiceAttempts; this.voiceStore=voiceStore; this.transcriber=transcriber;
+        this.generations=generations;this.cloud=cloud;this.llm=llm;
     }
 
     /** Создаёт сессию с первой репликой ИИ без входа ученика; повтор ключа не создаёт вторую запись. */
@@ -63,6 +68,7 @@ public class SpeakingSessionService {
         daily.sessionsStarted++;
         usage.save(daily);
         var session = new SpeakingSession();
+        if(cloud.isEnabled()){llm.selection();session.providerVersion="tutor-v1";}
         session.studentId=student; session.createRequestId=requestId; session.scenarioCode=scenario.code();
         session.scenarioSnapshot=serialize(scenario); session.level=request.level(); session.language=request.explanationLanguage();
         session.createdAt=now(); session.updatedAt=session.createdAt;
@@ -95,32 +101,118 @@ public class SpeakingSessionService {
             voiceStore.requireReady(voice);
             if(voice.sessionVersion!=session.revision) throw conflict("speaking_version_conflict");
         }
+        // Эта ветка только для stub-сессий; сетевой провайдер вызывается SpeakingConversationService вне транзакции.
+        var reply=tutor.answer(snapshot(session), session.acceptedTurns+1, text, session.language);
+        return saveAnswer(session,requestId,request,reply,hash(request));
+    }
+
+    /** Фиксирует лишь проверенный ответ. Для неподходящего входа сохраняется категория, без цитаты ребёнка. */
+    private SpeakingViews.Session saveAnswer(SpeakingSession session,UUID requestId,SpeakingViews.AnswerRequest request,SpeakingTutor.Reply reply,String hash){
+        UUID id=session.id;String text=request.text().strip();
+        SpeakingVoiceAttempt voice=voice(request,session);
         var scenario=snapshot(session);
-        // Только stub: реальный провайдер потребует отдельного этапа с lease и вызовом вне этой транзакции.
-        var reply=tutor.answer(scenario, session.acceptedTurns+1, text, session.language);
+        boolean normal="NORMAL".equals(reply.disposition());
+        if(!Set.of("NORMAL","REDIRECT","UNSAFE","SUPPORT","PRIVATE").contains(reply.disposition()))throw SpeakingLlmClient.unavailable();
         var turn=new SpeakingTurn();
-        turn.sessionId=id; turn.requestId=requestId; turn.sequenceNo=session.acceptedTurns+1;
+        turn.sessionId=id; turn.requestId=requestId; turn.sequenceNo=++session.totalTurns;
+        turn.disposition=reply.disposition();turn.requestHash=hash;
         if(voice!=null) {
             // Происхождение определяет сервер по исходной ASR-расшифровке, а не флагу от клиента.
             turn.source=text.equals(voice.transcript)?"voice":"edited";
             turn.voiceAttemptId=voice.id; turn.audioSeconds=voice.audioSeconds;
             voice.close("CONSUMED"); voice.transcript=null;
         }
-        turn.learnerText=text; turn.reactionText=reply.reaction(); turn.questionText=reply.question(); turn.createdAt=now();
+        turn.learnerText=normal?text:""; turn.reactionText=reply.reaction();
+        turn.questionText=normal&&session.acceptedTurns+1>=scenario.questions().size()?"":reply.question(); turn.createdAt=now();
         turn=turns.saveAndFlush(turn);
-        feedback.accept(session, turn, reply.feedback(), turn.createdAt);
+        if(normal)feedback.accept(session, turn, reply.feedback(), turn.createdAt);
         session.assistedNext=false;
-        session.acceptedTurns++;
+        if(normal){session.acceptedTurns++;session.offTopicCount=0;}
+        else if(reply.disposition().equals("REDIRECT"))session.offTopicCount++;
         session.updatedAt=turn.createdAt;
-        if (session.acceptedTurns >= scenario.questions().size()) session.close("COMPLETED", now());
+        if(reply.disposition().equals("SUPPORT"))session.close("PAUSED_SUPPORT",now());
+        else if(session.acceptedTurns>=scenario.questions().size()||session.totalTurns>=12)session.close("COMPLETED",now());
         sessions.flush();
         return view(session);
     }
 
+    @Transactional(readOnly=true)
+    public boolean live(UUID id){return !owned(id,false).providerVersion.equals("stub-v1");}
+
+    /** Резервирует три ограниченных LLM-вызова и lease; содержит только безопасную историю без идентификаторов. */
+    public Prepared beginLive(UUID id,UUID requestId,SpeakingViews.AnswerRequest request){
+        var session=owned(id,true);String hash=hash(request);
+        var accepted=turns.findBySessionIdAndRequestId(id,requestId);
+        if(accepted.isPresent()){
+            if(!hash.equals(accepted.get().requestHash))throw conflict("speaking_request_reused");
+            return new Prepared(null,null,null,view(session));
+        }
+        requireVersion(session,request.expectedVersion());requireActive(session);voice(request,session);
+        var route=llm.selection();
+        var previous=generations.findBySessionIdAndRequestId(id,requestId);
+        if(previous.isPresent()&&!previous.get().requestHash.equals(hash))throw conflict("speaking_request_reused");
+        generations.findByStudentIdAndActiveSlot(session.studentId,1).ifPresent(old->{
+            if(old.expiresAt.isAfter(now()))throw conflict("speaking_generation_processing");
+            old.close("FAILED");generations.flush();
+        });
+        var daily=daily(session.studentId);
+        if(daily.llmCalls+3>72)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_llm_daily_limit");
+        daily.llmCalls+=3;usage.save(daily);
+        // У повторной обработки новый lease ID: поздний finally прежней попытки не закроет новый запрос.
+        if(previous.isPresent()){generations.delete(previous.get());generations.flush();}
+        var lease=new SpeakingGeneration();
+        lease.studentId=session.studentId;lease.sessionId=id;lease.requestId=requestId;lease.requestHash=hash;
+        lease.sessionVersion=session.revision;lease.createdAt=now();lease.expiresAt=now().plusMinutes(3);lease.state="PROCESSING";lease.activeSlot=1;
+        generations.saveAndFlush(lease);
+        var history=turns.findBySessionIdOrderBySequenceNo(id).stream().filter(t->t.disposition.equals("NORMAL")&&!t.learnerText.isBlank()).toList();
+        var safeHistory=history.stream().skip(Math.max(0,history.size()-4)).map(t->Map.of("learner",t.learnerText,"assistant",t.reactionText+" "+t.questionText)).toList();
+        String question=turns.findBySessionIdOrderBySequenceNo(id).stream().reduce((a,b)->b).map(t->t.questionText)
+                .orElse(snapshot(session).firstQuestions().get(session.level));
+        var context=new LiveSpeakingTutor.Context(snapshot(session),session.level,session.language,question,session.acceptedTurns,safeHistory,request.text().strip());
+        return new Prepared(lease.id,route,context,null);
+    }
+
+    /** Поздняя генерация не имеет права отвечать на уже изменённый вопрос, даже если исходящий API успешно завершился. */
+    public SpeakingViews.Session completeLive(UUID id,UUID requestId,UUID leaseId,SpeakingViews.AnswerRequest request,SpeakingTutor.Reply reply){
+        var session=owned(id,true);
+        var lease=generations.findById(leaseId).filter(g->g.studentId.equals(session.studentId)&&g.sessionId.equals(id)&&g.requestId.equals(requestId))
+                .orElseThrow(SpeakingSessionService::missing);
+        if(!lease.state.equals("PROCESSING")||!lease.expiresAt.isAfter(now())||!lease.requestHash.equals(hash(request)))throw conflict("speaking_generation_expired");
+        llm.ensureEnabled();requireVersion(session,lease.sessionVersion);requireActive(session);
+        var result=saveAnswer(session,requestId,request,reply,lease.requestHash);lease.close("DONE");return result;
+    }
+    public void failLive(UUID leaseId){generations.findById(leaseId).filter(g->g.state.equals("PROCESSING")).ifPresent(g->g.close("FAILED"));}
+
+    /** Сервер выбирает текст озвучки из уже проверенной истории, не из произвольного поля браузера. */
+    public String speechText(UUID id,UUID turnId){
+        var session=owned(id,true);String question;
+        if(turnId==null)question=snapshot(session).firstQuestions().get(session.level);
+        else question=turns.findById(turnId).filter(t->t.sessionId.equals(id)).map(t->t.questionText).orElseThrow(SpeakingSessionService::missing);
+        if(question.isBlank())throw missing();
+        var daily=daily(session.studentId);
+        if(daily.speechCalls>=32)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_speech_daily_limit");
+        daily.speechCalls++;usage.save(daily);return question;
+    }
+    private SpeakingDailyUsage daily(Long student){
+        var day=LocalDate.now(clock.withZone(ZoneId.of("Asia/Qyzylorda")));
+        return usage.findByStudentIdAndDay(student,day).orElseGet(()->{var value=new SpeakingDailyUsage();value.studentId=student;value.day=day;return value;});
+    }
+    private SpeakingVoiceAttempt voice(SpeakingViews.AnswerRequest request,SpeakingSession session){
+        if(request.voiceAttemptId()==null)return null;
+        var voice=voiceAttempts.findByIdAndStudentIdAndSessionId(request.voiceAttemptId(),session.studentId,session.id).orElseThrow(SpeakingSessionService::missing);
+        voiceStore.requireReady(voice);if(voice.sessionVersion!=session.revision)throw conflict("speaking_version_conflict");return voice;
+    }
+    private String hash(SpeakingViews.AnswerRequest request){
+        try{return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(
+                (request.expectedVersion()+"\n"+request.voiceAttemptId()+"\n"+request.text().strip()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
+        catch(java.security.NoSuchAlgorithmException ex){throw new IllegalStateException(ex);}
+    }
+    record Prepared(UUID leaseId,kz.damulab.ai.AiRuntimeSelection route,LiveSpeakingTutor.Context context,SpeakingViews.Session replay){}
+
     /** Завершает беседу раньше; уже закрытая сессия возвращается без повторных изменений. */
     public SpeakingViews.Session finish(UUID id, long expectedVersion) {
         var session=owned(id, true);
-        if (session.status.equals("ACTIVE")) {
+        if (session.status.equals("ACTIVE")||session.status.equals("PAUSED_SUPPORT")) {
             requireVersion(session, expectedVersion);
             session.close("ENDED", now());
             sessions.flush();
@@ -179,18 +271,19 @@ public class SpeakingSessionService {
         }
     }
     private void expire(SpeakingSession session) {
-        if (session.status.equals("ACTIVE") && session.updatedAt.plusMinutes(30).isBefore(now())) {
+        if ((session.status.equals("ACTIVE")||session.status.equals("PAUSED_SUPPORT")) && session.updatedAt.plusMinutes(30).isBefore(now())) {
             session.close("EXPIRED", now()); sessions.flush();
         }
     }
     private SpeakingViews.Session view(SpeakingSession session) {
         var scenario=snapshot(session);
         var history=turns.findBySessionIdOrderBySequenceNo(session.id).stream().map(t ->
-                new SpeakingViews.Turn(t.id,t.sequenceNo,t.source,t.learnerText,t.reactionText,t.questionText,t.createdAt)).toList();
+                new SpeakingViews.Turn(t.id,t.sequenceNo,t.source,t.learnerText,t.reactionText,t.questionText,t.disposition,t.createdAt)).toList();
         var notes=observations.findBySessionIdOrderByCreatedAt(session.id).stream().map(o ->
                 new SpeakingViews.Observation(o.id,o.turnId,o.skillCode,o.original,o.corrected,o.explanation,o.kind,o.evidence,o.source,o.assisted)).toList();
         return new SpeakingViews.Session(session.id,session.status,session.revision,scenario,session.level,session.language,
-                scenario.opening(),scenario.firstQuestions().get(session.level),session.acceptedTurns,"STUB",transcriber.available(),history,notes);
+                scenario.opening(),scenario.firstQuestions().get(session.level),session.acceptedTurns,session.providerVersion.equals("stub-v1")?"STUB":"LIVE",
+                transcriber.available(),llm.speechAvailable(),session.offTopicCount>=2,history,notes);
     }
     private SpeakingScenario snapshot(SpeakingSession session) {
         try { return mapper.readValue(session.scenarioSnapshot, SpeakingScenario.class); }

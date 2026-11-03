@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 /** Сохраняет учебные факты в speaking_observations и читает только собственную модульную статистику. */
 @Service
 class SpeakingFeedbackService {
+    static final Set<String> SKILLS=Set.of("grammar.past_simple","grammar.present_simple","grammar.present_continuous",
+            "grammar.present_perfect","grammar.future","grammar.articles","grammar.prepositions","grammar.word_order",
+            "grammar.agreement","grammar.plural","grammar.comparatives","grammar.questions","grammar.negation","vocabulary.word_choice");
     private final SpeakingObservationRepository observations;
     SpeakingFeedbackService(SpeakingObservationRepository observations) { this.observations = observations; }
 
@@ -14,9 +17,10 @@ class SpeakingFeedbackService {
     void accept(SpeakingSession session, SpeakingTurn turn, List<SpeakingTutor.Feedback> feedback, OffsetDateTime now) {
         if (feedback.size() > 2) throw new IllegalStateException("Too many speaking corrections");
         for (var item : feedback) {
-            // Пока whitelist состоит из одного проверенного stub-примера. Будущая модель не расширяет его сама.
-            if (!item.skillCode().equals("grammar.past_simple") || item.original().isBlank()
-                    || !turn.learnerText.contains(item.original())) {
+            // Модель выбирает только известный код; новый навык требует изменения серверного каталога.
+            if (!SKILLS.contains(item.skillCode()) || item.original().isBlank() || item.original().length()>200
+                    || item.corrected().isBlank() || item.corrected().length()>200 || item.explanation().isBlank() || item.explanation().length()>300
+                    || !Set.of("error","style").contains(item.kind()) || !turn.learnerText.contains(item.original())) {
                 throw new IllegalStateException("Invalid speaking correction");
             }
             var fact = new SpeakingObservation();
@@ -24,6 +28,7 @@ class SpeakingFeedbackService {
             fact.sessionId = session.id;
             fact.turnId = turn.id;
             fact.skillCode = item.skillCode();
+            fact.kind=item.kind();
             fact.original = item.original();
             fact.corrected = item.corrected();
             fact.explanation = item.explanation();

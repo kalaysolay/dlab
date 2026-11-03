@@ -1,5 +1,7 @@
 # Голосовой ввод и локальный ASR
 
+Следующий срез добавляет [Deepgram и адаптеры живого диалога/озвучки](LIVE_IMPLEMENTATION.md). Описанный ниже Whisper сохранён как явно выбираемый офлайн-вариант.
+
 3 ноября 2026. Ветка `feat/english-speaking`. Это реализация этапа 3 для разработки; допуск настоящего детского пилота ещё не выполнен.
 
 ## Поведение
@@ -57,6 +59,7 @@
 
 ```powershell
 $env:SPEAKING_VOICE_ENABLED='true'
+$env:SPEAKING_STT_PROVIDER='whisper'
 $env:SPEAKING_WHISPER_PATH=(Resolve-Path 'build/speaking-tools/whisper/Release/whisper-cli.exe').Path
 $env:SPEAKING_FFMPEG_PATH=(Resolve-Path 'build/speaking-tools/ffmpeg/ffmpeg-9.0.2-essentials_build/bin/ffmpeg.exe').Path
 $env:SPEAKING_WHISPER_MODEL=(Resolve-Path 'build/speaking-tools/ggml-base.en.bin').Path

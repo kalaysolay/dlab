@@ -15,6 +15,8 @@ class SpeakingTurn {
     @Column(nullable=false, length=16) String source = "typed";
     @Column(name="voice_attempt_id") UUID voiceAttemptId;
     @Column(name="audio_seconds",nullable=false) int audioSeconds;
+    @Column(nullable=false,length=16) String disposition="NORMAL";
+    @Column(name="request_hash",length=64) String requestHash;
     @Column(name="learner_text", nullable=false, length=2000) String learnerText;
     @Column(name="reaction_text", nullable=false, length=240) String reactionText;
     @Column(name="question_text", nullable=false, length=500) String questionText;

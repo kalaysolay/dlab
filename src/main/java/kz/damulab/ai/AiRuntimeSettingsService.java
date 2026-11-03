@@ -48,6 +48,8 @@ public class AiRuntimeSettingsService {
         form.setLectureQualityThreshold(lectures.qualityThreshold());
         form.setTranslationsProvider(translations.provider());
         form.setTranslationsModel(translations.model());
+        AiRuntimeSelection speaking=resolve(AiUsageType.SPEAKING);
+        form.setSpeakingProvider(speaking.provider()); form.setSpeakingModel(speaking.model());
         return form;
     }
 
@@ -61,6 +63,7 @@ public class AiRuntimeSettingsService {
         updateOne(AiUsageType.QUESTIONS, form.getQuestionsProvider(), form.getQuestionsModel(), actor);
         updateOne(AiUsageType.LECTURES, form.getLecturesProvider(), form.getLecturesModel(), actor);
         updateOne(AiUsageType.TRANSLATIONS, form.getTranslationsProvider(), form.getTranslationsModel(), actor);
+        updateOne(AiUsageType.SPEAKING,form.getSpeakingProvider(),form.getSpeakingModel(),actor);
         AiRuntimeSetting lectures = settings.findById(AiUsageType.LECTURES)
                 .orElseThrow(() -> new IllegalStateException("AI setting is missing: LECTURES"));
         lectures.updateQualityThreshold(form.getLectureQualityThreshold());

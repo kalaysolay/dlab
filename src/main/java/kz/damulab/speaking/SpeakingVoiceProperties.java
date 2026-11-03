@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix="damulab.speaking.voice")
 public class SpeakingVoiceProperties {
     private boolean enabled;
+    private String provider="deepgram";
+    public String getProvider(){return provider;}
+    public void setProvider(String value){provider=value;}
     private String whisper="";
     private String ffmpeg="";
     private String model="";

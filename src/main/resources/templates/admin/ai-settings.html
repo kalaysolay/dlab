@@ -15,7 +15,7 @@
             <header class="page-head">
                 <div>
                     <h1 class="page-title">Настройки AI</h1>
-                    <p class="lede">Отдельные провайдеры и модели для вопросов, лекций и переводов.</p>
+                    <p class="lede">Отдельные провайдеры и модели для вопросов, лекций, переводов и разговорного английского.</p>
                 </div>
             </header>
 
@@ -45,6 +45,20 @@
                     API-ключи и адреса провайдеров остаются в защищённой конфигурации сервера.
                     Здесь хранится только активный маршрут и публичный идентификатор модели.
                 </div>
+
+                <section class="subpanel">
+                    <h2>Разговорный английский</h2>
+                    <p>Собеседник и отдельные проверки безопасности. Ключи общие с выбранным провайдером; сам модуль включается сервером.</p>
+                    <div class="form-grid two-col">
+                        <label class="field"><span>Провайдер разговорника</span>
+                            <select th:field="*{speakingProvider}"><option th:each="provider : ${providers}" th:value="${provider.name()}" th:text="${provider.title}"></option></select>
+                            <small class="error" th:errors="*{speakingProvider}"></small>
+                        </label>
+                        <label class="field"><span>Модель разговорника</span><input th:field="*{speakingModel}" maxlength="128" placeholder="Идентификатор модели">
+                            <small class="error" th:errors="*{speakingModel}"></small>
+                        </label>
+                    </div>
+                </section>
 
                 <section class="subpanel">
                     <div class="section-head">

@@ -9,6 +9,14 @@ import jakarta.validation.constraints.Size;
 
 /** Форма независимых AI-маршрутов на странице настроек админки. */
 public class AiSettingsForm {
+    @NotNull
+    private AiProviderCode speakingProvider=AiProviderCode.STUB;
+    @NotBlank @Size(max=128) @Pattern(regexp="[A-Za-z0-9][A-Za-z0-9._:/-]*")
+    private String speakingModel="stub";
+    public AiProviderCode getSpeakingProvider(){return speakingProvider;}
+    public void setSpeakingProvider(AiProviderCode value){speakingProvider=value;}
+    public String getSpeakingModel(){return speakingModel;}
+    public void setSpeakingModel(String value){speakingModel=value;}
 
     @NotNull
     private AiProviderCode questionsProvider;

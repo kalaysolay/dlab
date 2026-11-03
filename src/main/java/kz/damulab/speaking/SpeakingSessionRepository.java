@@ -15,7 +15,7 @@ interface SpeakingSessionRepository extends JpaRepository<SpeakingSession, UUID>
     Optional<SpeakingSession> findByStudentIdAndActiveSlot(Long studentId, Integer slot);
     List<SpeakingSession> findTop20ByStudentIdOrderByCreatedAtDesc(Long studentId);
     @Modifying(clearAutomatically=true, flushAutomatically=true)
-    @Query("update SpeakingSession s set s.status='EXPIRED', s.activeSlot=null, s.revision=s.revision+1 where s.status='ACTIVE' and s.updatedAt<:cutoff")
+    @Query("update SpeakingSession s set s.status='EXPIRED', s.activeSlot=null, s.revision=s.revision+1 where s.status in ('ACTIVE','PAUSED_SUPPORT') and s.updatedAt<:cutoff")
     int expireIdle(@org.springframework.data.repository.query.Param("cutoff") OffsetDateTime cutoff);
     @Modifying(clearAutomatically=true, flushAutomatically=true)
     @Query("delete from SpeakingSession s where s.createdAt<:cutoff and s.status<>'ACTIVE' and not exists (select o.id from SpeakingObservation o where o.sessionId=s.id)")

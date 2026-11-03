@@ -13,12 +13,12 @@
 <body>
 <div class="app-shell">
     <header th:replace="~{fragments/student-header :: studentHeader}"></header>
-    <main class="page speaking-page" id="speaking-app" th:attr="data-language=${#locale.language}">
+    <main class="page speaking-page" id="speaking-app" th:attr="data-language=${#locale.language},data-live=${speakingCloudEnabled},data-stt=${speakingSttProvider}">
         <a class="sp-back" th:href="@{/student}" th:text="#{speaking.back}">← На главную</a>
         <div class="sp-heading"><div><p class="section-kicker" th:text="#{speaking.kicker}">Английский · разговорная практика</p>
             <h1 th:text="#{speaking.title}">Разговорный английский</h1></div>
             <a class="button" href="#history" th:text="#{speaking.history}">Мои разговоры</a></div>
-        <p class="sp-mode" th:text="#{speaking.stub}">Тестовый собеседник по сценарию. Голос распознаётся локально, если включён сервером. Это не оценка уровня.</p>
+        <p id="sp-mode" class="sp-mode" th:text="#{speaking.stub}">Разговорная практика с ИИ. Режим будет показан после загрузки.</p>
         <p id="sp-error" class="sp-error" role="alert" hidden></p>
         <div id="sp-status" role="status" aria-live="polite"></div>
         <div id="sp-screen"></div>

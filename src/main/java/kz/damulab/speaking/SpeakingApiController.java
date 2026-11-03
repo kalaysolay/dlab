@@ -18,10 +18,14 @@ public class SpeakingApiController {
     private final SpeakingAccess access;
     private final SpeakingVoiceService voice;
     private final SpeakingVoiceStore voiceStore;
+    private final SpeakingConversationService conversations;
+    private final SpeakingSpeechService speech;
     public SpeakingApiController(SpeakingSessionService service, SpeakingScenarioCatalog catalog, SpeakingAccess access,
-            SpeakingVoiceService voice, SpeakingVoiceStore voiceStore) {
+            SpeakingVoiceService voice, SpeakingVoiceStore voiceStore,SpeakingConversationService conversations,SpeakingSpeechService speech) {
         this.service=service; this.catalog=catalog; this.access=access;
         this.voice=voice; this.voiceStore=voiceStore;
+        this.conversations=conversations;
+        this.speech=speech;
     }
     /** Приватные ответы не должны сохраняться HTTP-кэшем или service worker. */
     @ModelAttribute
@@ -40,7 +44,7 @@ public class SpeakingApiController {
     /** Подтверждает введённый текст или принадлежащий ученику ASR-черновик. */
     @PostMapping("/sessions/{id}/turns") @ResponseStatus(HttpStatus.CREATED)
     SpeakingViews.Session answer(@PathVariable UUID id, @RequestHeader("Idempotency-Key") UUID requestId,
-            @Valid @RequestBody SpeakingViews.AnswerRequest request) { return service.answer(id, requestId, request); }
+            @Valid @RequestBody SpeakingViews.AnswerRequest request) { return conversations.answer(id, requestId, request); }
     /** Остановка записи сразу вызывает этот маршрут; принятия учебного ответа здесь ещё нет. */
     @PostMapping("/sessions/{id}/transcriptions")
     SpeakingViews.Transcription transcribe(@PathVariable UUID id,@RequestHeader("Idempotency-Key") UUID requestId,
@@ -49,6 +53,11 @@ public class SpeakingApiController {
     }
     @DeleteMapping("/sessions/{id}/transcriptions/{attemptId}") @ResponseStatus(HttpStatus.NO_CONTENT)
     void discard(@PathVariable UUID id,@PathVariable UUID attemptId) { voiceStore.discard(id,attemptId); }
+    @PostMapping("/sessions/{id}/speech")
+    org.springframework.http.ResponseEntity<byte[]> speak(@PathVariable UUID id,@RequestBody SpeakingViews.SpeechRequest request){
+        return org.springframework.http.ResponseEntity.ok().header("Cache-Control","no-store").contentType(org.springframework.http.MediaType.parseMediaType("audio/mpeg"))
+                .body(speech.speak(id,request.turnId()));
+    }
     @PostMapping("/sessions/{id}/finish")
     SpeakingViews.Session finish(@PathVariable UUID id, @Valid @RequestBody SpeakingViews.VersionRequest request) {
         return service.finish(id, request.expectedVersion());
@@ -63,5 +72,5 @@ public class SpeakingApiController {
         return service.dispute(id, observationId, request.expectedVersion());
     }
     @DeleteMapping("/sessions/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    void delete(@PathVariable UUID id) { service.delete(id); }
+    void delete(@PathVariable UUID id) { service.delete(id);speech.evict(id); }
 }

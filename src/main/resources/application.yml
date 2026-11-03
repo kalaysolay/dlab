@@ -44,16 +44,23 @@ logging:
 
 damulab:
   speaking:
-    # Первый рабочий срез — локальный stub. Продакшен и прямой API закрыты по умолчанию.
+    # Модуль и прямой API закрыты по умолчанию. Внешний диалог и голос включаются отдельными флагами ниже.
     enabled: ${SPEAKING_ENABLED:false}
     pilot-only: ${SPEAKING_PILOT_ONLY:true}
     allowed-student-ids: ${SPEAKING_ALLOWED_STUDENT_IDS:}
     # Офлайн ASR: включается только с локальными whisper.cpp, FFmpeg и моделью.
     voice:
+      provider: ${SPEAKING_STT_PROVIDER:deepgram}
       enabled: ${SPEAKING_VOICE_ENABLED:false}
       whisper: ${SPEAKING_WHISPER_PATH:}
       ffmpeg: ${SPEAKING_FFMPEG_PATH:}
       model: ${SPEAKING_WHISPER_MODEL:}
+    cloud:
+      enabled: ${SPEAKING_CLOUD_ENABLED:false}
+      speech-enabled: ${SPEAKING_SPEECH_ENABLED:false}
+      speech-model: ${SPEAKING_SPEECH_MODEL:gpt-4o-mini-tts}
+      deepgram-key: ${STT_API_KEY_DEEPGRAM:}
+      deepgram-url: ${SPEAKING_DEEPGRAM_URL:https://api.deepgram.com}
   auth:
     google:
       # Включается только при наличии OAuth client в Google Cloud Console.
@@ -118,7 +125,7 @@ damulab:
     real-providers-enabled: ${AI_REAL_PROVIDERS_ENABLED:true}
     openai:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
-      api-key: ${OPENAI_API_KEY:}\
+      api-key: ${OPENAI_API_KEY:}
     deepseek:
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       api-key: ${DEEPSEEK_API_KEY:}

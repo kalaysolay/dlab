@@ -44,15 +44,38 @@
         editedNote:['Текст расшифровки изменён — замечание не учитывается как самостоятельная речевая ошибка','Танылған мәтін өзгертілді — ескерту дербес сөйлеу қатесі ретінде есептелмейді'],
         requesting:['Ожидаем разрешения микрофона…','Микрофон рұқсатын күтудеміз…']
     });
+    Object.assign(words,{
+        liveAgent:['DamuLab · ИИ-собеседник','DamuLab · ЖИ көмекшісі'],
+        liveMode:['Практика с ИИ: он может ошибаться. Проверь распознанный текст и предложенные исправления.','ЖИ-мен жаттығу: ол қателесуі мүмкін. Танылған мәтін мен ұсынылған түзетулерді тексер.'],
+        stubMode:['Тестовый собеседник по сценарию. Проверяется только подготовленный пример; это не оценка уровня.','Сценарий бойынша сынақ көмекшісі. Тек дайын мысал тексеріледі; бұл тіл деңгейінің бағасы емес.'],
+        liveInfo:['Исправления предлагает ИИ. Если замечание неверное, нажми «Не согласен с исправлением».','Түзетулерді ЖИ ұсынады. Ескерту қате болса, «Түзетумен келіспеймін» түймесін бас.'],
+        listen:['Послушать','Тыңдау'],slow:['Помедленнее','Баяуырақ'],speechVoice:['Голос создан ИИ','Дауыс ЖИ арқылы жасалған'],
+        thinking:['Собеседник готовит ответ и проверяет его…','Көмекші жауапты дайындап, тексеруде…'],
+        notStored:['Сообщение не сохранено. Продолжим безопасную практику.','Хабарлама сақталмады. Қауіпсіз жаттығуды жалғастырайық.'],
+        support:['Сделаем паузу','Үзіліс жасайық'],supportNote:['Сейчас важнее получить помощь взрослого. Исправления английского здесь отключены.','Қазір ересек адамның көмегі маңыздырақ. Ағылшын тілін түзету бұл жерде тоқтатылды.'],
+        change:['Выбрать другую ситуацию','Басқа жағдайды таңдау'],style:['Можно сказать иначе','Басқаша айтуға болады']
+    });
+    if(root.dataset.stt==='deepgram')words.voiceInfo=['До 60 секунд. Запись распознаёт Deepgram без использования для обучения. Проверь текст перед отправкой собеседнику.','60 секундқа дейін. Жазбаны Deepgram оқыту үшін пайдаланбай таниды. Көмекшіге жібермес бұрын мәтінді тексер.'];
     const t = key => words[key]?.[kk ? 1 : 0] || key;
-    const skillName = code => code==='grammar.past_simple'
-        ? (kk?'Past Simple · өткен шақ':'Past Simple · прошедшее время')
-        : (kk?'Тілдік дағды':'Языковой навык');
-    const sessionStatus = value => t(value==='ACTIVE'?'inProgress':value==='COMPLETED'?'ended':value==='EXPIRED'?'expired':'finished');
+    const skillNames={
+        'grammar.past_simple':['Past Simple · прошедшее время','Past Simple · өткен шақ'],
+        'grammar.present_simple':['Present Simple','Present Simple'],'grammar.present_continuous':['Present Continuous','Present Continuous'],
+        'grammar.present_perfect':['Present Perfect','Present Perfect'],'grammar.future':['Будущее время','Келер шақ'],
+        'grammar.articles':['Артикли','Артикльдер'],'grammar.prepositions':['Предлоги','Предлогтар'],'grammar.word_order':['Порядок слов','Сөз тәртібі'],
+        'grammar.agreement':['Согласование','Сөздердің қиысуы'],'grammar.plural':['Множественное число','Көпше түр'],
+        'grammar.comparatives':['Сравнения','Салыстыру'],'grammar.questions':['Вопросы','Сұрақтар'],'grammar.negation':['Отрицание','Болымсыздық'],
+        'vocabulary.word_choice':['Выбор слова','Сөз таңдау']
+    };
+    const skillName=code=>skillNames[code]?.[kk?1:0]||(kk?'Тілдік дағды':'Языковой навык');
+    const sessionStatus = value => t(value==='PAUSED_SUPPORT'?'support':value==='ACTIVE'?'inProgress':value==='COMPLETED'?'ended':value==='EXPIRED'?'expired':'finished');
     const title = s => kk ? s.titleKk : s.titleRu;
     const api = '/api/student/speaking';
     let scenarios = [], current = null, busy = false, draft = '', pending = null, observer;
     let voice=null, recording=null, voiceEpoch=0, typing=false;
+    let operation=null,operationEpoch=0,speechEpoch=0,playing=null;
+    const speechCache=new Map();
+    const mode=document.querySelector('#sp-mode');
+    mode.textContent=t(root.dataset.live==='true'?'liveMode':'stubMode');
     const csrf = document.querySelector('meta[name="_csrf"]')?.content;
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
 
@@ -77,6 +100,16 @@
     }
     function showError(code) {
         const messages = {
+            speaking_dialogue_unavailable:kk?'Көмекші қазір қолжетімсіз. Мәтін сақталды, қайта жіберуге болады.':'Собеседник сейчас недоступен. Текст остался в поле — можно повторить.',
+            speaking_provider_failed:kk?'ЖИ қызметі жауап бермеді. Қайта жіберуге болады.':'Сервис ИИ не ответил. Можно повторить отправку.',
+            speaking_provider_timeout:kk?'ЖИ жауабы тым ұзаққа созылды. Қайталап көр.':'Сервис ИИ отвечает слишком долго. Повтори попытку.',
+            speaking_provider_busy:kk?'ЖИ қызметі бос емес. Сәл күте тұр.':'Сервис ИИ занят. Повтори чуть позже.',
+            speaking_generation_processing:kk?'Алдыңғы жауап әлі дайындалуда. Сәл күтіп, қайтала.':'Предыдущий ответ ещё готовится. Подожди немного и повтори.',
+            speaking_generation_expired:kk?'Жауапты дайындау мерзімі бітті. Қайталап көр.':'Время подготовки ответа истекло. Повтори попытку.',
+            speaking_llm_daily_limit:kk?'Бүгінгі ЖИ сұрауларының шегіне жеттің.':'На сегодня достигнут лимит обращений к собеседнику.',
+            speaking_speech_daily_limit:kk?'Бүгінгі дыбыстау шегіне жеттің. Сұрақты оқуға болады.':'На сегодня достигнут лимит озвучки. Можно прочитать вопрос.',
+            speaking_speech_unavailable:kk?'Дыбыстау қолжетімсіз. Сұрақты оқуға болады.':'Озвучка недоступна. Можно прочитать вопрос.',
+            speech_play:kk?'Ойнату басталмады. «Тыңдау» түймесін қайта бас.':'Воспроизведение не началось. Нажми «Послушать» ещё раз.',
             speaking_voice_unavailable:t('voiceOff'), speaking_audio_size:kk?'Жазба 10 МБ-тан аспауы тиіс.':'Запись должна быть не больше 10 МБ.',
             speaking_audio_duration:kk?'0,4–60 секундтық жазбаны таңда.':'Нужна запись длительностью от 0,4 до 60 секунд.',
             speaking_audio_invalid:kk?'Бұл аудионы оқу мүмкін емес. Қайта жазып көр.':'Не удалось прочитать аудио. Попробуй записать заново.',
@@ -100,6 +133,7 @@
     }
     async function request(path, method = 'GET', body, key) {
         const response = await fetch(api + path, {method, credentials:'same-origin', cache:'no-store',
+            signal:operation?.signal,
             headers:{'Content-Type':'application/json', ...(csrf ? {[csrfHeader]:csrf} : {}), ...(key ? {'Idempotency-Key':key} : {})},
             ...(body === undefined ? {} : {body:JSON.stringify(body)})});
         if (!response.ok) {
@@ -110,21 +144,43 @@
     }
     async function run(action) {
         if (busy) return;
+        const token=++operationEpoch;operation=new AbortController();
         const initialHash=location.hash;
         error.hidden = true; setBusy(true);
         try { await action(); }
-        catch (failure) { showError(failure.message); }
+        catch (failure) { if(token===operationEpoch)showError(failure.message); }
         finally {
+            if(token!==operationEpoch)return;
             // Навигация во время запроса не должна оставлять данные старой беседы под новым URL.
             try { if(location.hash!==initialHash)await route(); }
-            catch(failure){showError(failure.message);}
-            setBusy(false);
+            catch(failure){if(token===operationEpoch)showError(failure.message);}
+            if(token===operationEpoch){setBusy(false);operation=null;}
         }
     }
     function clearScreen() {
+        stopSpeech();
         observer?.disconnect();
         screen.querySelectorAll('audio').forEach(audio=>{audio.pause();audio.removeAttribute('src');audio.load();});
         screen.replaceChildren();
+    }
+    function stopSpeech(){if(playing){playing.pause();playing.removeAttribute('src');playing.load();playing=null;}}
+    function clearSpeech(){speechEpoch++;stopSpeech();for(const url of speechCache.values())URL.revokeObjectURL(url);speechCache.clear();}
+    function playQuestion(session,turnId,slow){
+        if(recording)return;
+        run(async()=>{
+            const epoch=speechEpoch,key=session.id+'/'+(turnId||'first');
+            let url=speechCache.get(key);
+            if(!url){
+                const response=await fetch(`${api}/sessions/${session.id}/speech`,{method:'POST',credentials:'same-origin',cache:'no-store',signal:operation?.signal,
+                    headers:{'Content-Type':'application/json',...(csrf?{[csrfHeader]:csrf}:{})},body:JSON.stringify({turnId})});
+                if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.code||'speaking_speech_unavailable');}
+                const blob=await response.blob();if(epoch!==speechEpoch)return;
+                url=URL.createObjectURL(blob);speechCache.set(key,url);
+            }
+            if(epoch!==speechEpoch)return;
+            screen.querySelectorAll('audio').forEach(audio=>audio.pause());stopSpeech();playing=new Audio(url);playing.playbackRate=slow?0.75:1;
+            try{await playing.play();}catch(failure){throw new Error('speech_play');}
+        });
     }
 
     // При уходе со страницы/в фон останавливаем микрофон, но не запускаем распознавание.
@@ -148,7 +204,7 @@
             renderSession(session);status.textContent=t('recognizing');
             try {
                 const response=await fetch(`${api}/sessions/${session.id}/transcriptions?expectedVersion=${attempt.version}`,{
-                    method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':blob.type||'application/octet-stream',
+                    method:'POST',credentials:'same-origin',cache:'no-store',signal:operation?.signal,headers:{'Content-Type':blob.type||'application/octet-stream',
                         ...(csrf?{[csrfHeader]:csrf}:{}),'Idempotency-Key':attempt.key},body:blob});
                 const result=await response.json().catch(()=>({}));
                 if(!response.ok){const failure=new Error(result.code||'network');failure.status=response.status;throw failure;}
@@ -163,8 +219,9 @@
                     if(hash===location.hash)renderSession(updated);
                     throw failure;
                 }
-                // При потере сети повторяем тот же файл с тем же ключом. Бизнес-отказ требует новой попытки.
-                if(failure.status && failure.status!==409 && failure.status<500)attempt.key=crypto.randomUUID();
+                // Потеря сети не доказывает отказ: сохраняем ключ. Явный HTTP-отказ завершает попытку;
+                // исключение — ещё идущая обработка, которую нужно перечитать тем же ключом.
+                if(failure.status&&failure.message!=='speaking_voice_processing')attempt.key=crypto.randomUUID();
                 attempt.failed=true;renderSession(session);throw failure;
             }
         });
@@ -172,6 +229,7 @@
     async function beginRecording(session) {
         if(busy||recording)return;
         clearVoice();draft='';pending=null;error.hidden=true;
+        stopSpeech();
         const epoch=voiceEpoch;
         const state={cancelled:false,stream:null,recorder:null,timer:null};recording=state;renderSession(session);
         try {
@@ -281,32 +339,38 @@
         }),true)); screen.append(card);
     }
 
-    function addAgent(chat, reaction, question) {
+    function addAgent(chat, reaction, question,session,turnId=null) {
         if (!reaction && !question) return;
         const node=el('article','sp-message'); node.dataset.speaker='assistant';
-        node.append(el('div','sp-message-label',t('agent')));
+        node.append(el('div','sp-message-label',t(session.providerMode==='LIVE'?'liveAgent':'agent')));
         if (reaction) node.append(el('p','',reaction));
         if (question) node.append(el('p','sp-question',question));
+        if(question&&session.speechAvailable&&session.status!=='PAUSED_SUPPORT'){
+            const controls=el('div','sp-actions sp-speech');controls.append(button('🔊 '+t('listen'),()=>playQuestion(session,turnId,false)),
+                button('◷ '+t('slow'),()=>playQuestion(session,turnId,true)),el('small','sp-voice-info',t('speechVoice')));node.append(controls);
+        }
         chat.append(node);
     }
     function renderSession(session) {
         const old=screen.querySelector('.sp-chat');
         const previous=old?{top:old.scrollTop,bottom:old.scrollHeight-old.clientHeight-old.scrollTop<32,count:Number(old.dataset.count)}:null;
         current=session; clearScreen(); screen.append(link(t('back'),'#catalog','sp-back'));
+        mode.textContent=t(session.providerMode==='LIVE'?'liveMode':'stubMode');
         const head=el('div','sp-row sp-session-head'); const copy=el('div');
         copy.append(el('h2','',title(session.scenario)),el('small','',`${session.level} · ${t('accepted')}: ${session.acceptedTurns} / 8`));head.append(copy);
-        if (session.status==='ACTIVE') head.append(button(t('finish'),()=>{
+        if (session.status==='ACTIVE'||session.status==='PAUSED_SUPPORT') head.append(button(t('finish'),()=>{
                 if (window.confirm(t('confirmFinish'))) run(async()=>{current=await request(`/sessions/${session.id}/finish`,'POST',{expectedVersion:session.version});draft='';clearVoice();renderSession(current);});
         }));screen.append(head);
         const progress=el('div','sp-progress');const bar=el('span');bar.style.width=`${session.acceptedTurns/8*100}%`;progress.append(bar);screen.append(progress);
         const frame=el('section','sp-chat-frame');const chat=el('div','sp-chat');
-        chat.tabIndex=0;chat.role='region';chat.setAttribute('aria-label',kk?'Әңгіме тарихы':'История разговора');chat.dataset.count=session.acceptedTurns;
-        addAgent(chat,session.openingText,session.firstQuestion);
+        chat.tabIndex=0;chat.role='region';chat.setAttribute('aria-label',kk?'Әңгіме тарихы':'История разговора');chat.dataset.count=session.turns.length;
+        addAgent(chat,session.openingText,session.firstQuestion,session);
         for (const turn of session.turns) {
             const node=el('article','sp-message sp-learner');node.dataset.speaker='learner';
-            node.append(el('div','sp-message-label',t(turn.source==='voice'?'voiceSource':turn.source==='edited'?'editedSource':'learner')),el('p','',turn.text || t('cleared')));
+            node.append(el('div','sp-message-label',t(turn.source==='voice'?'voiceSource':turn.source==='edited'?'editedSource':'learner')),
+                el('p','',turn.disposition&&turn.disposition!=='NORMAL'?t('notStored'):(turn.text || t('cleared'))));
             for (const note of session.observations.filter(o=>o.turnId===turn.id)) {
-                const details=el('details','sp-feedback');details.append(el('summary','',`${t('correction')} · ${skillName(note.skillCode)}`));
+                const details=el('details','sp-feedback');details.append(el('summary','',`${t(note.kind==='style'?'style':'correction')} · ${skillName(note.skillCode)}`));
                 const change=el('p');change.append(el('del','',note.original),document.createTextNode(' → '),el('strong','',note.corrected));
                 details.append(change,el('p','',note.explanation));
                 if(note.assisted)details.append(el('small','',t('assisted')));
@@ -317,13 +381,13 @@
                 })));
                 node.append(details);
             }
-            chat.append(node);addAgent(chat,turn.reactionText,turn.questionText);
+            chat.append(node);addAgent(chat,turn.reactionText,turn.questionText,session,turn.id);
         }
         const jump=button(t('fresh'),()=>chat.scrollTo({top:chat.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
         jump.className='sp-jump';jump.setAttribute('aria-label',t('fresh'));
         const update=()=>{jump.hidden=chat.scrollHeight-chat.clientHeight-chat.scrollTop<32;};
         frame.append(chat,jump);screen.append(frame);
-        chat.scrollTop=previous?(session.acceptedTurns>previous.count&&previous.bottom?chat.scrollHeight:previous.top):(session.acceptedTurns?chat.scrollHeight:0);
+        chat.scrollTop=previous?(session.turns.length>previous.count&&previous.bottom?chat.scrollHeight:previous.top):(session.turns.length?chat.scrollHeight:0);
         chat.addEventListener('scroll',update,{passive:true});observer=new ResizeObserver(update);observer.observe(chat);for(const node of chat.children)observer.observe(node);update();
         const composer=el('section','sp-compose');
         if(session.status==='ACTIVE') {
@@ -334,6 +398,7 @@
             label.hidden=!showText;
             const send=button(t(voice?.transcript?'confirmVoice':'send'),()=>run(async()=>{
                 const text=input.value.trim();if(!text)return;
+                if(session.providerMode==='LIVE')status.textContent=t('thinking');
                 const path=`/sessions/${session.id}/turns`;
                 const voiceAttemptId=voice?.transcript?.id||null;
                 // При сетевой ошибке повторяем именно прежнее тело и ключ; 409 требует перечитать беседу.
@@ -351,12 +416,16 @@
                 const updated=await request(`/sessions/${session.id}/help`,'POST',{expectedVersion:session.version});clearVoice();renderSession(updated);
                 const help=el('div','sp-help',t('help'));session.scenario.hints.forEach(h=>help.append(el('p','',h)));screen.querySelector('.sp-compose').append(help);
             })));
-            if(session.scenario.code==='weekend_story')actions.append(button(t('sample'),()=>run(async()=>{
+            if(session.providerMode==='STUB'&&session.scenario.code==='weekend_story')actions.append(button(t('sample'),()=>run(async()=>{
                 const updated=await request(`/sessions/${session.id}/help`,'POST',{expectedVersion:session.version});clearVoice();typing=true;draft='Yesterday I go to the cinema.';renderSession(updated);
             })));
-            composer.append(actions,el('p','sp-mode',t('demo')));
+            if(session.changeSuggested)actions.append(button(t('change'),()=>run(async()=>{
+                await request(`/sessions/${session.id}/finish`,'POST',{expectedVersion:session.version});clearVoice();draft='';pending=null;location.hash='#catalog';
+            })));
+            composer.append(actions,el('p','sp-mode',t(session.providerMode==='LIVE'?'liveInfo':'demo')));
         } else {
-            composer.append(el('h2','',t(session.status==='COMPLETED'?'ended':session.status==='EXPIRED'?'expired':'finished')),
+            composer.append(el('h2','',t(session.status==='PAUSED_SUPPORT'?'support':session.status==='COMPLETED'?'ended':session.status==='EXPIRED'?'expired':'finished')),
+                ...(session.status==='PAUSED_SUPPORT'?[el('p','',t('supportNote'))]:[]),
                 el('p','',`${t('turn')}: ${session.acceptedTurns} / 8`),link(t('choose'),'#catalog'));
         }
         screen.append(composer);
@@ -384,8 +453,11 @@
         else if(page==='history')await renderHistory();
         else renderCatalog();
     }
-    window.addEventListener('hashchange',()=>{clearVoice();draft='';pending=null;typing=false;run(route);});
-    window.addEventListener('pagehide',clearVoice);
+    window.addEventListener('hashchange',()=>{
+        // Уход не ждёт долгой генерации. Сервер сам проверит lease/версию, поздний ответ не меняет новую страницу.
+        operation?.abort();operationEpoch++;busy=false;clearVoice();clearSpeech();draft='';pending=null;typing=false;run(route);
+    });
+    window.addEventListener('pagehide',()=>{operation?.abort();clearVoice();clearSpeech();});
     document.addEventListener('visibilitychange',()=>{if(document.hidden&&recording)cancelRecording(current,'interrupted');});
     run(async()=>{status.textContent=t('loading');scenarios=await request('/scenarios');await route();});
 })();

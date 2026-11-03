@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /** Сквозная проверка модульного хранения, безопасности и повторных запросов без сети и платных API. */
-@SpringBootTest(properties={"damulab.speaking.enabled=true","damulab.speaking.pilot-only=false"})
+@SpringBootTest(properties={"damulab.speaking.enabled=true","damulab.speaking.pilot-only=false","damulab.speaking.voice.provider=whisper"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @DirtiesContext(classMode=DirtiesContext.ClassMode.AFTER_CLASS)

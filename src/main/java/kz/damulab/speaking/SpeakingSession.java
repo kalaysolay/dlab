@@ -19,6 +19,8 @@ class SpeakingSession {
     @Column(nullable=false, length=24) String status = "ACTIVE";
     @Column(name="active_slot") Integer activeSlot = 1;
     @Column(name="accepted_turns", nullable=false) int acceptedTurns;
+    @Column(name="total_turns",nullable=false) int totalTurns;
+    @Column(name="off_topic_count",nullable=false) int offTopicCount;
     @Column(name="assisted_next", nullable=false) boolean assistedNext;
     @Version @Column(nullable=false) long revision;
     @Column(name="created_at", nullable=false) OffsetDateTime createdAt;

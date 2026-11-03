@@ -15,15 +15,18 @@ class SpeakingMaintenance {
     private final SpeakingObservationRepository observations;
     private final SpeakingDailyUsageRepository usage;
     private final Clock clock;
+    private final SpeakingGenerationRepository generations;
     SpeakingMaintenance(SpeakingSessionRepository sessions, SpeakingTurnRepository turns,
-            SpeakingObservationRepository observations, SpeakingDailyUsageRepository usage, Clock clock) {
+            SpeakingObservationRepository observations, SpeakingDailyUsageRepository usage, Clock clock,SpeakingGenerationRepository generations) {
         this.sessions=sessions; this.turns=turns; this.observations=observations; this.usage=usage; this.clock=clock;
+        this.generations=generations;
     }
     /** Раз в час удаляет истёкшие цитаты и наблюдения; в логах нет содержимого или идентификаторов ребёнка. */
     @Scheduled(initialDelayString="3600000", fixedDelayString="3600000")
     @Transactional
     public void purge() {
         var now=OffsetDateTime.now(clock);
+        generations.deleteByExpiresAtLessThanEqual(now);
         sessions.expireIdle(now.minusMinutes(30));
         observations.deleteByExpiresAtLessThanEqual(now);
         turns.clearExpiredText(now.minusDays(30));
