@@ -55,10 +55,10 @@
 /* В живом мобильном разговоре прокручивается история, а панель ответа занимает своё место снизу.
    Внешней прокрутки страницы нет: жест над сообщениями больше не мешает добраться до микрофона. */
 @media(max-width:700px){
-    body.sp-live-session{overflow:hidden}
+    body.sp-live-session{overflow:hidden;overscroll-behavior-y:none}
     .sp-live-session .app-shell{position:fixed;inset:0;height:var(--sp-viewport-height,100dvh);min-height:0;max-width:none;margin:0;padding:0;border:0;border-radius:0;display:flex;flex-direction:column}
     .sp-live-session .student-header{display:none}
-    .sp-live-session .speaking-page{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;box-sizing:border-box;padding:8px 12px 0;overflow:hidden}
+    .sp-live-session .speaking-page{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;box-sizing:border-box;padding:calc(8px + env(safe-area-inset-top)) 12px 0;overflow:hidden}
     .sp-live-session .speaking-page>.sp-back,.sp-live-session .sp-heading,.sp-live-session #sp-mode{display:none}
     .sp-live-session #sp-error{flex-shrink:0;max-height:20%;overflow:auto;margin:4px 0;padding:8px;font-size:12px}
     .sp-live-session #sp-status{flex-shrink:0;font-size:12px}
@@ -73,7 +73,7 @@
     .sp-live-session .sp-focus{flex-shrink:0;margin:4px 0;padding:6px 10px;font-size:12px;max-height:15%;overflow:auto}
     .sp-live-session .sp-focus p{margin:0}
     .sp-live-session .sp-chat-frame{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;margin:0}
-    .sp-live-session .sp-chat{flex:1;min-height:0;max-height:none;overscroll-behavior-y:auto;padding:4px}
+    .sp-live-session .sp-chat{flex:1;min-height:0;max-height:none;overscroll-behavior-y:contain;padding:4px}
     .sp-live-session .sp-jump{flex-shrink:0;min-height:36px;padding:6px 12px;margin:4px 0 4px auto}
     .sp-live-session .sp-compose{flex-shrink:0;width:100%;max-height:55%;overflow-y:auto;margin:8px 0 0;padding:10px 10px calc(10px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;box-shadow:0 -5px 18px #1720330a}
     .sp-live-session .sp-voice{gap:6px;margin-bottom:6px}
