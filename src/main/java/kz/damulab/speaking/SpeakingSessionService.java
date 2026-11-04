@@ -158,7 +158,8 @@ public class SpeakingSessionService {
             old.close("FAILED");generations.flush();
         });
         var daily=daily(session.studentId);
-        if(daily.llmCalls+3>72)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_llm_daily_limit");
+        // Историческая статистика попыток цепочки. Расход ограничивает денежный резерв каждого HTTP-вызова,
+        // а не этот счётчик: локальный отказ не должен лишать ребёнка возможности продолжить после повышения бюджета.
         daily.llmCalls+=3;usage.save(daily);
         // У повторной обработки новый lease ID: поздний finally прежней попытки не закроет новый запрос.
         if(previous.isPresent()){generations.delete(previous.get());generations.flush();}

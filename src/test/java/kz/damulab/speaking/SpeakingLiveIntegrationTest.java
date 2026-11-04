@@ -399,11 +399,12 @@ class SpeakingLiveIntegrationTest {
         assertThat(turns.count()).isZero();assertThat(observations.count()).isZero();assertThat(generations.findAll().get(0).state).isEqualTo("FAILED");
     }
 
-    @Test void dailyBudgetAndKillSwitchBlockExternalCalls()throws Exception{
+    @Test void legacyAttemptCountDoesNotBlockFundedAnswerAndKillSwitchStillBlocksCloud()throws Exception{
         var session=create();jdbc.update("update speaking_daily_usage set llm_calls=72");
-        answer(session,UUID.randomUUID(),"A film.").andExpect(status().isTooManyRequests());assertThat(CALLS).isEmpty();
-        jdbc.update("update speaking_daily_usage set llm_calls=0");providers.setRealProvidersEnabled(false);
-        answer(session,UUID.randomUUID(),"A film.").andExpect(status().isServiceUnavailable());assertThat(CALLS).isEmpty();
+        chain(normal());var updated=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        assertThat(CALLS).hasSize(3);assertThat(usage.findAll().get(0).llmCalls).isEqualTo(75);
+        providers.setRealProvidersEnabled(false);
+        answer(updated,UUID.randomUUID(),"A film.").andExpect(status().isServiceUnavailable());assertThat(CALLS).hasSize(3);
     }
 
     @Test void kazakhContextIsKeptButOptionalStyleRewriteIsOmitted()throws Exception{

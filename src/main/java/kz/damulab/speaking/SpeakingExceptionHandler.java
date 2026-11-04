@@ -16,8 +16,16 @@ import org.springframework.web.server.ResponseStatusException;
 @RestControllerAdvice(assignableTypes=SpeakingApiController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SpeakingExceptionHandler {
+    private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(SpeakingExceptionHandler.class);
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<Map<String,String>> status(ResponseStatusException exception) {
+        String code=exception.getReason();
+        // Только стабильный код, без URI, ID ученика, речи или тела ответа провайдера.
+        // Ожидаемые отказы раньше вообще не попадали в журнал, что скрывало причину при диагностике.
+        if(exception.getStatusCode().value()>=429){
+            String safe=code!=null&&code.matches("speaking_[a-z_]{1,80}")?code:"speaking_error";
+            log.warn("Speaking request rejected: status={} code={}",exception.getStatusCode().value(),safe);
+        }
         return ResponseEntity.status(exception.getStatusCode()).header("Cache-Control","no-store")
                 .body(Map.of("code", exception.getReason() == null ? "speaking_error" : exception.getReason()));
     }
