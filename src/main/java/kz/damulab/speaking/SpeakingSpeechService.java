@@ -28,12 +28,13 @@ class SpeakingSpeechService {
     byte[] speak(UUID id,UUID turnId){
         if(!llm.speechAvailable())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_speech_unavailable");
         String text=sessions.speechText(id,turnId),key=id+"/"+turnId+"/"+cloud.getSpeechModel();
+        if(text.length()>500)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_speech_unavailable");
         purge();
         Cached old=cache.get(key);if(old!=null)return old.bytes();
         if(!slots.tryAcquire())throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_provider_busy");
         try{
             String base=providers.getOpenai().getBaseUrl().replaceAll("/+$","");
-            byte[] audio=http.post(base+(base.endsWith("/v1")?"":"/v1")+"/audio/speech","Bearer "+providers.getOpenai().getApiKey(),
+            byte[] audio=http.post(SpeakingMetrics.Stage.TTS,"OPENAI:"+cloud.getSpeechModel(),base+(base.endsWith("/v1")?"":"/v1")+"/audio/speech","Bearer "+providers.getOpenai().getApiKey(),
                     "application/json",mapper.writeValueAsBytes(Map.of("model",cloud.getSpeechModel(),"voice","alloy","input",text,"response_format","mp3")),1024*1024);
             if(audio.length<100 || !(audio[0]=='I'&&audio[1]=='D'&&audio[2]=='3'
                     || audio[0]==(byte)0xff&&(audio[1]&0xe0)==0xe0))throw new IllegalStateException();

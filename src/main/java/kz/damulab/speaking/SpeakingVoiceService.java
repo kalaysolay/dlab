@@ -15,12 +15,18 @@ class SpeakingVoiceService {
     private final SpeakingAccess access;
     private final SpeakingVoiceStore store;
     private final SpeakingTranscriber transcriber;
+    private final java.util.concurrent.Semaphore uploads=new java.util.concurrent.Semaphore(5,true);
     SpeakingVoiceService(SpeakingAccess access,SpeakingVoiceStore store,SpeakingTranscriber transcriber) {
         this.access=access; this.store=store; this.transcriber=transcriber;
     }
     /** Загружает реальную запись; распознанный текст возвращается только как неподтверждённый черновик. */
     SpeakingViews.Transcription upload(UUID sessionId,UUID key,long version,HttpServletRequest request) throws IOException {
         access.student(false);
+        // Ограничиваем память ДО чтения тела: пять загрузок по 10 MiB, а не по одному буферу на каждый HTTP-поток.
+        if(!uploads.tryAcquire())throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_voice_busy");
+        try{return processUpload(sessionId,key,version,request);}finally{uploads.release();}
+    }
+    private SpeakingViews.Transcription processUpload(UUID sessionId,UUID key,long version,HttpServletRequest request)throws IOException{
         if(version<0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"speaking_invalid_request");
         if(!transcriber.available()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_voice_unavailable");
         if(request.getContentLengthLong()>MAX_BYTES) throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"speaking_audio_size");

@@ -14,28 +14,33 @@ class SpeakingLlmClient {
     private final AiProviderProperties providers;
     private final SpeakingCloudProperties cloud;
     private final SpeakingHttp http;
+    private final SpeakingBudgetService budget;
     private final ObjectMapper mapper;
-    SpeakingLlmClient(AiRuntimeSettingsService settings,AiProviderProperties providers,SpeakingCloudProperties cloud,SpeakingHttp http,ObjectMapper mapper){
-        this.settings=settings;this.providers=providers;this.cloud=cloud;this.http=http;this.mapper=mapper;
+    SpeakingLlmClient(AiRuntimeSettingsService settings,AiProviderProperties providers,SpeakingCloudProperties cloud,SpeakingHttp http,ObjectMapper mapper,SpeakingBudgetService budget){
+        this.settings=settings;this.providers=providers;this.cloud=cloud;this.http=http;this.mapper=mapper;this.budget=budget;
     }
     /** Снимок маршрута фиксируется до начала цепочки guard → tutor → guard. */
     AiRuntimeSelection selection(){
         ensureEnabled();
         var route=settings.resolve(AiUsageType.SPEAKING);
         if(route.provider()==AiProviderCode.STUB||key(route).isBlank())throw unavailable();
+        // Проверяем допуск модели до старта новой беседы, чтобы не создавать заведомо неработающий разговор.
+        if(!budget.priced(SpeakingMetrics.Stage.TUTOR,route.provider().name()+":"+route.model()))
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_cost_not_configured");
         return route;
     }
     void ensureEnabled(){if(!cloud.isEnabled()||!providers.isRealProvidersEnabled())throw unavailable();}
     boolean speechAvailable(){return cloud.isSpeechEnabled()&&providers.isRealProvidersEnabled()
             &&providers.getOpenai().getApiKey()!=null&&!providers.getOpenai().getApiKey().isBlank();}
-    JsonNode json(AiRuntimeSelection route,String system,Object user){
+    JsonNode json(AiRuntimeSelection route,String system,Object user,SpeakingMetrics.Stage stage){
         try{
             var body=new LinkedHashMap<String,Object>();body.put("model",route.model());
             body.put("messages",List.of(Map.of("role","system","content",system),Map.of("role","user","content",mapper.writeValueAsString(user))));
             body.put("response_format",Map.of("type","json_object"));
+            body.put("temperature",stage==SpeakingMetrics.Stage.TUTOR?0.2:0);
             if(route.provider()==AiProviderCode.OPENAI){body.put("store",false);body.put("max_completion_tokens",1400);}
-            else {body.put("max_tokens",1400);body.put("thinking",Map.of("type","disabled"));body.put("temperature",0.2);}
-            byte[] raw=http.post(endpoint(route),"Bearer "+key(route),"application/json",mapper.writeValueAsBytes(body),128*1024);
+            else {body.put("max_tokens",1400);body.put("thinking",Map.of("type","disabled"));}
+            byte[] raw=http.post(stage,route.provider().name()+":"+route.model(),endpoint(route),"Bearer "+key(route),"application/json",mapper.writeValueAsBytes(body),128*1024);
             var choice=mapper.readTree(raw).path("choices").path(0);
             if(!choice.path("finish_reason").asText().equals("stop")||!choice.path("message").path("refusal").asText("").isBlank())throw unavailable();
             String content=choice.path("message").path("content").asText();

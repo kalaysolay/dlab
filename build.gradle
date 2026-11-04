@@ -98,7 +98,10 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // Платный вымышленный корпус запускается только явно: test -PspeakingLiveQa --tests '*SpeakingLiveEvaluationTest'.
+        if (!project.hasProperty('speakingLiveQa')) excludeTags 'speaking-live-cloud'
+    }
     maxHeapSize = '768m'
     // Полный набор интеграционных тестов создаёт много Spring-контекстов с Hibernate
     // и брокерами. Освобождаем старые контексты, чтобы обычный build не исчерпывал heap.

@@ -30,22 +30,24 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
         "damulab.speaking.cloud.enabled=true","damulab.speaking.cloud.speech-enabled=true",
         "damulab.speaking.voice.enabled=true","damulab.speaking.voice.provider=deepgram",
         "damulab.speaking.cloud.deepgram-key=test-deepgram","damulab.ai.real-providers-enabled=true",
-        "damulab.ai.openai.api-key=test-openai","damulab.ai.deepseek.api-key=test-deepseek"})
+        "damulab.ai.openai.api-key=test-openai","damulab.ai.deepseek.api-key=test-deepseek",
+        "damulab.speaking.budget.approved-llm-models=OPENAI:selected-test-model,DEEPSEEK:selected-test-model"})
 @AutoConfigureMockMvc @ActiveProfiles("test") @DirtiesContext(classMode=DirtiesContext.ClassMode.AFTER_CLASS)
 class SpeakingLiveIntegrationTest {
     private static final String BASE="/api/student/speaking",STUDENT="student@damulab.kz";
     private static final ObjectMapper JSON=new ObjectMapper();
     private static final BlockingQueue<Response> RESPONSES=new LinkedBlockingQueue<>();
     private static final List<Call> CALLS=new CopyOnWriteArrayList<>();
+    private static volatile java.util.function.Function<Call,Response> automatic;
     private static HttpServer server;
     static {
         try{
             server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
             server.createContext("/",exchange->{
                 byte[] bytes=exchange.getRequestBody().readAllBytes();
-                CALLS.add(new Call(exchange.getRequestURI().toString(),exchange.getRequestHeaders().getFirst("Authorization"),bytes));
+                var call=new Call(exchange.getRequestURI().toString(),exchange.getRequestHeaders().getFirst("Authorization"),bytes);CALLS.add(call);
                 try{
-                    Response response=RESPONSES.poll(15,TimeUnit.SECONDS);
+                    Response response=automatic==null?RESPONSES.poll(15,TimeUnit.SECONDS):automatic.apply(call);
                     if(response==null){exchange.sendResponseHeaders(500,-1);return;}
                     if(response.entered()!=null){response.entered().countDown();response.release().await(15,TimeUnit.SECONDS);}
                     exchange.getResponseHeaders().set("Content-Type",response.type());
@@ -74,11 +76,21 @@ class SpeakingLiveIntegrationTest {
     @Autowired SpeakingCloudProperties cloud;
     @Autowired JdbcTemplate jdbc;
     @Autowired SpeakingSessionService sessionStore;
+    @Autowired SpeakingBudgetProperties budgetProperties;
+    @Autowired SpeakingBudgetService budget;
+    @Autowired SpeakingVoiceService voiceService;
+    @Autowired kz.damulab.users.StudentProfileRepository profiles;
+    @Autowired kz.damulab.users.AppUserRepository users;
     @SpyBean SpeakingLlmClient client;
     @SpyBean SpeakingAudioProcessor audio;
 
     @BeforeEach void reset(){
         sessions.deleteAll();usage.deleteAll();CALLS.clear();RESPONSES.clear();Mockito.reset(client,audio);
+        automatic=null;
+        jdbc.update("delete from speaking_budget_accounts where scope_key<>'module'");
+        jdbc.update("update speaking_budget_accounts set reserved_micros=0,llm_calls=0,stt_calls=0,speech_calls=0");
+        budgetProperties.setStudentDailyUsd(new java.math.BigDecimal("3.00"));budgetProperties.setModuleDailyUsd(new java.math.BigDecimal("20.00"));
+        budgetProperties.setApprovedLlmModels(Set.of("OPENAI:selected-test-model","DEEPSEEK:selected-test-model"));
         cloud.setEnabled(true);cloud.setSpeechEnabled(true);providers.setRealProvidersEnabled(true);
         route(AiProviderCode.OPENAI);
         // Декодер отдельно проверяется настоящими WebM/M4A в локальной приёмке; здесь проверяется облачный протокол.
@@ -90,7 +102,7 @@ class SpeakingLiveIntegrationTest {
         }).when(audio).prepare(Mockito.any());
         Mockito.doAnswer(call->{
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();return call.callRealMethod();
-        }).when(client).json(Mockito.any(),Mockito.anyString(),Mockito.any());
+        }).when(client).json(Mockito.any(),Mockito.anyString(),Mockito.any(),Mockito.any());
     }
     @AfterEach void restore(){route(AiProviderCode.STUB);}
     @AfterAll static void stop(){server.stop(0);}
@@ -118,6 +130,157 @@ class SpeakingLiveIntegrationTest {
         var body=JSON.readTree(CALLS.get(1).body());assertThat(body.path("model").asText()).isEqualTo("selected-test-model");
         assertThat(body.path("thinking").path("type").asText()).isEqualTo("disabled");
     }
+
+    @Test void monetaryLimitsRejectBeforeAnyExternalRequest()throws Exception{
+        var session=create();budgetProperties.setStudentDailyUsd(new java.math.BigDecimal("0.04"));
+        answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("speaking_budget_student_limit"));
+        budgetProperties.setStudentDailyUsd(new java.math.BigDecimal("3"));budgetProperties.setModuleDailyUsd(java.math.BigDecimal.ZERO);
+        answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("speaking_budget_module_limit"));
+        assertThat(CALLS).isEmpty();assertThat(jdbc.queryForObject("select reserved_micros from speaking_budget_accounts where scope_key='module'",Long.class)).isZero();
+    }
+
+    @Test void failedProviderStillConsumesReservationAndDeletingHistoryDoesNotRefundIt()throws Exception{
+        var session=create();RESPONSES.add(new Response(503,"application/json","{}".getBytes(StandardCharsets.UTF_8),null,null));
+        answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isServiceUnavailable());
+        assertThat(jdbc.queryForObject("select reserved_micros from speaking_budget_accounts where scope_key='module'",Long.class)).isEqualTo(50000L);
+        mvc.perform(delete(BASE+"/sessions").with(user(STUDENT).roles("STUDENT")).with(csrf())).andExpect(status().isNoContent());
+        budgetProperties.setStudentDailyUsd(new java.math.BigDecimal("0.05"));var next=create();
+        answer(next,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isTooManyRequests());
+        assertThat(CALLS).hasSize(1);assertThat(turns.count()).isZero();
+    }
+
+    @Test void acceptedReplayCostsNothingMoreAndUnknownPriceModelCannotCallCloud()throws Exception{
+        var session=create();UUID key=UUID.randomUUID();chain(normal());
+        var updated=json(answer(session,key,"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        answer(session,key,"Yesterday I go to the cinema.").andExpect(status().isCreated());
+        assertThat(CALLS).hasSize(3);
+        assertThat(jdbc.queryForObject("select reserved_micros from speaking_budget_accounts where scope_key='module'",Long.class)).isEqualTo(150000L);
+        budgetProperties.setApprovedLlmModels(Set.of());
+        answer(updated,UUID.randomUUID(),"I liked the film.").andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("speaking_cost_not_configured"));
+        assertThat(CALLS).hasSize(3);
+        assertThat(updated.path("turns").get(0).path("requestId").asText()).isEqualTo(key.toString());
+        assertThat(updated.path("turns").get(0).path("provider").asText()).isEqualTo("OPENAI");
+        assertThat(updated.path("turns").get(0).path("promptVersion").asText()).isEqualTo(LiveSpeakingTutor.REVISION);
+    }
+
+    @Test void concurrentStudentsCannotOverrunModuleMoneyCeiling()throws Exception{
+        var actors=actors(10);budgetProperties.setModuleDailyUsd(new java.math.BigDecimal("0.25"));
+        var start=new CountDownLatch(1);
+        try(var executor=Executors.newFixedThreadPool(10)){
+            var futures=actors.stream().map(actor->executor.submit(()->{
+                start.await();var context=org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(actor,"test",List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_STUDENT"))));
+                org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+                try{budget.reserve(SpeakingMetrics.Stage.TUTOR,"OPENAI:selected-test-model");return 200;}
+                catch(org.springframework.web.server.ResponseStatusException ex){return ex.getStatusCode().value();}
+                finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+            })).toList();start.countDown();
+            var statuses=new ArrayList<Integer>();for(var future:futures)statuses.add(future.get(15,TimeUnit.SECONDS));
+            assertThat(statuses.stream().filter(s->s==200).count()).isEqualTo(5);
+            assertThat(statuses.stream().filter(s->s==429).count()).isEqualTo(5);
+        }
+        assertThat(jdbc.queryForObject("select reserved_micros from speaking_budget_accounts where scope_key='module'",Long.class)).isEqualTo(250000L);
+        assertThat(CALLS).isEmpty();
+    }
+
+    @Test void operationsAreAdminOnlyAndExposeAggregatesWithoutContentOrIdentifiers()throws Exception{
+        var session=create();chain(normal());answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated());
+        mvc.perform(get("/api/admin/speaking/operations").with(user(STUDENT).roles("STUDENT"))).andExpect(status().isForbidden());
+        var report=mvc.perform(get("/api/admin/speaking/operations").with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+                .andExpect(jsonPath("$.budget.llmCalls").value(3)).andExpect(jsonPath("$.budget.reservedUsd").value(0.15))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(report).contains("input_guard","output_guard","totalMillis").doesNotContain(STUDENT,session.path("id").asText(),"Yesterday","test-openai");
+    }
+
+    @Test @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void providerFailureDoesNotLogLearnerTextCredentialsOrProviderBody(org.springframework.boot.test.system.CapturedOutput output)throws Exception{
+        var session=create();RESPONSES.add(new Response(503,"application/json","PRIVATE_PROVIDER_PAYLOAD_SENTINEL".getBytes(StandardCharsets.UTF_8),null,null));
+        answer(session,UUID.randomUUID(),"Yesterday I go to the secret-movie-fixture.").andExpect(status().isServiceUnavailable());
+        assertThat(output.getAll()).doesNotContain("secret-movie-fixture","PRIVATE_PROVIDER_PAYLOAD_SENTINEL","Bearer test-openai");
+    }
+
+    @Test void nextProductDayResetsMoneyButDoesNotRefundWithinCurrentDay()throws Exception{
+        var session=create();chain(normal());session=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        jdbc.update("update speaking_budget_accounts set usage_day=?,reserved_micros=99000000",java.time.LocalDate.now(java.time.ZoneId.of("Asia/Qyzylorda")).minusDays(1));
+        chain(normal());answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated());
+        assertThat(jdbc.queryForObject("select reserved_micros from speaking_budget_accounts where scope_key='module'",Long.class)).isEqualTo(150000L);
+    }
+
+    @Test void tenActiveSessionsAndFiveConcurrentCloudChainsHaveBoundedCapacity()throws Exception{
+        var actors=actors(10);var active=new ArrayList<JsonNode>();
+        for(var actor:actors)active.add(json(mvc.perform(post(BASE+"/sessions").with(user(actor).roles("STUDENT")).with(csrf())
+                .header("Idempotency-Key",UUID.randomUUID()).contentType("application/json")
+                .content("{\"scenarioCode\":\"weekend_story\",\"level\":\"B1\",\"explanationLanguage\":\"ru\"}")).andExpect(status().isCreated()).andReturn()));
+        assertThat(sessions.count()).isEqualTo(10);
+        var entered=new CountDownLatch(5);var release=new CountDownLatch(1);
+        automatic=call->{
+            try{String system=JSON.readTree(call.body()).path("messages").path(0).path("content").asText();
+                boolean input=system.contains("independent INPUT"),tutor=system.contains("You teach English to a child");
+                return new Response(200,"application/json",envelope(tutor?normal():"{\"decision\":\"ALLOW\"}"),input?entered:null,input?release:null);
+            }catch(Exception ex){throw new IllegalStateException(ex);}
+        };
+        try(var executor=Executors.newFixedThreadPool(5)){
+            var futures=new ArrayList<Future<Integer>>();
+            for(int i=0;i<5;i++){final int n=i;futures.add(executor.submit(()->actorAnswer(active.get(n),actors.get(n))));}
+            try{assertThat(entered.await(10,TimeUnit.SECONDS)).isTrue();assertThat(actorAnswer(active.get(5),actors.get(5))).isEqualTo(429);}
+            finally{release.countDown();}
+            for(var future:futures)assertThat(future.get(20,TimeUnit.SECONDS)).isEqualTo(201);
+        }finally{automatic=null;}
+        assertThat(turns.count()).isEqualTo(5);assertThat(observations.count()).isEqualTo(5);
+        assertThat(jdbc.queryForObject("select reserved_micros from speaking_budget_accounts where scope_key='module'",Long.class)).isEqualTo(750000L);
+    }
+
+    @Test void uploadCapacityIsCheckedBeforeReadingBodyAndReleasedAfterInvalidAudio()throws Exception{
+        var session=create();UUID id=UUID.fromString(session.path("id").asText());var entered=new CountDownLatch(5);var release=new CountDownLatch(1);
+        try(var executor=Executors.newFixedThreadPool(5)){
+            var pending=new ArrayList<Future<Integer>>();
+            for(int i=0;i<5;i++)pending.add(executor.submit(()->{
+                var context=org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(STUDENT,"test",List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_STUDENT"))));
+                org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+                var request=Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+                Mockito.when(request.getInputStream()).thenReturn(new jakarta.servlet.ServletInputStream(){
+                    final java.io.ByteArrayInputStream bytes=new java.io.ByteArrayInputStream("invalid-audio-fixture".getBytes(StandardCharsets.US_ASCII));boolean first=true;
+                    public int read()throws java.io.IOException{if(first){first=false;entered.countDown();try{if(!release.await(10,TimeUnit.SECONDS))throw new java.io.IOException();}catch(InterruptedException ex){throw new java.io.IOException(ex);}}return bytes.read();}
+                    public boolean isReady(){return true;}public boolean isFinished(){return bytes.available()==0;}public void setReadListener(jakarta.servlet.ReadListener listener){}
+                });
+                try{voiceService.upload(id,UUID.randomUUID(),0,request);return 200;}
+                catch(org.springframework.web.server.ResponseStatusException ex){return ex.getStatusCode().value();}
+                finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+            }));
+            try{
+                assertThat(entered.await(10,TimeUnit.SECONDS)).isTrue();
+                var blocked=Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+                var context=org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(STUDENT,"test",List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_STUDENT"))));
+                org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+                try{assertThatThrownBy(()->voiceService.upload(id,UUID.randomUUID(),0,blocked))
+                        .isInstanceOfSatisfying(org.springframework.web.server.ResponseStatusException.class,ex->assertThat(ex.getStatusCode().value()).isEqualTo(429));
+                    Mockito.verify(blocked,Mockito.never()).getInputStream();
+                }finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+            }finally{release.countDown();}
+            for(var future:pending)assertThat(future.get(15,TimeUnit.SECONDS)).isEqualTo(415);
+        }
+        mvc.perform(post(BASE+"/sessions/"+id+"/transcriptions").with(user(STUDENT).roles("STUDENT")).with(csrf())
+                .param("expectedVersion",session.path("version").asText()).header("Idempotency-Key",UUID.randomUUID())
+                .contentType("audio/wav").content("invalid-audio-fixture")).andExpect(status().isUnsupportedMediaType());
+        assertThat(CALLS).isEmpty();
+    }
+
+    private List<String> actors(int count){
+        var actors=new ArrayList<String>();for(int i=0;i<count;i++){
+            String actor="speaking-load-"+i+"@test.local";
+            if(profiles.findByUserEmailIgnoreCase(actor).isEmpty())profiles.save(new kz.damulab.users.StudentProfile(users.save(new kz.damulab.users.AppUser(actor,"unused","Load fixture",null)),6,"ru"));
+            actors.add(actor);
+        }return actors;
+    }
+    private int actorAnswer(JsonNode session,String actor)throws Exception{return mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/turns")
+            .with(user(actor).roles("STUDENT")).with(csrf()).header("Idempotency-Key",UUID.randomUUID()).contentType("application/json")
+            .content("{\"expectedVersion\":"+session.path("version").asLong()+",\"text\":\"Yesterday I go to the cinema.\"}"))
+            .andReturn().getResponse().getStatus();}
 
     @Test void nextPracticeSendsOnlyPriorSkillCodesWithoutPriorSessionQuotesOrIds()throws Exception{
         var prior=create();chain(normal());prior=json(answer(prior,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
@@ -184,9 +347,9 @@ class SpeakingLiveIntegrationTest {
 
     @Test void outputGuardCanRejectStructurallyValidUnsafeQuestionWithoutDisplayingIt()throws Exception{
         var session=create();guard("ALLOW");completion("{\"reaction\":\"Okay.\",\"question\":\"Can you share your family secrets?\",\"feedback\":[]}");guard("UNSAFE");
-        var result=json(answer(session,UUID.randomUUID(),"I watched a film.").andExpect(status().isCreated()).andReturn());
-        assertThat(result.toString()).doesNotContain("family secrets");assertThat(result.path("acceptedTurns").asInt()).isZero();
-        assertThat(result.path("turns").get(0).path("disposition").asText()).isEqualTo("REDIRECT");assertThat(observations.count()).isZero();
+        var result=json(answer(session,UUID.randomUUID(),"I watched a film.").andExpect(status().isServiceUnavailable()).andReturn());
+        assertThat(result.toString()).doesNotContain("family secrets");assertThat(turns.count()).isZero();
+        assertThat(sessions.findAll().get(0).acceptedTurns).isZero();assertThat(observations.count()).isZero();
     }
 
     @Test void hallucinatedCorrectionIsOmittedAndUnknownSkillStillFailsClosed()throws Exception{
@@ -263,6 +426,14 @@ class SpeakingLiveIntegrationTest {
         guard("ALLOW");completion(normal().replace("What film did you watch?","Қандай фильм көрдің?"));
         answer(result,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isServiceUnavailable());
         assertThat(turns.count()).isEqualTo(1);
+    }
+
+    @Test void unchangedFeedbackIsNotAnObservationAndDoesNotBlockValidConversation()throws Exception{
+        var session=create();chain("{\"reaction\":\"That sounds fun!\",\"question\":\"Who played with you?\",\"feedback\":[{\"skillCode\":\"grammar.past_simple\",\"original\":\"I played\",\"corrected\":\"I played\",\"explanation\":\"\",\"kind\":\"error\"}]}");
+        answer(session,UUID.randomUUID(),"I played football.").andExpect(status().isCreated());
+        assertThat(turns.count()).isEqualTo(1);assertThat(observations.count()).isZero();
+        var reviewed=JSON.readTree(JSON.readTree(CALLS.get(2).body()).path("messages").path(1).path("content").asText());
+        assertThat(reviewed.path("candidate").path("feedback").isEmpty()).isTrue();
     }
 
     @Test void verbPatternCorrectionUsesItsOwnSkillRatherThanPastTense()throws Exception{

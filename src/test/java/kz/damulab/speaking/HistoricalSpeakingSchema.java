@@ -20,7 +20,8 @@ public final class HistoricalSpeakingSchema {
             new ResourceDatabasePopulator(new ClassPathResource("db/migration/V67__speaking_module.sql"),
                     new ClassPathResource("db/migration/V68__speaking_voice.sql"),
                     new ClassPathResource("db/migration/V69__speaking_live_dialogue.sql"),
-                    new ClassPathResource("db/migration/V70__speaking_summary.sql")).populate(connection);
+                    new ClassPathResource("db/migration/V70__speaking_summary.sql"),
+                    new ClassPathResource("db/migration/V71__speaking_operations.sql")).populate(connection);
         } catch(SQLException exception) {
             throw new IllegalStateException("Cannot prepare historical speaking schema",exception);
         }

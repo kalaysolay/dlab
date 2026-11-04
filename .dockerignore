@@ -1,0 +1,13 @@
+.git
+.gradle
+.idea
+build
+**/build
+.env*
+**/.env*
+node_modules
+redesign
+feature
+docs
+*.dump
+*.zip

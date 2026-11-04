@@ -9146,3 +9146,11 @@ html.biometric-resume body { visibility: hidden; }
     }
     .admin-nav-group-title { grid-column: 1 / -1; }
 }
+
+/* Узкий телефон: профиль достижим и на входе в разговорник с главной; длинные подписи не перекрывают соседей. */
+@media (max-width: 360px) {
+    .student-header-row { flex-wrap: wrap; gap: 8px; }
+    .student-header-actions { margin-left: auto; }
+    .student-nav-grid { grid-template-columns: repeat(5, minmax(64px, 1fr)); overflow-x: auto; overscroll-behavior-x: contain; }
+    .student-nav-grid span { overflow-wrap: anywhere; line-height: 1.25; }
+}

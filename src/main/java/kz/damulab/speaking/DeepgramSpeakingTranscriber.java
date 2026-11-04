@@ -23,7 +23,7 @@ class DeepgramSpeakingTranscriber implements SpeakingTranscriber {
         try(var file=audio.prepare(bytes)){
             // Opt-out обязателен для каждого запроса. Пунктуация не должна переписывать грамматику.
             String base=cloud.getDeepgramUrl().replaceAll("/+$","");
-            byte[] response=http.post(base+"/v1/listen?model=nova-3&language=en&punctuate=true&mip_opt_out=true",
+            byte[] response=http.post(SpeakingMetrics.Stage.STT,"DEEPGRAM:nova-3",base+"/v1/listen?model=nova-3&language=en&punctuate=true&mip_opt_out=true",
                     "Token "+cloud.getDeepgramKey(),"audio/wav",Files.readAllBytes(file.wav()),256*1024);
             var alternatives=mapper.readTree(response).path("results").path("channels").path(0).path("alternatives").path(0);
             if(alternatives.path("confidence").asDouble(0)<0.45)

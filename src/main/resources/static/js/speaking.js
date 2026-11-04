@@ -88,6 +88,7 @@
     let scenarios = [], current = null, busy = false, draft = '', pending = null, observer;
     let voice=null, recording=null, voiceEpoch=0, typing=false;
     let operation=null,operationEpoch=0,speechEpoch=0,playing=null;
+    let needsSync=false;
     const speechCache=new Map();
     const mode=document.querySelector('#sp-mode');
     mode.textContent=t(root.dataset.live==='true'?'liveMode':'stubMode');
@@ -122,6 +123,9 @@
             speaking_generation_processing:kk?'Алдыңғы жауап әлі дайындалуда. Сәл күтіп, қайтала.':'Предыдущий ответ ещё готовится. Подожди немного и повтори.',
             speaking_generation_expired:kk?'Жауапты дайындау мерзімі бітті. Қайталап көр.':'Время подготовки ответа истекло. Повтори попытку.',
             speaking_llm_daily_limit:kk?'Бүгінгі ЖИ сұрауларының шегіне жеттің.':'На сегодня достигнут лимит обращений к собеседнику.',
+            speaking_budget_student_limit:kk?'Бүгінгі жаттығу шегіне жеттің. Ертең жалғастыруға болады.':'На сегодня лимит практики исчерпан. Можно продолжить завтра.',
+            speaking_budget_module_limit:kk?'Жаттығу уақытша қолжетімсіз. Кейінірек қайталап көр.':'Практика временно недоступна. Попробуй позднее.',
+            speaking_cost_not_configured:kk?'Көмекші уақытша қолжетімсіз. Кейінірек қайталап көр.':'Собеседник временно недоступен. Попробуй позднее.',
             speaking_speech_daily_limit:kk?'Бүгінгі дыбыстау шегіне жеттің. Сұрақты оқуға болады.':'На сегодня достигнут лимит озвучки. Можно прочитать вопрос.',
             speaking_speech_unavailable:kk?'Дыбыстау қолжетімсіз. Сұрақты оқуға болады.':'Озвучка недоступна. Можно прочитать вопрос.',
             speech_play:kk?'Ойнату басталмады. «Тыңдау» түймесін қайта бас.':'Воспроизведение не началось. Нажми «Послушать» ещё раз.',
@@ -144,6 +148,10 @@
             speaking_pilot_required: kk ? 'Бұл бөлімге қолжетімділік әлі ашылмады.' : 'Доступ к этому разделу ещё не открыт.'
         };
         error.textContent = messages[code] || (kk ? 'Сұрау орындалмады. Мәтініңді тексеріп, қайталап көр.' : 'Не удалось выполнить запрос. Твой текст остался в поле — можно повторить попытку.');
+        if(code==='speaking_sign_in'){
+            error.textContent=kk?'Сессия аяқталды. Қабылданған жауаптар сақталған. ':'Время входа истекло. Принятые ответы сохранены. ';
+            const login=el('a','',kk?'Қайта кіру':'Войти заново');login.href='/login';error.append(login);
+        }
         error.hidden = false;
     }
     async function request(path, method = 'GET', body, key) {
@@ -151,9 +159,10 @@
             signal:operation?.signal,
             headers:{'Content-Type':'application/json', ...(csrf ? {[csrfHeader]:csrf} : {}), ...(key ? {'Idempotency-Key':key} : {})},
             ...(body === undefined ? {} : {body:JSON.stringify(body)})});
+        if(response.status===401||response.redirected&&new URL(response.url).pathname==='/login')throw new Error('speaking_sign_in');
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            const failure = new Error(data.code || 'network'); failure.status = response.status; throw failure;
+            const failure = new Error(data.code || (response.status===403?'speaking_sign_in':'network')); failure.status = response.status; throw failure;
         }
         return response.status === 204 ? null : response.json();
     }
@@ -169,8 +178,28 @@
             // Навигация во время запроса не должна оставлять данные старой беседы под новым URL.
             try { if(location.hash!==initialHash)await route(); }
             catch(failure){if(token===operationEpoch)showError(failure.message);}
-            if(token===operationEpoch){setBusy(false);operation=null;}
+            if(token===operationEpoch){setBusy(false);operation=null;if(needsSync&&!document.hidden)queueMicrotask(synchronizeSession);}
         }
+    }
+    async function synchronizeSession(){
+        if(document.hidden||busy||recording||!current||location.hash!=='#session/'+current.id)return;
+        needsSync=false;
+        await run(async()=>{
+            const latest=await request('/sessions/'+current.id);
+            // Потерянный HTTP-ответ восстанавливаем по UUID операции, не по совпадению ученических фраз.
+            if(pending&&latest.turns.some(turn=>turn.requestId===pending.key)){
+                pending=null;draft='';clearVoice();typing=false;
+            }else if(!voice&&pending?.body.voiceAttemptId){
+                // pagehide освободил звук; неподтверждённую операцию с записью не превращаем в печатный ответ.
+                pending=null;draft='';typing=false;
+            }else if(latest.version!==current.version){
+                pending=null;
+                // ASR-черновик старого вопроса нельзя незаметно превратить в независимый печатный ответ.
+                if(voice){clearVoice();draft='';typing=false;}else typing=!!draft;
+            }
+            if(latest.status!=='ACTIVE'){clearVoice();pending=null;draft='';typing=false;}
+            renderSession(latest);
+        });
     }
     function clearScreen() {
         stopSpeech();
@@ -501,7 +530,14 @@
         // Уход не ждёт долгой генерации. Сервер сам проверит lease/версию, поздний ответ не меняет новую страницу.
         operation?.abort();operationEpoch++;busy=false;clearVoice();clearSpeech();draft='';pending=null;typing=false;run(route);
     });
-    window.addEventListener('pagehide',()=>{operation?.abort();clearVoice();clearSpeech();});
-    document.addEventListener('visibilitychange',()=>{if(document.hidden&&recording)cancelRecording(current,'interrupted');});
+    window.addEventListener('pagehide',()=>{
+        operation?.abort();if(voice?.transcript&&!pending)draft='';clearVoice();clearSpeech();
+    });
+    document.addEventListener('visibilitychange',()=>{
+        if(document.hidden&&recording)cancelRecording(current,'interrupted');
+        if(!document.hidden){needsSync=true;synchronizeSession();}
+    });
+    window.addEventListener('online',()=>{needsSync=true;synchronizeSession();});
+    window.addEventListener('pageshow',event=>{if(event.persisted){needsSync=true;synchronizeSession();}});
     run(async()=>{status.textContent=t('loading');scenarios=await request('/scenarios');await route();});
 })();

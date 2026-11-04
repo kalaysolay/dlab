@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 class SpeakingAudioProcessor {
     private final SpeakingVoiceProperties properties;
     private final Path root=Path.of(System.getProperty("java.io.tmpdir"),"damulab-speaking-voice");
+    private final java.util.concurrent.Semaphore decoders=new java.util.concurrent.Semaphore(2);
     SpeakingAudioProcessor(SpeakingVoiceProperties properties){this.properties=properties;}
     boolean available(){return file(properties.getFfmpeg());}
     static boolean file(String value){try{return value!=null&&!value.isBlank()&&Files.isRegularFile(Path.of(value));}catch(InvalidPathException ex){return false;}}
@@ -22,6 +23,7 @@ class SpeakingAudioProcessor {
     /** Декодирование ограничено 61 секундой; отправить облаку слишком длинную запись нельзя. */
     AudioFile prepare(byte[] input){
         if(!available())throw error(503,"speaking_voice_unavailable");
+        if(!decoders.tryAcquire())throw error(429,"speaking_voice_busy");
         Path folder=null;
         try{
             Files.createDirectories(root);folder=Files.createTempDirectory(root,"attempt-");
@@ -40,6 +42,7 @@ class SpeakingAudioProcessor {
             return new AudioFile(folder,wav,Math.min(60,(int)Math.ceil(duration)));
         }catch(ResponseStatusException ex){remove(folder);throw ex;}
         catch(Exception ex){remove(folder);throw error(503,"speaking_voice_failed");}
+        finally{decoders.release();}
     }
 
     /** Без shell и stdout: в выводе локальных инструментов могут быть ученические слова. */

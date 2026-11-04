@@ -48,6 +48,13 @@ damulab:
     enabled: ${SPEAKING_ENABLED:false}
     pilot-only: ${SPEAKING_PILOT_ONLY:true}
     allowed-student-ids: ${SPEAKING_ALLOWED_STUDENT_IDS:}
+    budget:
+      student-daily-usd: ${SPEAKING_BUDGET_STUDENT_USD:3.00}
+      module-daily-usd: ${SPEAKING_BUDGET_MODULE_USD:20.00}
+      llm-reserve-usd: ${SPEAKING_RESERVE_LLM_USD:0.05}
+      stt-reserve-usd: ${SPEAKING_RESERVE_STT_USD:0.02}
+      speech-reserve-usd: ${SPEAKING_RESERVE_SPEECH_USD:0.10}
+      approved-llm-models: ${SPEAKING_PRICED_LLM_MODELS:OPENAI:gpt-4.1-mini,DEEPSEEK:deepseek-flash}
     # Офлайн ASR: включается только с локальными whisper.cpp, FFmpeg и моделью.
     voice:
       provider: ${SPEAKING_STT_PROVIDER:deepgram}

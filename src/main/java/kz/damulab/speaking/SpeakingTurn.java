@@ -17,6 +17,9 @@ class SpeakingTurn {
     @Column(name="audio_seconds",nullable=false) int audioSeconds;
     @Column(nullable=false,length=16) String disposition="NORMAL";
     @Column(name="request_hash",length=64) String requestHash;
+    @Column(name="provider_code",length=16) String providerCode;
+    @Column(name="model_name",length=200) String modelName;
+    @Column(name="prompt_version",length=64) String promptVersion;
     @Column(name="learner_text", nullable=false, length=2000) String learnerText;
     @Column(name="reaction_text", nullable=false, length=240) String reactionText;
     @Column(name="question_text", nullable=false, length=500) String questionText;

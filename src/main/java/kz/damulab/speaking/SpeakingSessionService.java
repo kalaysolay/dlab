@@ -68,7 +68,7 @@ public class SpeakingSessionService {
         daily.sessionsStarted++;
         usage.save(daily);
         var session = new SpeakingSession();
-        if(cloud.isEnabled()){llm.selection();session.providerVersion="tutor-v1";}
+        if(cloud.isEnabled()){llm.selection();session.providerVersion=LiveSpeakingTutor.REVISION;}
         session.studentId=student; session.createRequestId=requestId; session.scenarioCode=scenario.code();
         session.scenarioSnapshot=serialize(scenario); session.level=request.level(); session.language=request.explanationLanguage();
         session.createdAt=now(); session.updatedAt=session.createdAt;
@@ -103,11 +103,11 @@ public class SpeakingSessionService {
         }
         // Эта ветка только для stub-сессий; сетевой провайдер вызывается SpeakingConversationService вне транзакции.
         var reply=tutor.answer(snapshot(session), session.acceptedTurns+1, text, session.language);
-        return saveAnswer(session,requestId,request,reply,hash(request));
+        return saveAnswer(session,requestId,request,reply,hash(request),null);
     }
 
     /** Фиксирует лишь проверенный ответ. Для неподходящего входа сохраняется категория, без цитаты ребёнка. */
-    private SpeakingViews.Session saveAnswer(SpeakingSession session,UUID requestId,SpeakingViews.AnswerRequest request,SpeakingTutor.Reply reply,String hash){
+    private SpeakingViews.Session saveAnswer(SpeakingSession session,UUID requestId,SpeakingViews.AnswerRequest request,SpeakingTutor.Reply reply,String hash,SpeakingGeneration generation){
         UUID id=session.id;String text=request.text().strip();
         SpeakingVoiceAttempt voice=voice(request,session);
         var scenario=snapshot(session);
@@ -116,6 +116,10 @@ public class SpeakingSessionService {
         var turn=new SpeakingTurn();
         turn.sessionId=id; turn.requestId=requestId; turn.sequenceNo=++session.totalTurns;
         turn.disposition=reply.disposition();turn.requestHash=hash;
+        // Аудит фиксирует снимок маршрута до сети. Смена модели в админке не переписывает прошлую проверку.
+        turn.providerCode=generation==null?"STUB":generation.providerCode;
+        turn.modelName=generation==null?"stub-v1":generation.modelName;
+        turn.promptVersion=generation==null?"stub-v1":generation.promptVersion;
         if(voice!=null) {
             // Происхождение определяет сервер по исходной ASR-расшифровке, а не флагу от клиента.
             turn.source=text.equals(voice.transcript)?"voice":"edited";
@@ -164,6 +168,7 @@ public class SpeakingSessionService {
         var lease=new SpeakingGeneration();
         lease.studentId=session.studentId;lease.sessionId=id;lease.requestId=requestId;lease.requestHash=hash;
         lease.sessionVersion=session.revision;lease.createdAt=now();lease.expiresAt=now().plusMinutes(3);lease.state="PROCESSING";lease.activeSlot=1;
+        lease.providerCode=route.provider().name();lease.modelName=route.model();lease.promptVersion=LiveSpeakingTutor.REVISION;
         generations.saveAndFlush(lease);
         var history=turns.findBySessionIdOrderBySequenceNo(id).stream().filter(t->t.disposition.equals("NORMAL")&&!t.learnerText.isBlank()).toList();
         var safeHistory=history.stream().skip(Math.max(0,history.size()-4)).map(t->Map.of("learner",t.learnerText,"assistant",t.reactionText+" "+t.questionText)).toList();
@@ -181,7 +186,7 @@ public class SpeakingSessionService {
                 .orElseThrow(SpeakingSessionService::missing);
         if(!lease.state.equals("PROCESSING")||!lease.expiresAt.isAfter(now())||!lease.requestHash.equals(hash(request)))throw conflict("speaking_generation_expired");
         llm.ensureEnabled();requireVersion(session,lease.sessionVersion);requireActive(session);
-        var result=saveAnswer(session,requestId,request,reply,lease.requestHash);lease.close("DONE");return result;
+        var result=saveAnswer(session,requestId,request,reply,lease.requestHash,lease);lease.close("DONE");return result;
     }
     public void failLive(UUID leaseId){generations.findById(leaseId).filter(g->g.state.equals("PROCESSING")).ifPresent(g->g.close("FAILED"));}
 
@@ -293,7 +298,8 @@ public class SpeakingSessionService {
         var scenario=snapshot(session);
         var savedTurns=turns.findBySessionIdOrderBySequenceNo(session.id);
         var history=savedTurns.stream().map(t ->
-                new SpeakingViews.Turn(t.id,t.sequenceNo,t.source,t.learnerText,t.reactionText,t.questionText,t.disposition,t.createdAt)).toList();
+                new SpeakingViews.Turn(t.id,t.sequenceNo,t.source,t.learnerText,t.reactionText,t.questionText,t.disposition,t.createdAt,
+                        t.requestId,t.providerCode,t.modelName,t.promptVersion)).toList();
         var notes=observations.findBySessionIdOrderByCreatedAt(session.id).stream().map(o ->
                 new SpeakingViews.Observation(o.id,o.turnId,o.skillCode,o.original,o.corrected,o.explanation,o.kind,o.evidence,o.source,o.assisted)).toList();
         var focus=feedback.focus(session.studentId,session.scenarioCode,session.id,now());

@@ -7,6 +7,9 @@ import java.util.UUID;
 /** Долговечный lease генерации, без текста ребёнка; защищает повторы и разные вкладки между транзакциями. */
 @Entity @Table(name="speaking_generations")
 class SpeakingGeneration {
+    @Column(name="provider_code",length=16) String providerCode;
+    @Column(name="model_name",length=200) String modelName;
+    @Column(name="prompt_version",length=64) String promptVersion;
     @Id UUID id=UUID.randomUUID();
     @Column(name="student_profile_id",nullable=false) Long studentId;
     @Column(name="session_id",nullable=false) UUID sessionId;
