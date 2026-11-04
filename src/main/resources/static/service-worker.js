@@ -1,5 +1,5 @@
 /**
- * Damulab Service Worker v6.
+ * Damulab Service Worker v7.
  *
  * Стратегия: network-first с записью в кэш; при офлайне — кэш, затем /offline.
  * SHELL_ASSETS предзагружаются при install: критичные страницы + статика.
@@ -7,7 +7,7 @@
  *
  * Версия кэша: меняй CACHE_NAME при обновлении shell-ресурсов, чтобы старый кэш очистился.
  */
-const CACHE_NAME = 'damulab-shell-v6';
+const CACHE_NAME = 'damulab-shell-v7';
 
 // Ресурсы публичной оболочки, кэшируемые при первом install.
 // /offline — обязателен: используется как fallback при отсутствии сети.

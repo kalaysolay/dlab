@@ -51,3 +51,48 @@
 .sp-summary-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}.sp-summary-facts>div{padding:14px;border:1px solid var(--line);border-radius:12px;min-width:0}.sp-summary-facts dt{font-size:13px;color:var(--muted);line-height:1.5}.sp-summary-facts dd{font-size:24px;font-weight:800;margin:6px 0 0;overflow-wrap:anywhere}
 @media(max-width:700px){.sp-grid{grid-template-columns:1fr}.sp-heading{flex-wrap:wrap}.sp-card{padding:18px}.sp-setup{padding:18px}.sp-message{padding:16px}.sp-learner{margin-left:22px}.sp-compose{padding:16px}.sp-session-head .button{font-size:12px;padding:8px}.sp-heading h1{font-size:24px}}
 @media(prefers-reduced-motion:reduce){.speaking-page *{scroll-behavior:auto!important}}
+
+/* В живом мобильном разговоре прокручивается история, а панель ответа занимает своё место снизу.
+   Внешней прокрутки страницы нет: жест над сообщениями больше не мешает добраться до микрофона. */
+@media(max-width:700px){
+    body.sp-live-session{overflow:hidden}
+    .sp-live-session .app-shell{position:fixed;inset:0;height:var(--sp-viewport-height,100dvh);min-height:0;max-width:none;margin:0;padding:0;border:0;border-radius:0;display:flex;flex-direction:column}
+    .sp-live-session .student-header{display:none}
+    .sp-live-session .speaking-page{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;box-sizing:border-box;padding:8px 12px 0;overflow:hidden}
+    .sp-live-session .speaking-page>.sp-back,.sp-live-session .sp-heading,.sp-live-session #sp-mode{display:none}
+    .sp-live-session #sp-error{flex-shrink:0;max-height:20%;overflow:auto;margin:4px 0;padding:8px;font-size:12px}
+    .sp-live-session #sp-status{flex-shrink:0;font-size:12px}
+    .sp-live-session #sp-screen{display:flex;flex-direction:column;flex:1;min-height:0}
+    .sp-live-session #sp-screen>.sp-back{align-self:flex-start;flex-shrink:0;min-height:36px;font-size:13px}
+    .sp-live-session .sp-session-head{flex-shrink:0;gap:6px 10px}
+    .sp-live-session .sp-session-head>div{flex-basis:100%}
+    .sp-live-session .sp-session-head h2{font-size:18px}
+    .sp-live-session .sp-session-head small{font-size:12px}
+    .sp-live-session .sp-session-head .button{min-height:36px}
+    .sp-live-session .sp-progress{flex-shrink:0;margin:8px 0}
+    .sp-live-session .sp-focus{flex-shrink:0;margin:4px 0;padding:6px 10px;font-size:12px;max-height:15%;overflow:auto}
+    .sp-live-session .sp-focus p{margin:0}
+    .sp-live-session .sp-chat-frame{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;margin:0}
+    .sp-live-session .sp-chat{flex:1;min-height:0;max-height:none;overscroll-behavior-y:auto;padding:4px}
+    .sp-live-session .sp-jump{flex-shrink:0;min-height:36px;padding:6px 12px;margin:4px 0 4px auto}
+    .sp-live-session .sp-compose{flex-shrink:0;width:100%;max-height:55%;overflow-y:auto;margin:8px 0 0;padding:10px 10px calc(10px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;box-shadow:0 -5px 18px #1720330a}
+    .sp-live-session .sp-voice{gap:6px;margin-bottom:6px}
+    .sp-live-session .sp-voice>.button{flex:1;font-size:12px;padding:8px}
+    .sp-live-session .sp-voice>.primary{flex-basis:100%;font-size:15px}
+    .sp-live-session .sp-voice-info{font-size:11px;line-height:1.35}
+    .sp-live-session .sp-compose>.sp-mode{font-size:11px;line-height:1.35;border:0;background:transparent;padding:0;margin:6px 0 0}
+    .sp-live-session .sp-compose>.button.primary{position:sticky;bottom:0;z-index:1}
+    .sp-live-session .sp-field{margin:8px 0;font-size:12px}
+    .sp-live-session .sp-field textarea{min-height:80px}
+    .sp-short-viewport .sp-live-session .sp-session-head>div{flex:1;min-width:0}
+    .sp-short-viewport .sp-live-session .sp-session-head h2{font-size:14px}
+    .sp-short-viewport .sp-live-session .sp-session-head small{font-size:10px}
+    .sp-short-viewport .sp-live-session .sp-session-head [aria-pressed]{display:none}
+    .sp-short-viewport .sp-live-session .sp-voice-info{display:none}
+    .sp-short-viewport .sp-live-session .sp-voice>.button:not(.primary),.sp-short-viewport .sp-live-session .sp-compose>.sp-actions .button{min-height:36px}
+    .sp-short-viewport .sp-live-session .sp-compose>.sp-mode{font-size:10px;line-height:1.2}
+    .sp-short-viewport .sp-live-session .sp-compose-editing{max-height:70%}
+    .sp-short-viewport .sp-live-session .sp-compose-editing>.sp-actions,.sp-short-viewport .sp-live-session .sp-compose-editing>.sp-mode{display:none}
+    .sp-short-viewport .sp-live-session .sp-compose-editing>.button.primary{position:static}
+    .sp-short-viewport .sp-live-session .sp-compose-editing textarea{min-height:60px;height:60px}
+}

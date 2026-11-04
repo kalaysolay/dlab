@@ -210,6 +210,7 @@
         });
     }
     function clearScreen() {
+        document.body.classList.remove('sp-live-session');
         stopSpeech();
         observer?.disconnect();
         screen.querySelectorAll('audio').forEach(audio=>{audio.pause();audio.removeAttribute('src');audio.load();});
@@ -437,7 +438,7 @@
     function renderSession(session) {
         const old=screen.querySelector('.sp-chat');
         const previous=old?{top:old.scrollTop,bottom:old.scrollHeight-old.clientHeight-old.scrollTop<32,count:Number(old.dataset.count)}:null;
-        current=session; clearScreen(); screen.append(link(t('back'),'#catalog','sp-back'));
+        current=session; clearScreen();document.body.classList.toggle('sp-live-session',session.status==='ACTIVE'); screen.append(link(t('back'),'#catalog','sp-back'));
         mode.textContent=t(session.providerMode==='LIVE'?'liveMode':'stubMode');
         const head=el('div','sp-row sp-session-head'); const copy=el('div');
         copy.append(el('h2','',title(session.scenario)),el('small','',`${session.level} · ${t('accepted')}: ${session.acceptedTurns} / 8`));head.append(copy);
@@ -480,12 +481,12 @@
         jump.className='sp-jump';jump.setAttribute('aria-label',t('fresh'));
         const update=()=>{jump.hidden=chat.scrollHeight-chat.clientHeight-chat.scrollTop<32;};
         frame.append(chat,jump);screen.append(frame);
-        chat.scrollTop=previous?(session.turns.length>previous.count&&previous.bottom?chat.scrollHeight:previous.top):(session.turns.length?chat.scrollHeight:0);
         chat.addEventListener('scroll',update,{passive:true});observer=new ResizeObserver(update);observer.observe(chat);for(const node of chat.children)observer.observe(node);update();
         const composer=el('section','sp-compose');
         if(session.status==='ACTIVE') {
             voiceControls(composer,session);
             const showText=!recording&&(!session.voiceAvailable||typing||voice?.transcript);
+            composer.classList.toggle('sp-compose-editing',!!showText);
             const label=el('label','sp-field',t(voice?.transcript?'heard':'answer'));const input=el('textarea');input.id='sp-answer';input.maxLength=2000;input.value=draft;
             input.addEventListener('input',()=>{draft=input.value;});label.append(input);composer.append(label);
             label.hidden=!showText;
@@ -523,6 +524,8 @@
             else if(session.summary)renderSummary(composer,session.summary);
         }
         screen.append(composer);
+        // Высота истории окончательна только после добавления нижней панели, особенно на телефоне.
+        chat.scrollTop=previous?(previous.bottom?chat.scrollHeight:previous.top):(session.turns.length?chat.scrollHeight:0);update();
     }
     async function renderHistory() {
         const [items,difficulties]=await Promise.all([request('/sessions'),request('/difficulties')]);
@@ -566,5 +569,11 @@
     });
     window.addEventListener('online',()=>{needsSync=true;synchronizeSession();});
     window.addEventListener('pageshow',event=>{if(event.persisted){needsSync=true;synchronizeSession();}});
+    function updateViewport(){
+        const height=window.visualViewport?.height||window.innerHeight;
+        document.documentElement.style.setProperty('--sp-viewport-height',height+'px');
+        document.documentElement.classList.toggle('sp-short-viewport',height<520);
+    }
+    window.visualViewport?.addEventListener('resize',updateViewport);window.addEventListener('resize',updateViewport);updateViewport();
     run(async()=>{status.textContent=t('loading');scenarios=await request('/scenarios');await route();});
 })();

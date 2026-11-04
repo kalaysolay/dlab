@@ -31,10 +31,6 @@
         } catch (ignored) { /* без storage открываем обычный кабинет */ }
         return home;
     };
-    document.addEventListener('DOMContentLoaded', () => {
-        const entry = document.querySelector('[data-pwa-entry-home]');
-        if (entry) window.location.replace(window.damulabPwaEntryTarget(entry.dataset.pwaEntryHome));
-    });
     if (!standalone) return;
     if (window.location.pathname === '/') {
         window.location.replace('/app');
