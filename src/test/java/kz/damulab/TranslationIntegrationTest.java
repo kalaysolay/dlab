@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -41,9 +42,13 @@ class TranslationIntegrationTest {
     @Autowired
     private AiRuntimeSettingRepository aiRuntimeSettings;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     /** Автотест не должен обращаться к платному внешнему API. */
     @BeforeEach
     void routeAutomatedRequestsToTestProvider() {
+        jdbc.update("delete from translation_request_history");
         AiRuntimeSetting setting = aiRuntimeSettings.findById(AiUsageType.TRANSLATIONS).orElseThrow();
         setting.update(AiProviderCode.STUB, "stub", "test");
         aiRuntimeSettings.save(setting);
@@ -101,6 +106,30 @@ class TranslationIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.text").value(org.hamcrest.Matchers.containsString("тестовый разбор")));
+
+        var rows = jdbc.queryForList("select * from translation_request_history order by id");
+        assertThat(rows).hasSize(2);
+        Long studentId = jdbc.queryForObject("select id from app_users where email = ?", Long.class,
+                "student@damulab.kz");
+        for (var row : rows) {
+            assertThat(row.get("user_id")).isEqualTo(studentId);
+            assertThat(row.get("actor_email")).isEqualTo("student@damulab.kz");
+            assertThat(row.get("direction")).isEqualTo("KAZAKH_TO_RUSSIAN");
+            assertThat(row.get("source_text")).isEqualTo("Сәлем, әлем!");
+            assertThat(row.get("status")).isEqualTo("SUCCESS");
+            assertThat(row.get("provider")).isEqualTo("stub");
+            assertThat(row.get("model")).isEqualTo("stub");
+            assertThat(row.get("created_at")).isNotNull();
+            assertThat(row.get("completed_at")).isNotNull();
+        }
+        assertThat(rows.get(0).get("operation")).isEqualTo("TRANSLATE");
+        assertThat(rows.get(0).get("translated_text")).isEqualTo("[Stub: внешний LLM не вызван] Сәлем, әлем!");
+        assertThat(rows.get(0).get("explanation_text")).isNull();
+        assertThat(rows.get(1).get("operation")).isEqualTo("EXPLAIN");
+        assertThat(rows.get(1).get("translated_text")).isEqualTo("Привет, мир!");
+        assertThat(rows.get(1).get("explanation_text").toString()).contains("тестовый разбор");
+        assertThat(rows.get(1).get("explanation_language")).isEqualTo("Russian");
+        assertThat(rows.get(1).get("explanation_mode")).isEqualTo("ECONOMY");
     }
 
     @Test
@@ -119,6 +148,30 @@ class TranslationIntegrationTest {
                         .content("{\"direction\":\"RUSSIAN_TO_KAZAKH\",\"text\":\"   \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("invalid_translation_request"));
+        assertThat(jdbc.queryForObject("select count(*) from translation_request_history", Long.class)).isZero();
+    }
+
+    @Test
+    void failedTranslationIsRetainedWithoutChangingApiError() throws Exception {
+        // Реальные провайдеры выключены в test: проверяем ошибку без внешнего трафика.
+        AiRuntimeSetting setting = aiRuntimeSettings.findById(AiUsageType.TRANSLATIONS).orElseThrow();
+        setting.update(AiProviderCode.DEEPSEEK, "test-model", "test");
+        aiRuntimeSettings.save(setting);
+
+        mockMvc.perform(post("/api/student/translator/translate")
+                        .with(user("student@damulab.kz").roles("STUDENT"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"direction\":\"RUSSIAN_TO_KAZAKH\",\"text\":\" Привет \"}"))
+                .andExpect(status().isServiceUnavailable());
+
+        var row = jdbc.queryForMap("select * from translation_request_history");
+        assertThat(row.get("status")).isEqualTo("FAILED");
+        assertThat(row.get("error_code")).isEqualTo("ai_provider_disabled");
+        assertThat(row.get("source_text")).isEqualTo("Привет");
+        assertThat(row.get("direction")).isEqualTo("RUSSIAN_TO_KAZAKH");
+        assertThat(row.get("translated_text")).isNull();
+        assertThat(row.get("completed_at")).isNotNull();
     }
 
     @Test

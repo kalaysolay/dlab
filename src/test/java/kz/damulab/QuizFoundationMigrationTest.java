@@ -12,6 +12,63 @@ import org.junit.jupiter.api.Test;
  * QUIZ_TEST_DB_* позволяет повторить сценарий на настоящем PostgreSQL без testcontainers.
  */
 class QuizFoundationMigrationTest {
+    /** Проверяет именно переход с production V71: новые номера не требуют repair/outOfOrder. */
+    @Test
+    void productionV71UpgradesWithoutRewritingHistoryOrActiveGames() throws Exception {
+        Database db = database();
+        assertThat(db.flyway("71").migrate().migrationsExecuted).isEqualTo(68);
+        try (Connection connection = db.connection()) {
+            // Сохраняем активную игру и уже записанные ответы: добавление столбцов
+            // черновика не должно ни завершать игру, ни переписывать её историю.
+            seedLegacy(connection);
+            List<List<Object>> history = migrationHistory(connection);
+            Map<String, List<String>> oldColumns = new LinkedHashMap<>();
+            Map<String, List<List<Object>>> before = new LinkedHashMap<>();
+            for (String table : List.of("quiz_rooms", "quiz_participants", "quiz_rounds", "quiz_answers", "quiz_results")) {
+                oldColumns.put(table, columns(connection, table));
+                before.put(table, rows(connection, table, oldColumns.get(table)));
+            }
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(3);
+            assertThat(migrationHistory(connection).subList(0, history.size())).isEqualTo(history);
+            for (String table : before.keySet()) {
+                assertThat(rows(connection, table, oldColumns.get(table))).as(table).isEqualTo(before.get(table));
+            }
+            try (Statement sql = connection.createStatement()) {
+                try (ResultSet result = sql.executeQuery("select draft_round_id, draft_answer_json from quiz_participants")) {
+                    while (result.next()) {
+                        assertThat(result.getObject(1)).isNull();
+                        assertThat(result.getObject(2)).isNull();
+                    }
+                }
+                try (ResultSet result = sql.executeQuery("select count(*) from translation_request_history")) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getLong(1)).isZero();
+                }
+                try (ResultSet result = sql.executeQuery("select count(*) from grades where grade_no=6")) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getLong(1)).isEqualTo(1);
+                }
+            }
+        }
+        assertThat(db.flyway(null).info().current().getVersion().toString()).isEqualTo("74");
+        assertThat(db.flyway(null).migrate().migrationsExecuted).isZero();
+        assertThat(db.flyway(null).validateWithResult().validationSuccessful).isTrue();
+    }
+
+    /** В истории Flyway нет id: читаем её по installed_rank, включая исходные checksum. */
+    private List<List<Object>> migrationHistory(Connection connection) throws SQLException {
+        List<List<Object>> result = new ArrayList<>();
+        try (Statement sql = connection.createStatement(); ResultSet rows = sql.executeQuery(
+                "select installed_rank, version, script, checksum, success from flyway_schema_history order by installed_rank")) {
+            while (rows.next()) {
+                List<Object> row = new ArrayList<>();
+                for (int i = 1; i <= 5; i++) row.add(rows.getObject(i));
+                result.add(row);
+            }
+        }
+        return result;
+    }
+
     @Test
     void identicalTranslationsAreRemovedButGameHistorySurvives() throws Exception {
         Database db = database(); db.flyway("60").migrate();
@@ -53,7 +110,7 @@ class QuizFoundationMigrationTest {
             sql.executeUpdate("insert into quiz_games(id, code, status) values (920001, 'upgrade-game', 'DRAFT')");
             sql.executeUpdate("insert into quiz_content_editorial_events(content_type, content_id, from_status, to_status) values ('FACT_STATEMENT', 920001, 'DRAFT', 'NEEDS_REVIEW')");
             List<List<Object>> events = rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"));
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(18); // Speaking V67–V71 и добавление 6 класса V72.
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(20); // Speaking V67–V71, уроки V72, история переводов V73 и выбор викторин V74.
             // V57 добавляет системные события поставки, V58 меняет только диапазон времени;
             // прежние строки аудита сохраняются целиком.
             assertThat(rows(connection, "quiz_content_editorial_events", columns(connection, "quiz_content_editorial_events"))).containsAll(events);
@@ -71,8 +128,8 @@ class QuizFoundationMigrationTest {
     void emptyDatabaseMigratesAndSecondRunIsIdempotent() throws Exception {
         Database db = database();
         var flyway = db.flyway(null);
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(69); // V64–V66 не входят в этот выпуск.
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("72");
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(71);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("74");
         try (Connection connection = db.connection(); Statement sql = connection.createStatement();
                 ResultSet result = sql.executeQuery("select title_ru, title_kk from grades where grade_no=6")) {
             assertThat(result.next()).isTrue();
@@ -98,7 +155,7 @@ class QuizFoundationMigrationTest {
                 columns.put(table, columns(connection, table));
                 before.put(table, rows(connection, table, columns.get(table)));
             }
-            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(23);
+            assertThat(db.flyway(null).migrate().migrationsExecuted).isEqualTo(25);
             for (String table : before.keySet()) assertThat(rows(connection, table, columns.get(table))).as(table + ": исходные поля").isEqualTo(before.get(table));
             try (Statement sql = connection.createStatement()) {
                 try (ResultSet result = sql.executeQuery("select game_id, game_version_id, game_type, expires_at, settings_revision, command_revision from quiz_rooms order by id")) {

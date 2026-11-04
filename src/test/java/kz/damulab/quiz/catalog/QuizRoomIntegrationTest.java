@@ -123,11 +123,18 @@ class QuizRoomIntegrationTest extends QuizGameTestSupport {
         assertThat(active.subjectId()).isNotNull(); assertThat(active.currentRound().prompt()).isEqualTo("Сұрақ");
         String raw = switch (type) { case SCQ -> "{\"selected\":[\"B\"]}"; case MCQ -> "{\"selected\":[\"B\",\"A\"]}";
             case MATCHING -> "{\"pairs\":{\"1\":\"Один\",\"2\":\"Два\"}}"; case FILL_IN -> "{\"answers\":{\"[[1]]\":\"30\"}}"; };
+        var draftRoom = create(host, createRequest(game, "subject-draft")); var draftRound = rooms.start(draftRoom.code(), host);
+        rooms.saveDraft(draftRoom.code(), host, new QuizGameRoomRequest.Draft(draftRound.activeRoundId(), mapper.readTree(raw)));
+        assertThat(rooms.state(draftRoom.code(), host).currentRound().answered()).isFalse();
         var answer = new QuizGameRoomRequest.Answer(active.activeRoundId(), mapper.readTree(raw), false); rooms.answer(room.code(), host, answer);
         JsonNode retry = mapper.readTree(type == kz.damulab.questions.QuestionType.MCQ ? "{\"selected\":[\"A\",\"B\"]}" : raw);
         rooms.answer(room.code(), host, new QuizGameRoomRequest.Answer(active.activeRoundId(), retry, false));
         tx(() -> { var source = roundRepository.findById(active.activeRoundId()).orElseThrow().getQuestionVersion(); source.getQuestion().changeStatus(kz.damulab.questions.QuestionStatus.ARCHIVED); return null; });
         clock.set(BASE.plusSeconds(20)); assertThat(rooms.results(room.code(), host).me().correctAnswers()).isEqualTo(1);
+        var autoResult = rooms.results(draftRoom.code(), host);
+        assertThat(autoResult.me().correctAnswers()).isEqualTo(1);
+        assertThat(autoResult.me().totalResponseMs()).isEqualTo(20000);
+        assertThat(autoResult.review().getFirst().timedOut()).isFalse();
     }
     @Test void wordRoomUsesTranslationSnapshotAndCurrentPublishedReplay() throws Exception {
         String host = profile(null, "ru"); String game = tx(() -> {
@@ -136,8 +143,15 @@ class QuizRoomIntegrationTest extends QuizGameTestSupport {
         var room = create(host, createRequest(game, "word")); var active = rooms.start(room.code(), host);
         assertThat(active.currentRound().options()).hasSize(4); assertThat(active.contentKind()).isEqualTo("VOCABULARY"); assertThat(active.currentRound().contentKind()).isEqualTo("VOCABULARY");
         var key = tx(() -> roundRepository.findById(active.activeRoundId()).orElseThrow().getAnswerKeySnapshotJson());
+        var draftRoom = create(host, createRequest(game, "word-draft")); var draftRound = rooms.start(draftRoom.code(), host);
+        var draftKey = tx(() -> roundRepository.findById(draftRound.activeRoundId()).orElseThrow().getAnswerKeySnapshotJson());
+        rooms.saveDraft(draftRoom.code(), host, new QuizGameRoomRequest.Draft(draftRound.activeRoundId(), mapper.readTree("{\"selected\":[" + draftKey + "]}")));
         rooms.answer(room.code(), host, new QuizGameRoomRequest.Answer(active.activeRoundId(), mapper.readTree("{\"selected\":[" + key + "]}"), false));
         clock.set(BASE.plusSeconds(20)); assertThat(rooms.results(room.code(), host).me().score()).isEqualByComparingTo("1");
+        var draftResult = rooms.results(draftRoom.code(), host);
+        assertThat(draftResult.review().getFirst().timedOut()).isFalse();
+        assertThat(draftResult.review().getFirst().answer().path("selected").get(0)).isEqualTo(mapper.readTree(draftKey));
+        assertThat(draftResult.me().correctAnswers()).isEqualTo(1);
         String pinned = tx(() -> roomRepository.findByCodeIgnoreCase(room.code()).orElseThrow().getGameVersion().getId().toString());
         tx(() -> { var g = gameRepository.findByCode(game).orElseThrow(); var f = games.get(g.getId()).form(); f.setTitleRu("Новая игра"); games.saveDraft(g.getId(), f, admin()); approve(g.getId()); games.publish(g.getId(), revision(g.getId()), false, admin()); return null; });
         var replay = create(host, createRequest(game, "replay"));
@@ -163,6 +177,56 @@ class QuizRoomIntegrationTest extends QuizGameTestSupport {
         assertThat(result.review().get(1).skipped()).isTrue(); assertThat(result.review().get(2).timedOut()).isTrue();
         assertThat(resultRepository.findByRoomIdOrderByScoreDescPercentDescCreatedAtAsc(room.id())).hasSize(1);
         assertThat(rooms.answer(room.code(), host, falseAnswer).status()).isEqualTo("finished");
+    }
+    @Test void deadlineAcceptsLatestDraftForEachPlayerOnce() throws Exception {
+        var host = profile(5, "ru"); var guest = profile(4, "ru"); var room = create(host, createRequest(game(4, 1), "draft-group"));
+        var joined = rooms.join(room.code(), guest); rooms.ready(room.code(), guest, new QuizGameRoomRequest.Ready(true, joined.settingsRevision()));
+        var active = rooms.start(room.code(), host); var id = active.activeRoundId();
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(id, mapper.getNodeFactory().booleanNode(true)));
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(id, mapper.getNodeFactory().booleanNode(false)));
+        rooms.saveDraft(room.code(), guest, new QuizGameRoomRequest.Draft(id, mapper.getNodeFactory().booleanNode(true)));
+        assertThat(answerRepository.countByRoundRoomId(room.id())).isZero();
+        assertThat(rooms.state(room.code(), host).currentRound().draftAnswer().booleanValue()).isFalse();
+        assertThat(rooms.state(room.code(), guest).currentRound().draftAnswer().booleanValue()).isTrue();
+        assertThat(rooms.state(room.code(), host).currentRound().answered()).isFalse();
+        clock.set(BASE.plusSeconds(20)); race(() -> { rooms.tick(room.code()); return "tick"; }, () -> rooms.state(room.code(), guest));
+        var result = rooms.results(room.code(), host); var wrong = rooms.results(room.code(), guest);
+        assertThat(result.me().correctAnswers()).isEqualTo(1); assertThat(wrong.me().correctAnswers()).isZero();
+        assertThat(result.me().totalResponseMs()).isEqualTo(20000);
+        assertThat(result.review().getFirst().timedOut()).isFalse(); assertThat(wrong.review().getFirst().timedOut()).isFalse();
+        rooms.tick(room.code()); assertThat(answerRepository.countByRoundRoomId(room.id())).isEqualTo(2);
+        assertThat(tx(() -> answerRepository.findByRoundRoomId(room.id()).getFirst().getAnsweredAt())).isEqualTo(OffsetDateTime.ofInstant(BASE.plusSeconds(20), ZoneOffset.UTC));
+    }
+    @Test void clearedDraftTimesOutAndExplicitAnswerOrSkipTakesPriority() {
+        var host = profile(5, "ru"); var room = create(host, createRequest(game(1, 3), "draft-priority"));
+        var active = rooms.start(room.code(), host);
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(active.activeRoundId(), mapper.getNodeFactory().booleanNode(false)));
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(active.activeRoundId(), null));
+        clock.set(BASE.plusSeconds(20)); var second = rooms.state(room.code(), host);
+        assertThat(second.currentRound().draftAnswer()).isNull();
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(second.activeRoundId(), mapper.getNodeFactory().booleanNode(false)));
+        rooms.answer(room.code(), host, new QuizGameRoomRequest.Answer(second.activeRoundId(), mapper.getNodeFactory().booleanNode(true), false));
+        failure(() -> rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(second.activeRoundId(), mapper.getNodeFactory().booleanNode(false))), "ANSWER_ALREADY_SUBMITTED");
+        clock.set(BASE.plusSeconds(40)); var third = rooms.state(room.code(), host);
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(third.activeRoundId(), mapper.getNodeFactory().booleanNode(false)));
+        rooms.answer(room.code(), host, new QuizGameRoomRequest.Answer(third.activeRoundId(), null, true));
+        clock.set(BASE.plusSeconds(60)); var result = rooms.results(room.code(), host);
+        assertThat(result.me().correctAnswers()).isZero();
+        assertThat(result.review().get(0).timedOut()).isTrue();
+        assertThat(result.review().get(1).answer().booleanValue()).isTrue();
+        assertThat(result.review().get(2).skipped()).isTrue();
+    }
+    @Test void nextRoundDraftFinalizesPreviousDraftAndRejectsLateChanges() {
+        var host = profile(5, "ru"); var outsider = profile(4, "ru"); var room = create(host, createRequest(game(1, 2), "draft-window"));
+        var active = rooms.start(room.code(), host); Long next = tx(() -> roundRepository.findByRoomIdOrderByOrderNoAsc(room.id()).getLast().getId());
+        var firstDraft = new QuizGameRoomRequest.Draft(active.activeRoundId(), mapper.getNodeFactory().booleanNode(false));
+        failure(() -> rooms.saveDraft(room.code(), outsider, firstDraft), "PARTICIPANT_REQUIRED");
+        failure(() -> rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(next, mapper.getNodeFactory().booleanNode(false))), "ROUND_NOT_ACTIVE");
+        rooms.saveDraft(room.code(), host, firstDraft);
+        clock.set(BASE.plusSeconds(20)); failure(() -> rooms.saveDraft(room.code(), host, firstDraft), "ROUND_NOT_ACTIVE");
+        rooms.saveDraft(room.code(), host, new QuizGameRoomRequest.Draft(next, mapper.getNodeFactory().booleanNode(false)));
+        clock.set(BASE.plusSeconds(80)); var result = rooms.results(room.code(), host);
+        assertThat(result.me().correctAnswers()).isEqualTo(2); assertThat(result.me().totalResponseMs()).isEqualTo(40000);
     }
     @Test void waitingGuestReadySettingsResetLeaveAndHostCancel() {
         var host = profile(5, "ru"); var guest = profile(4, "kk"); var room = create(host, createRequest(game(4, 2), "lobby"));
@@ -234,6 +298,13 @@ class QuizRoomIntegrationTest extends QuizGameTestSupport {
         mvc.perform(post("/api/quiz/rooms/{code}/start", room.code()).with(user(host).roles("STUDENT"))).andExpect(status().isForbidden());
         mvc.perform(get("/api/quiz/rooms/{code}", room.code()).with(user(host).roles("PARENT"))).andExpect(status().isForbidden());
         var active = rooms.start(room.code(), host);
+        String draft = "{\"roundId\":" + active.activeRoundId() + ",\"answer\":false}";
+        mvc.perform(post("/api/quiz/rooms/{code}/draft", room.code()).with(user(host).roles("STUDENT"))
+                .contentType(MediaType.APPLICATION_JSON).content(draft)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/quiz/rooms/{code}/draft", room.code()).with(user(outsider).roles("STUDENT")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(draft)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/quiz/rooms/{code}/draft", room.code()).with(user(host).roles("STUDENT")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(draft)).andExpect(status().isNoContent());
         mvc.perform(get("/api/quiz/rooms/{code}", room.code()).with(user(host).roles("STUDENT")))
                 .andExpect(status().isOk()).andExpect(jsonPath("currentRound.options[0]").value(true))
                 .andExpect(jsonPath("rounds[1].prompt").doesNotExist()).andExpect(jsonPath("currentRound.answerKey").doesNotExist())

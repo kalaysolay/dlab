@@ -15,4 +15,6 @@ public final class QuizGameRoomRequest {
     public record Settings(Long gradeId, Integer questionCount, Integer roundSeconds, long settingsRevision) {}
     /** False является ответом; skipped допускается только без содержательного answer. */
     public record Answer(Long roundId, JsonNode answer, boolean skipped) {}
+    /** Изменяемый выбор до подтверждения; null очищает выбор текущего раунда. */
+    public record Draft(Long roundId, JsonNode answer) {}
 }

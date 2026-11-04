@@ -63,6 +63,12 @@ public class QuizApiController {
         if (payload.has("skipped") && !payload.path("skipped").isBoolean()) throw new QuizEngineException("ANSWER_INVALID");
         return rooms.answer(code, principal.getName(), convert(payload, QuizGameRoomRequest.Answer.class));
     }
+    @PostMapping("/{code}/draft")
+    ResponseEntity<Void> draft(Principal principal, @PathVariable String code, @RequestBody JsonNode payload) {
+        fields(payload, Set.of("roundId", "answer"));
+        rooms.saveDraft(code, principal.getName(), convert(payload, QuizGameRoomRequest.Draft.class));
+        return ResponseEntity.noContent().build();
+    }
     @PostMapping("/{code}/leave")
     ResponseEntity<Void> leave(Principal principal, @PathVariable String code) { rooms.leave(code, principal.getName()); return ResponseEntity.noContent().build(); }
     @PostMapping("/{code}/cancel")

@@ -171,7 +171,7 @@ class QuizEngineIntegrationTest extends QuizGameTestSupport {
         assertThat(state.currentRound().id()).isEqualTo(current.getId()); assertThat(state.currentRound().answered()).isTrue();
         assertThat(serialized).doesNotContain("answerKey", "correct", "explanation", "sourceReference", "Научный источник", "Объяснение", "future", "rounds");
         assertThat(serialized).doesNotContain(snapshots.getLast().getPromptSnapshot());
-        assertThat(mapper.readTree(serialized).path("currentRound").fieldNames()).toIterable().containsExactlyInAnyOrder("id", "orderNo", "format", "contentKind", "prompt", "options", "locale", "presentation", "startsAt", "endsAt", "answered");
+        assertThat(mapper.readTree(serialized).path("currentRound").fieldNames()).toIterable().containsExactlyInAnyOrder("id", "orderNo", "format", "contentKind", "prompt", "options", "locale", "presentation", "startsAt", "endsAt", "answered", "draftAnswer");
         assertThat(reader.read(room.getCode(), ps.getFirst().getStudentProfile().getId(), start.plusSeconds(room.getRoundSeconds())).currentRound().id()).isEqualTo(snapshots.getLast().getId());
         assertThat(reader.read(room.getCode(), ps.getFirst().getStudentProfile().getId(), start.minusSeconds(1)).currentRound()).isNull();
         assertThatThrownBy(() -> reader.read(room.getCode(), -1L, start)).hasMessage("PARTICIPANT_REQUIRED");

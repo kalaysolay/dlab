@@ -34,7 +34,7 @@ class BasicVocabularyPublicationTest {
     private String student;
 
     @DynamicPropertySource
-    static void isolated(DynamicPropertyRegistry registry) {
+    static void isolated(DynamicPropertyRegistry registry) throws Exception {
         String schema="vocab_publish_"+UUID.randomUUID().toString().replace("-","");
         String url=System.getenv().getOrDefault("QUIZ_TEST_DB_URL","jdbc:h2:mem:"+schema+";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1");
         // Hikari задаёт текущую схему при первом соединении: она должна существовать до старта пула.
@@ -43,6 +43,12 @@ class BasicVocabularyPublicationTest {
         kz.damulab.speaking.HistoricalSpeakingSchema.install(url,
                 System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"),
                 System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""),schema);
+        // Оставляем исторические банки V58, но добавляем поля текущего JPA без поставок V59+.
+        try (var connection = DriverManager.getConnection(url, System.getenv().getOrDefault("QUIZ_TEST_DB_USER", "sa"), System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD", ""))) {
+            connection.setSchema(schema);
+            org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,
+                    new org.springframework.core.io.ClassPathResource("db/migration/V74__quiz_answer_drafts.sql"));
+        }
         registry.add("spring.datasource.url",()->url);
         registry.add("spring.datasource.username",()->System.getenv().getOrDefault("QUIZ_TEST_DB_USER","sa"));
         registry.add("spring.datasource.password",()->System.getenv().getOrDefault("QUIZ_TEST_DB_PASSWORD",""));

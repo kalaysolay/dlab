@@ -284,6 +284,23 @@ public class QuizRoomService {
             throw ex;
         }
     }
+    /** Сохраняет изменяемый выбор без оценки и блокировки формы; после конца окна изменения запрещены. */
+    public void saveDraft(String code, String email, QuizGameRoomRequest.Draft request) {
+        command(code, email, (room, student) -> {
+            var participant = member(room, student);
+            if (request == null || request.roundId() == null) throw new QuizEngineException("ANSWER_INVALID");
+            var round = rounds.findByIdAndRoomId(request.roundId(), room.getId()).orElseThrow(() -> new QuizEngineException("ROUND_NOT_ACTIVE"));
+            var at = now();
+            if (room.getStatus() != QuizRoomStatus.ACTIVE || at.isBefore(QuizAnswerEvaluator.startsAt(round))
+                    || !at.isBefore(QuizAnswerEvaluator.endsAt(round))) throw new QuizEngineException("ROUND_NOT_ACTIVE");
+            if (answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).isPresent()) throw new QuizEngineException("ANSWER_ALREADY_SUBMITTED");
+            // Сначала фиксируем выбор прошлого раунда: у участника хранится только один текущий черновик.
+            advance(room, at);
+            participant.saveDraft(round.getId(), request.answer() == null || request.answer().isNull()
+                    ? null : json.write(checker.canonical(round, request.answer())));
+            return null;
+        });
+    }
     /** Принимает первый ответ/skip; одинаковый canonical retry допустим и после закрытия окна, другой конфликтует. */
     public QuizGameRoomResponse answer(String code, String email, QuizGameRoomRequest.Answer request) {
         return command(code, email, (room, student) -> {
@@ -301,7 +318,11 @@ public class QuizRoomService {
             }
             // Время берётся после получения lock: ожидавший запрос не получает задним числом окно.
             if (room.getStatus() != QuizRoomStatus.ACTIVE) throw new QuizEngineException("ROUND_NOT_ACTIVE");
-            answers.saveAndFlush(evaluator.evaluate(round, participant, request.answer(), request.skipped(), now()));
+            var at = now();
+            if (at.isBefore(QuizAnswerEvaluator.startsAt(round)) || !at.isBefore(QuizAnswerEvaluator.endsAt(round))) throw new QuizEngineException("ROUND_NOT_ACTIVE");
+            advance(room, at);
+            answers.saveAndFlush(evaluator.evaluate(round, participant, request.answer(), request.skipped(), at));
+            participant.clearDraft();
             events.publish("room.answer_accepted", room); return response(room, student);
         });
     }
@@ -362,16 +383,20 @@ public class QuizRoomService {
         }
         if (room.getStatus() != QuizRoomStatus.ACTIVE) return;
         var members = members(room); var snapshots = rounds.findByRoomIdOrderByOrderNoAsc(room.getId());
-        int timedOut = 0;
+        int timedOut = 0, acceptedDrafts = 0;
         for (var round : snapshots) if (!at.isBefore(QuizAnswerEvaluator.endsAt(round))) {
             for (var participant : members) if (answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).isEmpty()) {
-                answers.save(evaluator.timeout(round, participant, at));
-                timedOut++;
+                String draft = participant.draftAnswer(round.getId());
+                answers.save(draft == null ? evaluator.timeout(round, participant, at)
+                        : evaluator.acceptDraft(round, participant, json.read(draft), at));
+                if (draft != null) { participant.clearDraft(); acceptedDrafts++; }
+                else timedOut++;
             }
         }
         answers.flush();
         // Один безопасный сигнал на commit пачки timeout; повтор tick с сохранёнными ответами его не дублирует.
         if (timedOut > 0) events.publish("room.answers_timed_out", room);
+        if (acceptedDrafts > 0) events.publish("room.answer_accepted", room);
         // Ранние ответы всех игроков не открывают будущие условия и не сокращают общее расписание.
         if (!at.isBefore(room.getStartedAt().plusSeconds((long) room.getQuestionCount() * room.getRoundSeconds()))) {
             room.finish(at); results.save(room.getCode()); events.publish("room.finished", room);

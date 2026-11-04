@@ -94,6 +94,20 @@ class QuizEngineContractTest {
         assertThatThrownBy(() -> skip.recordTiming(2, false, false)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> evaluator.evaluate(round, participant, json.read("false"), true, start)).hasMessage("ANSWER_INVALID");
     }
+    @Test void draftIsAcceptedOnlyAtDeadlineAndLosesSpeedTieToConfirmedAnswer() {
+        var room = room(); var round = factRound(room, false, 1);
+        var automatic = participant(room, 1, start); var manual = participant(room, 2, start);
+        assertThatThrownBy(() -> evaluator.acceptDraft(round, automatic, json.read("false"), start.plusSeconds(9))).hasMessage("ROUND_NOT_ENDED");
+        var accepted = evaluator.acceptDraft(round, automatic, json.read("false"), start.plusSeconds(50));
+        assertThat(accepted.getAnsweredAt()).isEqualTo(start.plusSeconds(10));
+        assertThat(accepted.isTimedOut()).isFalse(); assertThat(accepted.getResponseMs()).isEqualTo(10000);
+        var confirmed = evaluator.evaluate(round, manual, json.read("false"), false, start.plusSeconds(1));
+        var ranking = calculator.calculate(room, List.of(round), List.of(automatic, manual), List.of(accepted, confirmed));
+        assertThat(ranking).extracting(v -> v.participant().getId()).containsExactly(2L, 1L);
+        assertThat(ranking).extracting(QuizResultCalculator.Standing::score).containsOnly(BigDecimal.ONE);
+        ReflectionTestUtils.setField(accepted, "responseMs", 10001L);
+        assertThatThrownBy(() -> calculator.calculate(room, List.of(round), List.of(automatic), List.of(accepted))).hasMessage("ANSWER_TIMING_INVALID");
+    }
     @Test void ratingHasNoSpeedBonusAndSkipCostsFullLimit() {
         var room = room(); var r1 = factRound(room, false, 1); var r2 = factRound(room, true, 2); var r3 = factRound(room, false, 3);
         var slow = participant(room, 1, start); var fast = participant(room, 2, start.plusSeconds(1)); var later = participant(room, 3, start.plusSeconds(2));

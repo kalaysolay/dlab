@@ -26,6 +26,21 @@ public class QuizParticipant {
     @Column(name = "ready_revision")
     private Long readyRevision;
 
+    @Column(name = "draft_round_id")
+    private Long draftRoundId;
+
+    @Column(name = "draft_answer_json", columnDefinition = "text")
+    private String draftAnswerJson;
+
+    /** Возвращает только выбор указанного раунда, чтобы он не перешёл в следующий вопрос. */
+    public String draftAnswer(Long roundId) { return Objects.equals(draftRoundId, roundId) ? draftAnswerJson : null; }
+
+    /** Сохраняет изменяемый выбор; сервис проверяет участие и серверное окно под блокировкой комнаты. */
+    public void saveDraft(Long roundId, String answerJson) { draftRoundId = roundId; draftAnswerJson = answerJson; }
+
+    /** Удаляет выбор после окончательного ответа или обработки истёкшего раунда. */
+    public void clearDraft() { draftRoundId = null; draftAnswerJson = null; }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

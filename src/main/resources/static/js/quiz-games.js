@@ -61,6 +61,7 @@
     const base = `/api/quiz/rooms/${root.dataset.code}`;
     let room, round, offset = 0, pending = false, polling = false, socket, stopped = false, reconnect, pollTimer, realtimeConnected = false, resultLoaded = false;
     let previousSeconds = Infinity, announced = new Set(), dirtySettings = false, seenRevision, lostPayload, timeoutRefreshRoundId;
+    let draftPending = false, draftFailed = false, queuedDraft, lastDraft;
     const FALLBACK_POLL_MS = 10000;
     // При нормальной работе сети ничего не показываем: техническое «состояние обновлено»
     // отвлекает ребёнка. Сообщение появляется только тогда, когда действительно есть проблема.
@@ -137,7 +138,8 @@
     function renderRound(current) {
         if (!current) { round=null; byId("qg-options").replaceChildren(); lockAnswer(true); text("qg-question",labels.next); text("qg-timer",""); status(labels.next, false); return; }
         if (round?.id !== current.id) {
-            round = current; lostPayload = null; previousSeconds = Infinity; timeoutRefreshRoundId = null;
+            round = current; lostPayload = null; previousSeconds = Infinity; timeoutRefreshRoundId = null; draftFailed = false;
+            lastDraft = JSON.stringify({roundId:current.id,answer:current.draftAnswer ?? null});
             try { announced = new Set(JSON.parse(sessionStorage.getItem(`quiz-thresholds:${room.code}:${round.id}`) || "[]")); } catch { announced = new Set(); }
             text("qg-progress", `${labels.round} ${current.orderNo}/${room.questionCount}`); text("qg-question", current.prompt);
             byId("qg-question").lang = current.presentation?.sourceLanguage || current.locale;
@@ -165,6 +167,7 @@
                     input.required = true; input.autocomplete = "off"; input.setAttribute("aria-describedby", "qg-error"); label.append(input); options.append(label);
                 });
             }
+            restoreDraft(current.draftAnswer);
             byId("qg-question").focus();
         } else round = current;
         lockAnswer(current.answered || pending);
@@ -176,12 +179,50 @@
         input.setAttribute("aria-describedby", "qg-error"); row.append(input, node("span", label)); byId("qg-options").append(row);
     }
     function lockAnswer(locked) { byId("qg-answer-fields").disabled = locked || !!lostPayload; byId("qg-submit").disabled = locked; byId("qg-skip").disabled = locked || !!lostPayload; }
-    function currentAnswer() {
+    function currentAnswer(draft = false) {
         if (round.contentKind === "FACT") {
             const chosen = byId("qg-options").querySelector("input:checked"); return core.answer(round, chosen ? chosen.value === "true" : undefined);
         }
         if (["SCQ", "MCQ"].includes(round.format) || round.contentKind === "VOCABULARY") return core.answer(round, Array.from(byId("qg-options").querySelectorAll("input:checked")).map(i=>i.value));
-        return core.answer(round, Object.fromEntries(Array.from(byId("qg-options").querySelectorAll("[data-answer-key]")).map(i=>[i.dataset.answerKey,i.value])));
+        const fields = Array.from(byId("qg-options").querySelectorAll("[data-answer-key]"))
+            .filter(i => !draft || i.value.trim()).map(i=>[i.dataset.answerKey,i.value]);
+        return draft && !fields.length ? null : core.answer(round, Object.fromEntries(fields));
+    }
+    function restoreDraft(answer) {
+        if (answer == null) return;
+        byId("qg-options").querySelectorAll("input[name=answer]").forEach(input => {
+            input.checked = typeof answer === "boolean" ? input.value === String(answer)
+                : answer.selected?.includes(input.value.toUpperCase()) || false;
+        });
+        const values = answer.pairs || answer.answers || {};
+        byId("qg-options").querySelectorAll("[data-answer-key]").forEach(input => {
+            const value = values[input.dataset.answerKey] ?? values[input.dataset.answerKey.toLowerCase()];
+            if (input.tagName === "SELECT") input.value = Array.from(input.options).find(o => o.value.toLowerCase() === value)?.value || "";
+            else input.value = value ?? "";
+        });
+    }
+    async function saveDraft() {
+        if (pending || !round || room?.status !== "active" || round.answered || lostPayload || core.remaining(round.endsAt,offset,Date.now()) === 0) return;
+        let answer;
+        try { answer = currentAnswer(true); } catch { answer = null; }
+        const payload = { roundId:round.id, answer }, key = JSON.stringify(payload);
+        if (lastDraft === key) return;
+        lastDraft = key; queuedDraft = payload;
+        if (draftPending) return;
+        draftPending = true;
+        try {
+            // Запросы идут по порядку; быстрые изменения объединяются в последний выбор,
+            // чтобы медленный ответ сети не вернул на сервер устаревший вариант.
+            while (queuedDraft) {
+                const next = queuedDraft; queuedDraft = null;
+                try { await api(`${base}/draft`, next); if (round?.id === next.roundId) draftFailed = false; }
+                catch {
+                    if (round?.id === next.roundId && !round.answered && !pending) {
+                        lastDraft = undefined; draftFailed = true; online(false);
+                    }
+                }
+            }
+        } finally { draftPending = false; }
     }
     async function submitAnswer(skipped) {
         if (pending || !round || round.answered || core.remaining(round.endsAt,offset,Date.now()) === 0) return;
@@ -338,8 +379,9 @@
     byId("qg-settings").addEventListener("input",()=>{dirtySettings=true; byId("qg-start").disabled=pending;});
     byId("qg-settings").onsubmit = event => { event.preventDefault(); startGame(); };
     byId("qg-answer-form").onsubmit = event => { event.preventDefault(); submitAnswer(false); }; byId("qg-skip").onclick = () => submitAnswer(true);
+    byId("qg-options").addEventListener("input", saveDraft);
     const timer=setInterval(tick,250);
-    window.addEventListener("online",refresh); document.addEventListener("visibilitychange",()=>{if(!document.hidden) refresh();});
+    window.addEventListener("online",()=>{if(draftFailed) saveDraft(); refresh();}); document.addEventListener("visibilitychange",()=>{if(!document.hidden) {if(draftFailed) saveDraft(); refresh();}});
     window.addEventListener("pagehide",()=>{stopped=true; clearInterval(timer); clearTimeout(reconnect); clearTimeout(pollTimer); socket?.close();});
     refresh(); connect(); scheduleFallbackPoll();
 })();

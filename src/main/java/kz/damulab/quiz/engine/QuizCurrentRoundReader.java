@@ -7,7 +7,7 @@ import kz.damulab.quiz.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Безопасная модель чтения нового режима: только текущий раунд и факт принятия собственного ответа, без JPA-сериализации. */
+/** Безопасная модель чтения: текущий раунд, собственный выбор и факт принятия ответа, без JPA-сериализации. */
 @Service
 public class QuizCurrentRoundReader {
     private final QuizRoomRepository rooms;
@@ -33,7 +33,8 @@ public class QuizCurrentRoundReader {
                     for (String field : List.of("sourceLanguage", "targetLanguage", "pronunciation")) if (config.has(field)) presentation.put(field, config.path(field).asText());
                     current = new CurrentRound(round.getId(), round.getOrderNo(), config.path("format").asText(), round.getContentKind().name(), round.getPromptSnapshot(),
                             json.read(round.getOptionsSnapshotJson()), round.getContentLocale(), Map.copyOf(presentation),
-                            QuizAnswerEvaluator.startsAt(round), QuizAnswerEvaluator.endsAt(round), answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).isPresent());
+                            QuizAnswerEvaluator.startsAt(round), QuizAnswerEvaluator.endsAt(round), answers.findByRoundIdAndParticipantId(round.getId(), participant.getId()).isPresent(),
+                            participant.draftAnswer(round.getId()) == null ? null : json.read(participant.draftAnswer(round.getId())));
                     break;
                 }
             }
@@ -44,5 +45,5 @@ public class QuizCurrentRoundReader {
     public record State(QuizRoomStatus status, int totalRounds, OffsetDateTime serverTime, CurrentRound currentRound) {}
     /** Разрешённые поля текущего окна; ключи/правильность/разбор/источник отсутствуют в самом типе DTO. */
     public record CurrentRound(Long id, int orderNo, String format, String contentKind, String prompt, JsonNode options, String locale,
-                               Map<String, String> presentation, OffsetDateTime startsAt, OffsetDateTime endsAt, boolean answered) {}
+                               Map<String, String> presentation, OffsetDateTime startsAt, OffsetDateTime endsAt, boolean answered, JsonNode draftAnswer) {}
 }

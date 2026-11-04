@@ -31,7 +31,8 @@ public class QuizResultCalculator {
                 else if (answer != null && answer.getResponseMs() == null) throw new QuizEngineException("ANSWER_TIMING_INVALID");
                 else if (answer == null || answer.isSkipped() || answer.isTimedOut()) time += room.getRoundSeconds() * 1000L;
                 else {
-                    if (answer.getResponseMs() < 0 || answer.getResponseMs() >= room.getRoundSeconds() * 1000L) throw new QuizEngineException("ANSWER_TIMING_INVALID");
+                    // Автопринятый выбор имеет полное время окна; превышение лимита по-прежнему недопустимо.
+                    if (answer.getResponseMs() < 0 || answer.getResponseMs() > room.getRoundSeconds() * 1000L) throw new QuizEngineException("ANSWER_TIMING_INVALID");
                     time += answer.getResponseMs();
                 }
             }

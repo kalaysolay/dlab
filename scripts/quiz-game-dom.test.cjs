@@ -75,7 +75,9 @@ async function harness(format='SCQ',kind='QUESTION') {
     w.fetch=async(url,init)=>{
         if(url.endsWith('/results')) return {ok:true,status:200,json:async()=>structuredClone(results)};
         if(url.includes('/replay')) {replayRequests.push(url);return replayHandler();}
-        if(init.method==='POST') {requests.push({url,payload:JSON.parse(init.body),headers:init.headers});if(fail)throw new Error('offline');if(postHandler)state=await postHandler(requests.at(-1),state);else state={...state,currentRound:{...state.currentRound,answered:true}};}
+        if(init.method==='POST') {requests.push({url,payload:JSON.parse(init.body),headers:init.headers});if(fail)throw new Error('offline');
+            if(url.endsWith('/draft')) {state={...state,currentRound:{...state.currentRound,draftAnswer:requests.at(-1).payload.answer}};return {ok:true,status:204};}
+            if(postHandler)state=await postHandler(requests.at(-1),state);else state={...state,currentRound:{...state.currentRound,answered:true}};}
         return {ok:true,status:200,json:async()=>structuredClone(state)};
     };
     w.eval(core);w.eval(client);await flush();
@@ -150,6 +152,26 @@ test('карточки разбора отображают снимки выбо
     }
 });
 for(const [format,kind] of [['SCQ','QUESTION'],['MCQ','QUESTION'],['MATCHING','QUESTION'],['FILL_IN','QUESTION'],['SCQ','VOCABULARY'],['BOOLEAN','FACT']]) {
+    test(`DOM ${kind}/${format}: выбор сохраняется без подтверждения и остаётся изменяемым`,async()=>{
+        const h=await harness(format,kind), d=h.w.document;
+        try {
+            const input=kind==='FACT'?d.querySelector('input[value="false"]')
+                :['MATCHING','FILL_IN'].includes(format)?d.querySelector('[data-answer-key]'):d.querySelector('input[value="B"]');
+            if(format==='MATCHING')input.value='a';else if(format==='FILL_IN')input.value='30';else input.checked=true;
+            input.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+            assert.equal(h.requests.length,1);assert.ok(h.requests[0].url.endsWith('/draft'));
+            assert.equal(d.querySelector('#qg-answer-fields').disabled,false);
+            assert.equal(h.getState().currentRound.answered,false);
+            const expected=kind==='FACT'?false:format==='MATCHING'?{pairs:{'1':'a'}}:format==='FILL_IN'?{answers:{'[[1]]':'30'}}:{selected:['B']};
+            assert.deepEqual(h.requests[0].payload,{roundId:1,answer:expected});
+            // Новый DOM того же вопроса имитирует повторное открытие с серверным черновиком.
+            const current=h.getState().currentRound;
+            h.setState({...h.getState(),currentRound:{...current,id:2}});h.refresh();await flush();
+            const restored=kind==='FACT'?d.querySelector('input[value="false"]')
+                :['MATCHING','FILL_IN'].includes(format)?d.querySelector('[data-answer-key]'):d.querySelector('input[value="B"]');
+            assert.equal(['MATCHING','FILL_IN'].includes(format)?restored.value:restored.checked,['MATCHING','FILL_IN'].includes(format)?input.value:true);
+        }finally{h.close();}
+    });
     test(`DOM ${kind}/${format}: typed ответ, окончательная блокировка и фокус статуса`,async()=>{
         const h=await harness(format,kind), d=h.w.document;
         try {
@@ -185,9 +207,43 @@ test('сетевой отказ не обещает сохранение и по
         h.setFail(false);d.querySelector('#qg-answer-form').dispatchEvent(new h.w.Event('submit',{cancelable:true}));await flush();assert.deepEqual(h.requests[0].payload,h.requests[1].payload);
     }finally{h.close();}
 });
-test('истёкшее окно блокирует ввод; клиент не отправляет автоматический answer',async()=>{
+test('истёкшее окно без выбора блокирует ввод и не отправляет пустой ответ',async()=>{
     const h=await harness();try{h.setState({...h.getState(),currentRound:{...h.getState().currentRound,endsAt:new Date(Date.now()-1000).toISOString()}});await h.refresh();await flush();
         assert.equal(h.w.document.querySelector('#qg-answer-fields').disabled,true);assert.equal(h.requests.length,0);
+    }finally{h.close();}
+});
+
+test('снятие всех флажков очищает выбор; повторный input не дублирует сохранение',async()=>{
+    const h=await harness('MCQ');try{
+        const input=h.w.document.querySelector('input[value="B"]');input.checked=true;
+        input.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+        input.checked=false;input.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+        input.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+        assert.equal(h.requests.length,2);assert.deepEqual(h.requests[1].payload,{roundId:1,answer:null});
+    }finally{h.close();}
+});
+
+test('быстрый выбор сохраняется по порядку и таймер не отправляет поздний ответ',async()=>{
+    const h=await harness();try{
+        const d=h.w.document, first=d.querySelector('input[value="A"]'),last=d.querySelector('input[value="B"]');
+        first.checked=true;first.dispatchEvent(new h.w.Event('input',{bubbles:true}));
+        last.checked=true;last.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+        assert.deepEqual(h.requests.at(-1).payload.answer,{selected:['B']});
+        const count=h.requests.length;
+        h.setState({...h.getState(),currentRound:{...h.getState().currentRound,endsAt:new Date(Date.now()-1000).toISOString()}});h.refresh();await flush();
+        last.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+        assert.equal(h.requests.length,count);assert.equal(d.querySelector('#qg-answer-fields').disabled,true);
+    }finally{h.close();}
+});
+
+test('несохранённый выбор повторяется при восстановлении сети до конца раунда',async()=>{
+    const h=await harness('BOOLEAN','FACT');try{
+        const input=h.w.document.querySelector('input[value="false"]');h.setFail(true);input.checked=true;
+        input.dispatchEvent(new h.w.Event('input',{bubbles:true}));await flush();
+        assert.equal(h.w.document.querySelector('#qg-answer-fields').disabled,false);
+        h.setFail(false);h.refresh();await flush();
+        assert.equal(h.requests.length,2);assert.deepEqual(h.requests[1].payload,h.requests[0].payload);
+        assert.equal(h.getState().currentRound.draftAnswer,false);
     }finally{h.close();}
 });
 

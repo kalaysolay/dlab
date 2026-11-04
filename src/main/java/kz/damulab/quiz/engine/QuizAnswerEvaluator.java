@@ -28,6 +28,15 @@ public class QuizAnswerEvaluator {
         QuizAnswer value = new QuizAnswer(round, participant, "null", false, BigDecimal.ZERO);
         value.recordTiming(round.getRoom().getRoundSeconds() * 1000L, true, false, now); return value;
     }
+    /** Засчитывает сохранённый выбор на границе окна; время ответа равно полной длительности раунда. */
+    public QuizAnswer acceptDraft(QuizRound round, QuizParticipant participant, JsonNode answer, OffsetDateTime now) {
+        requireParticipant(round, participant);
+        if (now.isBefore(endsAt(round))) throw new QuizEngineException("ROUND_NOT_ENDED");
+        var checked = checker.check(round, answer);
+        QuizAnswer value = new QuizAnswer(round, participant, checked.canonicalJson(), checked.correct(), checked.points());
+        // Задержка scheduler не должна влиять на рейтинг: выбор принимается ровно в конце окна.
+        value.recordTiming(round.getRoom().getRoundSeconds() * 1000L, false, false, endsAt(round)); return value;
+    }
     /** Возвращает единое начало раунда для всех участников. */
     public static OffsetDateTime startsAt(QuizRound round) {
         if (round.getRoom().getStartedAt() == null) throw new QuizEngineException("ROOM_NOT_STARTED");

@@ -51,10 +51,16 @@ class ThematicEnglishVocabularyTest {
     private List<Map<String,Object>> originalThematicVersions,originalThematicAnswers;
 
     @DynamicPropertySource
-    static void isolated(DynamicPropertyRegistry registry) {
+    static void isolated(DynamicPropertyRegistry registry) throws Exception {
         // Сначала прежняя версия БД: до V59 успевают начаться и завершиться реальные игры.
         flyway(SCHEMA,"58").migrate();
         kz.damulab.speaking.HistoricalSpeakingSchema.install(URL,USER,PASSWORD,SCHEMA);
+        // Тест обновляет только контент V58→V60; для текущего движка отдельно нужны поля выбора V74.
+        try (var connection = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            connection.setSchema(SCHEMA);
+            org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,
+                    new org.springframework.core.io.ClassPathResource("db/migration/V74__quiz_answer_drafts.sql"));
+        }
         registry.add("spring.datasource.url",()->URL);
         registry.add("spring.datasource.username",()->USER);
         registry.add("spring.datasource.password",()->PASSWORD);
