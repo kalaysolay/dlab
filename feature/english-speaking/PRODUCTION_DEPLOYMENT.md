@@ -1,6 +1,26 @@
 # Выкладка 4 ноября 2026
 
-## Текущий релиз: 078005b
+## Текущий релиз: 4df9c19
+
+Опубликована новая мобильная компоновка разговора и устойчивый оформленный
+переход /app. Основное изменение — e5c5616, финальные safe-area/overscroll стили —
+4df9c19. [Поведение и результаты проверки](MOBILE_LAYOUT_UPDATE.md).
+Активный каталог `/home/deploy/releases/speaking-4df9c19`, образ
+`damulab-speaking:4df9c19`. Сохранены database-before.dump и предыдущий образ
+`damulab-speaking:previous-4df9c19` (e5c5616). Схема V71 не менялась.
+
+```bash
+cd /home/deploy/releases/speaking-4df9c19
+docker compose --project-directory /opt/damulab --env-file .env.prod \
+  -f compose-before.yml -f override.json up -d --no-deps app
+```
+
+Проверены login=200, публичные pwa-resume.js?v=1, мобильная speaking.css,
+manifest focus-existing и SW v7. Обновлено только приложение; production PostgreSQL
+продолжает работать. Установленную PWA нужно один раз перезапустить для загрузки
+нового документа/JS. Проверка на реальном телефоне остаётся за владельцем.
+
+## Предыдущий релиз: 078005b
 
 Опубликовано общее исправление восстановления PWA: возврат из фона сохраняет
 документ, запуск через иконку фокусирует существующее окно, прежний start_url
