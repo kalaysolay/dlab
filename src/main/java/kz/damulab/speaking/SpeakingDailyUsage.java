@@ -3,7 +3,7 @@ package kz.damulab.speaking;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 
-/** Дневной счётчик запуска: удаление разговора не должно обходить квоту. Не хранит содержимое беседы. */
+/** Дневная статистика стартов и квоты аудио/облака. Удаление разговора не обнуляет расход. Без содержимого беседы. */
 @Entity
 @Table(name="speaking_daily_usage")
 class SpeakingDailyUsage {

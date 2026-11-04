@@ -56,14 +56,11 @@ public class SpeakingSessionService {
             expire(active);
             if (active.activeSlot != null) throw conflict("speaking_active_session_exists");
         });
-        // День квоты привязан к часовому поясу продукта, а не JVM или браузеру ученика.
+        // Число стартов учитываем для статистики, без дневного ограничения на количество разговоров.
         var day = LocalDate.now(clock.withZone(ZoneId.of("Asia/Qyzylorda")));
         var daily = usage.findByStudentIdAndDay(student, day).orElseGet(() -> {
             var value = new SpeakingDailyUsage(); value.studentId=student; value.day=day; return value;
         });
-        if (daily.sessionsStarted >= 3) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "speaking_daily_limit");
-        }
         var scenario = catalog.find(request.scenarioCode());
         daily.sessionsStarted++;
         usage.save(daily);

@@ -166,14 +166,14 @@ class SpeakingIntegrationTest {
     }
 
     @Test
-    void quotaCannotBeResetByDeletingConversations() throws Exception {
+    void fourthDailyConversationIsAllowedAndDeletionDoesNotEraseStartStatistics() throws Exception {
         for(int i=0;i<3;i++){
             var session=create(UUID.randomUUID());
             mvc.perform(delete(BASE+"/sessions/"+session.path("id").asText()).with(user(STUDENT).roles("STUDENT")).with(csrf()))
                     .andExpect(status().isNoContent());
         }
-        createCall(UUID.randomUUID()).andExpect(status().isTooManyRequests());
-        assertThat(sessions.count()).isZero(); assertThat(usage.findAll().get(0).sessionsStarted).isEqualTo(3);
+        createCall(UUID.randomUUID()).andExpect(status().isCreated());
+        assertThat(sessions.count()).isEqualTo(1); assertThat(usage.findAll().get(0).sessionsStarted).isEqualTo(4);
     }
 
     @Test
