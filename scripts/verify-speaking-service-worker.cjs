@@ -7,7 +7,7 @@ const sandbox={URL,Response,Promise,console,
     clients:{claim:async()=>{},matchAll:async()=>[]},
     fetch:async()=>{if(offline)throw Error('offline');return new Response('public asset');},
     caches:{open:async()=>({addAll:async()=>{},put:async(req)=>{writes.push(req.url);}}),
-        match:async key=>{matches.push(key);return new Response('offline shell');},keys:async()=>['old-shell','damulab-shell-v5'],delete:async key=>{removed.push(key);}}
+        match:async key=>{matches.push(key);return new Response('offline shell');},keys:async()=>['old-shell','damulab-shell-v6'],delete:async key=>{removed.push(key);}}
 };
 sandbox.self.clients=sandbox.clients;
 vm.runInNewContext(fs.readFileSync('src/main/resources/static/service-worker.js','utf8'),sandbox);
@@ -16,7 +16,7 @@ async function request(path,method='GET',mode='cors'){
     return pending?await pending:null;
 }
 (async()=>{
-    for(const path of ['/student/speaking','/api/student/speaking/sessions','/api/admin/speaking/operations']){
+    for(const path of ['/app','/login','/student/speaking','/api/student/speaking/sessions','/api/admin/speaking/operations']){
         await request(path);assert.equal(writes.length,0);
         offline=true;const response=await request(path);assert.equal(response.status,503);assert.equal(matches.length,0);offline=false;
     }

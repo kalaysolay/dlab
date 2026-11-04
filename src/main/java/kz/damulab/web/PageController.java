@@ -41,9 +41,12 @@ public class PageController {
 
     /** Действующая доверенная сессия сразу открывает кабинет; после её истечения PWA просит биометрию. */
     @GetMapping("/app")
-    String appEntry(Authentication authentication) {
+    String appEntry(Authentication authentication, Model model) {
         if (isAuthenticated(authentication)) {
-            return "redirect:/dashboard";
+            // Маршрут хранится только в этой PWA-вкладке; права на целевую страницу проверяются обычным Security.
+            String home=hasRole(authentication,"ROLE_ADMIN")?"/admin":hasRole(authentication,"ROLE_PARENT")?"/parent":hasRole(authentication,"ROLE_STUDENT")?"/student":"/dashboard";
+            model.addAttribute("entryHome",home);
+            return "auth/app-resume";
         }
         return "auth/app-entry";
     }

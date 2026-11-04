@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
+    <title>Продолжить в Damulab</title>
+</head>
+<body th:attr="data-pwa-entry-home=${entryHome}">
+<p>Открываем приложение… <a th:href="${entryHome}">Перейти в кабинет</a></p>
+</body>
+</html>

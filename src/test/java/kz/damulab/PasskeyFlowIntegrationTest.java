@@ -123,7 +123,7 @@ class PasskeyFlowIntegrationTest {
     @Test
     void activeSessionSkipsBiometricsAndExpiredSessionOffersPasswordFallback() throws Exception {
         mvc.perform(get("/app").with(user("student@damulab.kz").roles("STUDENT")))
-                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/dashboard"));
+                .andExpect(status().isOk()).andExpect(content().string(containsString("data-pwa-entry-home=\"/student\"")));
         mvc.perform(get("/app"))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("data-passkey-entry")));
         mvc.perform(get("/login?reauth=true").with(user("student@damulab.kz").roles("STUDENT")))

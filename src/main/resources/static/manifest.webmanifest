@@ -6,7 +6,7 @@
   "start_url": "/app",
   "scope": "/",
   "launch_handler": {
-    "client_mode": "navigate-existing"
+    "client_mode": "focus-existing"
   },
   "handle_links": "preferred",
   "display": "standalone",

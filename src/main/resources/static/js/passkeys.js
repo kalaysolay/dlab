@@ -200,7 +200,8 @@
                 body: JSON.stringify(encodeAssertionCredential(credential))
             });
             rememberEnabled();
-            window.location.replace(result.redirectUrl || "/dashboard");
+            const home = result.redirectUrl || "/dashboard";
+            window.location.replace(window.damulabPwaEntryTarget ? window.damulabPwaEntryTarget(home) : home);
         } catch (error) {
             console.error("Passkey login failed", error);
             setStatus(status, errorMessage(error), true);
