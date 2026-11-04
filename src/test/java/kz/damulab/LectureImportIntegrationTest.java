@@ -69,6 +69,88 @@ class LectureImportIntegrationTest {
     @Autowired
     private LectureRepository lectures;
 
+    @Autowired
+    private kz.damulab.lectures.LectureService lectureService;
+
+    @Test
+    void studioCreatesUpdatesRejectsStaleRevisionAndPublishesSeparately() throws Exception {
+        TopicPathFixture fixture = createTopicPath("studio-sync-");
+        ObjectNode envelope = (ObjectNode) objectMapper.readTree(importPayload(fixture,
+                "studio-" + suffix(), "AUTO", "image/png", safeRuHtml(), safeKkHtml(), true));
+        ObjectNode lesson = (ObjectNode) envelope.path("lessons").get(0);
+        ((ObjectNode) lesson.path("completionControl")).put("mode", "NONE");
+        ObjectNode body = objectMapper.createObjectNode().set("lesson", lesson);
+        JsonNode first = studioPost("sync", body, 200);
+        assertThat(first.path("lecture").path("status").asText()).isEqualTo("draft");
+        assertThat(first.path("assetUrls").path("percent-cell").asText()).startsWith("/files/lecture-images/");
+        long id = first.path("lecture").path("id").asLong();
+
+        // Слепой повтор не перезаписывает черновик: необходим opaque revision сервера.
+        studioPost("sync", body, 409);
+        body.put("expectedRevision", first.path("revision").asText());
+        ((ObjectNode) lesson.path("metadata").path("title")).put("ru", "Уточнённое название");
+        JsonNode second = studioPost("sync", body, 200);
+        assertThat(second.path("lecture").path("id").asLong()).isEqualTo(id);
+        assertThat(second.path("revision").asText()).isNotEqualTo(first.path("revision").asText());
+        studioPost("sync", body, 409);
+
+        ObjectNode publish = objectMapper.createObjectNode().put("externalId", lesson.path("externalId").asText())
+                .put("expectedRevision", second.path("revision").asText());
+        JsonNode published = studioPost("publish", publish, 200);
+        assertThat(published.path("lecture").path("status").asText()).isEqualTo("published");
+        // Обновление опубликованного урока создаёт черновик другой версии:
+        // ученикам остаётся прежний текст до отдельной публикации.
+        body.put("expectedRevision", published.path("revision").asText());
+        ((ObjectNode) lesson.path("metadata").path("title")).put("ru", "Новая редакция после публикации");
+        JsonNode draft = studioPost("sync", body, 200);
+        assertThat(draft.path("lecture").path("publishedAt").isNull()).isTrue();
+        assertThat(lectureService.getPublishedLecture(id).titleRu()).isEqualTo("Уточнённое название");
+        publish.put("expectedRevision", draft.path("revision").asText());
+        studioPost("publish", publish, 200);
+        assertThat(lectureService.getPublishedLecture(id).titleRu()).isEqualTo("Новая редакция после публикации");
+        mockMvc.perform(get("/api/admin/lectures/studio/lookup").param("externalId", lesson.path("externalId").asText())
+                        .with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.lecture.id").value(id));
+    }
+
+    @Test
+    void studioDetectsManualAdminChangesAndRequiresAdminCsrf() throws Exception {
+        TopicPathFixture fixture = createTopicPath("studio-conflict-");
+        JsonNode lesson = objectMapper.readTree(importPayload(fixture, "studio-" + suffix(), "AUTO",
+                "image/png", safeRuHtml(), safeKkHtml(), false)).path("lessons").get(0);
+        ObjectNode body = objectMapper.createObjectNode().set("lesson", lesson);
+        JsonNode created = studioPost("sync", body, 200);
+        long id = created.path("lecture").path("id").asLong();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/lectures/{id}", id)
+                        .with(user("admin@damulab.kz").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of(
+                                "topicId", fixture.childTopicId(), "titleRu", "Правка из админки", "titleKk", "Әкімші түзетуі",
+                                "contentRu", "<p>Новый текст</p>", "contentKk", "<p>Жаңа мәтін</p>", "controlMode", "NONE"))))
+                .andExpect(status().isOk());
+        body.put("expectedRevision", created.path("revision").asText());
+        studioPost("sync", body, 409);
+        mockMvc.perform(post("/api/admin/lectures/studio/sync").with(user("admin@damulab.kz").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/lectures/studio/capabilities").with(user("student@damulab.kz").roles("STUDENT")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void studioAdvertisesActualRendererAndConditionalWrites() throws Exception {
+        mockMvc.perform(get("/api/admin/lectures/studio/capabilities").with(user("admin@damulab.kz").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.kind").value("damulab.lesson-studio"))
+                .andExpect(jsonPath("$.rendererVersion").value("2.0.1"))
+                .andExpect(jsonPath("$.conditionalWrites").value(true));
+    }
+
+    private JsonNode studioPost(String action, JsonNode body, int expectedStatus) throws Exception {
+        String raw = mockMvc.perform(post("/api/admin/lectures/studio/" + action)
+                        .with(user("admin@damulab.kz").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(body.toString()))
+                .andExpect(status().is(expectedStatus)).andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(raw);
+    }
+
     @Test
     void checkedInExampleMatchesTheLiveImportContract() throws Exception {
         String example = Files.readString(Path.of("docs/lesson-import-example.json"));

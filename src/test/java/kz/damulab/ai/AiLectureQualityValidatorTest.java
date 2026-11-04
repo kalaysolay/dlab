@@ -61,6 +61,7 @@ class AiLectureQualityValidatorTest {
                 .contains("Безопасный текст &amp; пояснение")
                 .contains("class=\"ql-formula\"")
                 .contains("data-value=\"\\frac{a}{b}\"")
+                .contains("data-display=\"block\"")
                 .doesNotContain("<script>");
     }
 

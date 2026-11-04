@@ -1,6 +1,7 @@
 package kz.damulab.lectures;
 
 import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -59,11 +60,16 @@ public class LectureService {
                     "table", "thead", "tbody", "tr", "th", "td", "img", "iframe")
             .addAttributes(":all", "class")
             .addAttributes("a", "href", "target", "rel")
-            .addAttributes("span", "data-value", "contenteditable")
-            .addAttributes("iframe", "src")
+            .addAttributes("span", "data-value", "contenteditable", "data-display")
+            .addAttributes("li", "data-list")
+            .addAttributes("iframe", "src", "title")
             .addAttributes("img", "src", "alt", "title", "width")
-            .addAttributes("th", "colspan", "rowspan")
-            .addAttributes("td", "colspan", "rowspan")
+            .addAttributes("th", "colspan", "rowspan", "scope")
+            .addAttributes("td", "colspan", "rowspan", "data-lecture-header", "data-lecture-scope")
+            .addAttributes("p", "data-lecture-question", "data-lecture-part")
+            .addAttributes("blockquote", "data-lecture-tone", "data-lecture-question", "data-lecture-part")
+            .addAttributes("h2", "data-lecture-section", "data-lecture-question", "data-lecture-part")
+            .addAttributes("h3", "data-lecture-section", "data-lecture-question", "data-lecture-part")
             .addProtocols("a", "href", "http", "https", "mailto")
             .preserveRelativeLinks(true);
 
@@ -209,7 +215,7 @@ public class LectureService {
         List<PreparedAttachment> preparedAttachments = prepareAttachments(form.getAttachments(), attachmentFiles);
         try {
             validateDraft(form, preparedAttachments);
-            Lecture lecture = findLecture(id);
+            Lecture lecture = lectures.findByIdForUpdate(id).orElseThrow(() -> new LectureException("lecture_not_found"));
             if (lecture.getStatus() == LectureStatus.ARCHIVED) {
                 throw new LectureException("lecture_archived");
             }
@@ -244,7 +250,7 @@ public class LectureService {
 
     @Transactional
     public LectureResponse publish(Long id) {
-        Lecture lecture = findLecture(id);
+        Lecture lecture = lectures.findByIdForUpdate(id).orElseThrow(() -> new LectureException("lecture_not_found"));
         if (lecture.getStatus() == LectureStatus.ARCHIVED) {
             throw new LectureException("lecture_archived");
         }
@@ -273,7 +279,7 @@ public class LectureService {
 
     @Transactional
     public LectureResponse archive(Long id) {
-        Lecture lecture = findLecture(id);
+        Lecture lecture = lectures.findByIdForUpdate(id).orElseThrow(() -> new LectureException("lecture_not_found"));
         if (lecture.getStatus() == LectureStatus.ARCHIVED) {
             throw new LectureException("lecture_already_archived");
         }
@@ -635,9 +641,15 @@ public class LectureService {
             return null;
         }
         Document doc = Jsoup.parseBodyFragment(safe, SAFE_BASE_URI);
+        // Сохраняем тот же режим сериализации после разбора: форматирующие пробелы
+        // иначе накапливаются при повторной очистке вложенных списков.
+        doc.outputSettings(output);
         normalizeLectureLinks(doc);
         normalizeLectureImages(doc);
         normalizeLectureVideos(doc);
+        normalizeLectureTables(doc);
+        normalizeLectureLists(doc);
+        normalizeLectureBlocks(doc);
         normalizeFormulaSpans(doc);
         String normalizedSafeHtml = doc.body().html().trim();
         return normalizedSafeHtml.isBlank() ? null : normalizedSafeHtml;
@@ -714,15 +726,99 @@ public class LectureService {
                 frame.remove();
                 continue;
             }
+            String title = trimToNull(frame.attr("title"));
             frame.clearAttributes();
             frame.empty();
             frame.attr("src", "https://www.youtube.com/embed/" + match.group(1));
             frame.attr("class", "ql-video");
-            frame.attr("title", "YouTube video player");
-            frame.attr("allow", "encrypted-media; picture-in-picture; fullscreen");
+            // Локализованное название является обычным текстом, а не HTML.
+            // Не заменяем его общим английским названием при каждом сохранении.
+            frame.attr("title", title == null ? "YouTube video player" : title.substring(0, Math.min(title.length(), 300)));
+            frame.attr("allow", "encrypted-media; picture-in-picture; fullscreen; camera 'none'; microphone 'none'; display-capture 'none'");
             frame.attr("allowfullscreen", "");
             // YouTube требует Referer для идентификации сайта, в том числе на мобильных.
             frame.attr("referrerpolicy", "strict-origin-when-cross-origin");
+        }
+    }
+
+    /** Возвращает заголовки из внутреннего формата Quill в семантические ячейки HTML. */
+    private void normalizeLectureTables(Document doc) {
+        for (Element cell : doc.select("td[data-lecture-header]")) {
+            if ("true".equals(cell.attr("data-lecture-header"))) {
+                String scope = cell.attr("data-lecture-scope");
+                cell.tagName("th").attr("scope", Set.of("col", "row", "colgroup", "rowgroup").contains(scope) ? scope : "col");
+            }
+            cell.removeAttr("data-lecture-header");
+        }
+        // Scope допустим только у заголовка. Размеры ограничены одинаково с
+        // форматами Quill: огромные/некорректные объединения не ломают сетку страницы.
+        for (Element cell : doc.select("td, th")) {
+            cell.removeAttr("data-lecture-scope");
+            for (String attribute : List.of("colspan", "rowspan")) {
+                if (cell.hasAttr(attribute) && !cell.attr(attribute).matches("(?:[1-9]|[12][0-9]|3[0-2])")) cell.removeAttr(attribute);
+            }
+        }
+        for (Element cell : doc.select("th[scope]")) {
+            if (!Set.of("col", "row", "colgroup", "rowgroup").contains(cell.attr("scope"))) cell.removeAttr("scope");
+        }
+    }
+
+    /**
+     * Quill 2 хранит любые списки в OL, различая пункты через data-list и ql-indent-N.
+     * Читателю нужен обычный вложенный UL/OL, который не зависит от CSS редактора.
+     */
+    private void normalizeLectureLists(Document doc) {
+        for (Element source : new ArrayList<>(doc.select("ol, ul"))) {
+            List<Element> items = source.children().stream().filter(e -> "li".equals(e.tagName())).toList();
+            if (items.stream().noneMatch(e -> e.hasAttr("data-list"))) continue;
+            Element holder = new Element("div");
+            List<Element> levels = new ArrayList<>();
+            List<Element> lastItems = new ArrayList<>();
+            for (Element item : items) {
+                String kind = item.attr("data-list");
+                String tag = "bullet".equals(kind) ? "ul" : "ordered".equals(kind) ? "ol" : source.tagName();
+                int depth = 0;
+                for (String css : new ArrayList<>(item.classNames())) {
+                    if (css.matches("ql-indent-[1-8]")) {
+                        depth = Integer.parseInt(css.substring("ql-indent-".length()));
+                        item.removeClass(css);
+                    }
+                }
+                // Не создаём пустых предков при вставке фрагмента со скачком отступа.
+                depth = Math.min(depth, levels.size());
+                while (levels.size() > depth + 1) { levels.remove(levels.size() - 1); lastItems.remove(lastItems.size() - 1); }
+                Element parent = depth == 0 ? holder : lastItems.get(depth - 1);
+                if (levels.size() == depth || !tag.equals(levels.get(depth).tagName())) {
+                    Element list = parent.appendElement(tag);
+                    if (levels.size() == depth) { levels.add(list); lastItems.add(null); }
+                    else levels.set(depth, list);
+                }
+                item.removeAttr("data-list");
+                item.select("span.ql-ui").remove();
+                levels.get(depth).appendChild(item);
+                lastItems.set(depth, item);
+            }
+            source.before(holder);
+            source.remove();
+            holder.unwrap();
+        }
+    }
+
+    /** Проверяет только фиксированные семантические атрибуты, не разрешая произвольный HTML/JS. */
+    private void normalizeLectureBlocks(Document doc) {
+        for (Element block : doc.select("[data-lecture-question], [data-lecture-part]")) {
+            if (!block.attr("data-lecture-question").matches("[a-z0-9][a-z0-9-]{0,127}")
+                    || !Set.of("prompt", "answer").contains(block.attr("data-lecture-part"))) {
+                // Некорректный маркер не должен скрывать или удалять сам текст.
+                block.removeAttr("data-lecture-question");
+                block.removeAttr("data-lecture-part");
+            }
+        }
+        for (Element block : doc.select("[data-lecture-tone]")) {
+            if (!Set.of("definition", "example", "warning", "summary").contains(block.attr("data-lecture-tone"))) block.removeAttr("data-lecture-tone");
+        }
+        for (Element block : doc.select("[data-lecture-section]")) {
+            if (!Set.of("goals", "sources").contains(block.attr("data-lecture-section"))) block.removeAttr("data-lecture-section");
         }
     }
 
@@ -737,11 +833,14 @@ public class LectureService {
             // нельзя: sanitizer удаляет служебные MathML-теги и стили, после чего в reader попадают
             // видимые обрывки вроде "ab\\frac{a}{b}ba". Каноническим источником остаётся LaTeX,
             // а безопасный DOM заново строится KaTeX на странице просмотра.
+            String display = span.attr("data-display");
+            if (display.isEmpty() && span.parent() != null && span.parent().hasClass("lecture-formula-block")) display = "block";
             span.empty();
             span.clearAttributes();
             span.attr("class", "ql-formula");
             span.attr("data-value", formula);
             span.attr("contenteditable", "false");
+            if (Set.of("inline", "block").contains(display)) span.attr("data-display", display);
         }
         for (Element span : doc.select("span[data-value]:not(.ql-formula)")) {
             span.removeAttr("data-value");

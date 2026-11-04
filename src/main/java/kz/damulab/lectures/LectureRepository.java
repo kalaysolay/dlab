@@ -5,6 +5,8 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +15,13 @@ public interface LectureRepository extends JpaRepository<Lecture, Long>, JpaSpec
 
     /** Не позволяет повторному агентскому импорту молча создать вторую лекцию. */
     boolean existsByExternalIdIgnoreCase(String externalId);
+
+    Optional<Lecture> findByExternalIdIgnoreCase(String externalId);
+
+    /** Все редакторы берут одну блокировку перед изменением версии или публикацией. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select lecture from Lecture lecture where lecture.id = :id")
+    Optional<Lecture> findByIdForUpdate(@Param("id") Long id);
 
     /** Возвращает лекции для существующего административного списка. */
     List<Lecture> findByStatusOrderByUpdatedAtDesc(LectureStatus status);

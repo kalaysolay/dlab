@@ -31,4 +31,17 @@ class LectureYouTubeTest {
             assertThat(html).contains("Keep");
         }
     }
+
+    @Test
+    void preservesLocalizedTitleAsPlainText() {
+        String html = service.sanitizeImportedRichText("""
+                <iframe src='https://www.youtube.com/embed/M7lc1UVf-VE'
+                title='Бейне: &lt;мысал&gt;' onload='bad()'></iframe>
+                """);
+        var frame = Jsoup.parseBodyFragment(html).selectFirst("iframe");
+        assertThat(frame.attr("title")).isEqualTo("Бейне: <мысал>");
+        assertThat(frame.attr("referrerpolicy")).isEqualTo("strict-origin-when-cross-origin");
+        assertThat(frame.hasAttr("onload")).isFalse();
+        assertThat(service.sanitizeImportedRichText(html)).isEqualTo(html);
+    }
 }

@@ -71,6 +71,8 @@ class LectureAiGenerationIntegrationTest {
                 .andExpect(jsonPath("$.titleKk").isNotEmpty())
                 .andExpect(jsonPath("$.contentRu", containsString("class=\"ql-formula\"")))
                 .andExpect(jsonPath("$.contentKk", containsString("class=\"ql-formula\"")))
+                .andExpect(jsonPath("$.contentRu", containsString("data-display=\"block\"")))
+                .andExpect(jsonPath("$.contentKk", containsString("data-display=\"block\"")))
                 .andExpect(jsonPath("$.quality.score", greaterThanOrEqualTo(90)))
                 .andExpect(jsonPath("$.quality.minimumScore").value(90));
     }

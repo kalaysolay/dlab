@@ -7,6 +7,7 @@
     <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block>
     <link rel="stylesheet" th:href="@{/webjars/katex/dist/katex.min.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/lecture-content.css}">
 </head>
 <body>
 <div class="app-shell">
@@ -64,7 +65,7 @@
                             <nav data-lecture-outline-links></nav>
                         </aside>
                         <article class="lecture-theory-article">
-                            <div class="lecture-content active" data-reader-content>
+                            <div class="lecture-content damulab-lecture active" data-reader-content>
                                 <div th:if="${reader.content != null}" th:utext="${reader.content}">Текст лекции</div>
                                 <div class="notice" th:if="${reader.content == null}">
                                     <strong th:text="#{student.lecture.content.empty}">Материал пока не заполнен</strong>
@@ -248,39 +249,9 @@
     </main>
 </div>
 <script th:src="@{/webjars/katex/dist/katex.min.js}"></script>
+<script th:src="@{/js/lecture-content.js}"></script>
 <script>
-    /**
-     * В БД формула хранится как исходный LaTeX в data-value. Рендерим её здесь и тем самым
-     * одинаково обрабатываем новые канонические span и старые записи с вложенным DOM KaTeX.
-     */
-    function renderLectureFormulas() {
-        document.querySelectorAll('.lecture-content .ql-formula').forEach((formula) => {
-            const value = (formula.dataset.value || '').trim();
-            if (!value) {
-                return;
-            }
-            const parent = formula.parentElement;
-            if (parent && parent.children.length === 1 && parent.textContent.trim() === '') {
-                parent.classList.add('lecture-formula-block');
-            }
-            if (typeof window.katex === 'undefined') {
-                formula.textContent = value;
-                return;
-            }
-            try {
-                window.katex.render(value, formula, {
-                    throwOnError: false,
-                    strict: 'warn',
-                    trust: false
-                });
-            } catch (error) {
-                // При проблеме с одной формулой остальная лекция остаётся читаемой.
-                formula.textContent = value;
-            }
-        });
-    }
-
-    renderLectureFormulas();
+    window.DamulabLecture.render(document.querySelector('[data-reader-content]'), {language: document.documentElement.lang});
 
     // Панели остаются в одном DOM: переключение не перезагружает страницу и не теряет ответы.
     const lessonTabsRoot = document.querySelector('.lesson-section-tabs');

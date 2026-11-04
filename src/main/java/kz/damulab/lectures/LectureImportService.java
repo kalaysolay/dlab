@@ -270,4 +270,44 @@ public class LectureImportService {
 
     private record StoredAsset(String storageKey, String url) {
     }
+
+    /** Подготавливает один пакет для локальной Мастерской; legacy batch остаётся AUTO-only. */
+    PreparedStudioLesson prepareForStudio(LectureImportRequest.Lesson lesson) {
+        Topic topic = resolveTopic(lesson.metadata());
+        List<String> keys = new ArrayList<>();
+        try {
+            Map<String, StoredAsset> stored = storeAssets(lesson.assets(), keys);
+            Set<String> used = new HashSet<>();
+            String ru = prepareHtml(lesson.content().ruHtml(), stored, used);
+            String kk = prepareHtml(lesson.content().kkHtml(), stored, used);
+            if (!used.equals(stored.keySet())) throw new LectureException("lecture_import_unused_asset");
+            // В новом сценарии пользователь выбирает только теорию либо AUTO.
+            // Самопроверки внутри текста остаются частью теории и не требуют банка тестов.
+            String mode = lesson.completionControl().mode();
+            if (!Set.of("AUTO", "NONE").contains(mode)) throw new LectureException("lecture_import_control_mode_invalid");
+            LectureForm form = new LectureForm();
+            form.setTopicId(topic.getId());
+            form.setTitleRu(lesson.metadata().title().ru());
+            form.setTitleKk(lesson.metadata().title().kk());
+            form.setContentRu(ru);
+            form.setContentKk(kk);
+            form.setSource(lesson.metadata().source());
+            form.setControlMode(LectureControlMode.valueOf(mode));
+            form.setAutoCheckpointCount("AUTO".equals(mode) ? lesson.completionControl().questionCount() : 0);
+            form.setAttachments(lesson.attachments());
+            Map<String, String> urls = new LinkedHashMap<>();
+            stored.forEach((id, asset) -> urls.put(id, asset.url()));
+            return new PreparedStudioLesson(form, urls, keys);
+        } catch (RuntimeException ex) {
+            keys.forEach(imageStorage::deleteIfExists);
+            throw ex;
+        }
+    }
+
+    /** При откате операции файловые изображения нужно убрать отдельно от транзакции БД. */
+    void cleanupStudio(PreparedStudioLesson prepared) {
+        prepared.keys().forEach(imageStorage::deleteIfExists);
+    }
+
+    record PreparedStudioLesson(LectureForm form, Map<String, String> assetUrls, List<String> keys) { }
 }

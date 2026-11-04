@@ -20,9 +20,11 @@ public final class AiLectureHtmlComposer {
                 appendParagraph(html, paragraph, null);
             }
             for (String formula : safeList(section.formulas())) {
+                // Массив formulas описывает отдельные блоки. Режим должен жить
+                // на embed: Quill удаляет класс окружающего абзаца при вставке.
                 html.append("<p class=\"lecture-formula\"><span class=\"ql-formula\" data-value=\"")
                         .append(escape(formula.trim()))
-                        .append("\" contenteditable=\"false\"></span></p>");
+                        .append("\" data-display=\"block\" contenteditable=\"false\"></span></p>");
             }
         }
         appendParagraph(html, block.conclusion(), "lecture-conclusion");

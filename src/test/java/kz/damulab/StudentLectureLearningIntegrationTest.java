@@ -78,6 +78,21 @@ class StudentLectureLearningIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    /** Черновик скрыт и из каталога, и при прямом запросе URL; прогресс не создаётся. */
+    @Test
+    void directDraftAndMissingLectureUrlsReturnNotFound() throws Exception {
+        TopicFixture fixture = createTopic("student-hidden-draft-");
+        Long lectureId = createLecture(fixture.topicId(), "Закрытый черновик", null);
+        mockMvc.perform(get("/student/lectures/{id}", lectureId)
+                        .with(user(STUDENT_EMAIL).roles("STUDENT")))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/student/lectures/{id}", Long.MAX_VALUE)
+                        .with(user(STUDENT_EMAIL).roles("STUDENT")))
+                .andExpect(status().isNotFound());
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from student_lecture_progress where lecture_id=?", Long.class, lectureId)).isZero();
+    }
+
     /** Проверяет, что ссылка на уроки расположена между миссией и последним занятием. */
     @Test
     void dashboardShowsLessonsLinkInRequestedPosition() throws Exception {
@@ -206,7 +221,8 @@ class StudentLectureLearningIntegrationTest {
                 .andExpect(content().string(containsString("/webjars/katex/")))
                 .andExpect(content().string(containsString("/dist/katex.min.css")))
                 .andExpect(content().string(containsString("/dist/katex.min.js")))
-                .andExpect(content().string(containsString("window.katex.render")))
+                .andExpect(content().string(containsString("/js/lecture-content.js")))
+                .andExpect(content().string(containsString("DamulabLecture.render")))
                 .andExpect(content().string(containsString("data-lesson-tab=\"theory\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-lesson-tab=\"testing\""))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-open-lesson-tab=\"testing\""))))

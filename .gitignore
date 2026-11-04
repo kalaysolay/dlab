@@ -56,6 +56,11 @@ AGENTS.md
 !/docs/DEPLOY_VPS.md
 !/docs/PASSKEYS.md
 !/docs/LESSON_IMPORT_FORMAT.md
+!/docs/LESSON_STUDIO_RELEASE.json
+!/docs/LESSON_STUDIO_RELEASE.md
+!/docs/LESSON_STUDIO_ACCEPTANCE_2026-11-04.md
+!/docs/lesson-studio-release-overrides/
+!/docs/lesson-studio-release-overrides/**
 !/docs/lesson-import-example.json
 !/docs/QUESTION_GENERATION_AGENT_RULES.md
 !/docs/LOCAL_PROD_REFERENCE_DB.md

@@ -1,0 +1,11 @@
+/* Семантические блоки остаются редактируемыми строками Quill.
+ * Ответы видимы автору; сворачивание выполняет только рендерер чтения. */
+.ql-editor [data-lecture-question] {border-left: 3px solid #6366f1; padding: 12px 16px; background: #f8f9ff;}
+.ql-editor [data-lecture-part="prompt"]::before {content: "Вопрос · "; font-weight: 700; color: #4338ca;}
+.ql-editor [data-lecture-part="answer"]::before {content: "Ответ · "; font-weight: 700; color: #147d64;}
+.ql-editor:lang(kk) [data-lecture-part="prompt"]::before {content: "Сұрақ · ";}
+.ql-editor:lang(kk) [data-lecture-part="answer"]::before {content: "Жауап · ";}
+.ql-editor [data-lecture-tone] {border-left: 4px solid #6366f1; padding: 14px 18px; background: #f5f7ff;}
+.ql-editor [data-lecture-tone="warning"] {border-color: #b66a11; background: #fff8e8;}
+.ql-editor [data-lecture-tone="example"] {border-color: #147d64; background: #effaf5;}
+.ql-editor [data-lecture-tone="summary"] {border-color: #64748b; background: #f3f5f8;}
