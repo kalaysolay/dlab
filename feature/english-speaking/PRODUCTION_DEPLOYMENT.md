@@ -1,10 +1,31 @@
 # Выкладка 4 ноября 2026
 
-## Текущий релиз: c324e1b
+## Текущий релиз: 078005b
+
+Опубликовано общее исправление восстановления PWA: возврат из фона сохраняет
+документ, запуск через иконку фокусирует существующее окно, прежний start_url
+восстанавливает допустимый маршрут текущей вкладки. [Описание и проверки](../../docs/PASSKEYS.md).
+Образ — `damulab-speaking:078005b`, каталог — `/home/deploy/releases/speaking-078005b`.
+Сохранены свежий database-before.dump и образ `damulab-speaking:previous-078005b`
+(код c324e1b). Схема БД не менялась, обновлено только app. После запуска проверены
+login=200, новый публичный app-entry.js, manifest focus-existing и SW cache v6.
+
+```bash
+cd /home/deploy/releases/speaking-078005b
+docker compose --project-directory /opt/damulab --env-file .env.prod \
+  -f compose-before.yml -f override.json up -d --no-deps app
+```
+
+Коммит запушен в feat/english-speaking. Полная сборка: 526 тестов без падений;
+два Node-набора проверяют resume и приватный SW-cache. Старое открытое PWA нужно
+однократно перезапустить для загрузки нового JS; физическая мобильная проверка
+не заменяется этими тестами. Предыдущие релизы ниже сохранены как история.
+
+## Предыдущий релиз: c324e1b
 
 После обратной связи с телефона опубликован `c324e1b`: автоматическая озвучка всей новой реплики и отсутствие автофокуса расшифровки. [Поведение и проверки](MOBILE_VOICE_UPDATE.md). Активный каталог — `/home/deploy/releases/speaking-c324e1b`, образ — `damulab-speaking:c324e1b`. В нём сохранены fresh `database-before.dump`, конфигурация и скрипт обновления; предыдущий образ — `damulab-speaking:previous-c324e1b` (код 7c3d29d). Схема осталась V71; обновлено только приложение, PostgreSQL не перезапускался. Публичный login=200, приватный speaking без входа=302, новый JavaScript подтверждён по публичному URL.
 
-Команды для **текущего** релиза:
+Команды для релиза c324e1b (история):
 
 ```bash
 cd /home/deploy/releases/speaking-c324e1b
