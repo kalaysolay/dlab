@@ -19,7 +19,7 @@
 .sp-field textarea{min-height:100px;resize:vertical;font-weight:500}
 .sp-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.sp-actions>*{flex:1}
 .sp-facts{display:flex;gap:14px;margin:16px 0;color:var(--muted);font-size:13px;flex-wrap:wrap}
-.sp-session-head h2{margin:0 0 5px}.sp-session-head small{color:var(--muted)}
+.sp-session-head{flex-wrap:wrap}.sp-session-head>div{flex:1 1 220px}.sp-session-head h2{margin:0 0 5px}.sp-session-head small{color:var(--muted)}
 .sp-progress{height:4px;border-radius:4px;background:#e7edf6;overflow:hidden;margin:18px 0}
 .sp-progress>span{display:block;height:100%;background:var(--primary)}
 .sp-chat-frame{position:relative;max-width:850px;margin:0 auto}

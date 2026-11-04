@@ -466,7 +466,7 @@ class SpeakingLiveIntegrationTest {
         assertThat(CALLS).isEmpty();
     }
 
-    @Test void speechOnlyUsesServerQuestionAndReusesAudioWithoutAdditionalProviderCall()throws Exception{
+    @Test void speechUsesServerOpeningAndQuestionAndReusesAudioWithoutAdditionalProviderCall()throws Exception{
         var session=create();byte[] mp3=mp3();
         RESPONSES.add(new Response(200,"audio/mpeg",mp3,null,null));
         for(int i=0;i<2;i++)mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/speech")
@@ -475,8 +475,20 @@ class SpeakingLiveIntegrationTest {
                 .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith("audio/mpeg"))
                 .andExpect(content().bytes(mp3)).andExpect(header().string("Cache-Control","no-store"));
         assertThat(CALLS).hasSize(1);var body=JSON.readTree(CALLS.get(0).body());
-        assertThat(body.path("input").asText()).isEqualTo(session.path("firstQuestion").asText());
+        assertThat(body.path("input").asText()).isEqualTo(session.path("openingText").asText()+"\n\n"+session.path("firstQuestion").asText());
         assertThat(body.toString()).doesNotContain("arbitrary text");
+    }
+
+    @Test void speechIncludesAcceptedReactionAndQuestionButNotLearnerOrFeedback()throws Exception{
+        var session=create();chain(normal());
+        var updated=json(answer(session,UUID.randomUUID(),"Yesterday I go to the cinema.").andExpect(status().isCreated()).andReturn());
+        var turn=updated.path("turns").get(0);RESPONSES.add(new Response(200,"audio/mpeg",mp3(),null,null));
+        mvc.perform(post(BASE+"/sessions/"+session.path("id").asText()+"/speech").with(user(STUDENT).roles("STUDENT")).with(csrf())
+                .contentType("application/json").content("{\"turnId\":\""+turn.path("id").asText()+"\"}"))
+                .andExpect(status().isOk());
+        String spoken=JSON.readTree(CALLS.get(3).body()).path("input").asText();
+        assertThat(spoken).isEqualTo(turn.path("reactionText").asText()+"\n\n"+turn.path("questionText").asText())
+                .doesNotContain("Yesterday I go","Для прошлого");
     }
 
     @Test void deepgramOptOutSendsOnlyValidatedAudioAndReturnsUnacceptedDraft()throws Exception{

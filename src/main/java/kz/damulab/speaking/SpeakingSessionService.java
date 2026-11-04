@@ -193,8 +193,9 @@ public class SpeakingSessionService {
     /** Сервер выбирает текст озвучки из уже проверенной истории, не из произвольного поля браузера. */
     public String speechText(UUID id,UUID turnId){
         var session=owned(id,true);String question;
-        if(turnId==null)question=snapshot(session).firstQuestions().get(session.level);
-        else question=turns.findById(turnId).filter(t->t.sessionId.equals(id)).map(t->t.questionText).orElseThrow(SpeakingSessionService::missing);
+        if(turnId==null)question=snapshot(session).opening()+"\n\n"+snapshot(session).firstQuestions().get(session.level);
+        else question=turns.findById(turnId).filter(t->t.sessionId.equals(id)&&!t.questionText.isBlank())
+                .map(t->t.reactionText+"\n\n"+t.questionText).orElseThrow(SpeakingSessionService::missing);
         if(question.isBlank())throw missing();
         var daily=daily(session.studentId);
         if(daily.speechCalls>=32)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_speech_daily_limit");

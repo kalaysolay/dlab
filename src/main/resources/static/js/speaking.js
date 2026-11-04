@@ -89,6 +89,10 @@
     let voice=null, recording=null, voiceEpoch=0, typing=false;
     let operation=null,operationEpoch=0,speechEpoch=0,playing=null;
     let needsSync=false;
+    let automaticSpeech=true,queuedSpeech=null;
+    const spokenReplies=new Set();
+    // Один плеер сохраняет полученное по нажатию разрешение на звук между репликами (важно для Safari).
+    const speaker=new Audio();
     const speechCache=new Map();
     const mode=document.querySelector('#sp-mode');
     mode.textContent=t(root.dataset.live==='true'?'liveMode':'stubMode');
@@ -178,7 +182,11 @@
             // Навигация во время запроса не должна оставлять данные старой беседы под новым URL.
             try { if(location.hash!==initialHash)await route(); }
             catch(failure){if(token===operationEpoch)showError(failure.message);}
-            if(token===operationEpoch){setBusy(false);operation=null;if(needsSync&&!document.hidden)queueMicrotask(synchronizeSession);}
+            if(token===operationEpoch){
+                setBusy(false);operation=null;
+                if(needsSync&&!document.hidden)queueMicrotask(synchronizeSession);
+                else if(queuedSpeech)queueMicrotask(playQueuedSpeech);
+            }
         }
     }
     async function synchronizeSession(){
@@ -209,6 +217,19 @@
     }
     function stopSpeech(){if(playing){playing.pause();playing.removeAttribute('src');playing.load();playing=null;}}
     function clearSpeech(){speechEpoch++;stopSpeech();for(const url of speechCache.values())URL.revokeObjectURL(url);speechCache.clear();}
+    function queueReplySpeech(session,turnId=null){
+        if(automaticSpeech&&session.speechAvailable&&session.status!=='PAUSED_SUPPORT')queuedSpeech={session,turnId};
+    }
+    function playQueuedSpeech(){
+        const next=queuedSpeech;queuedSpeech=null;
+        if(!next||!automaticSpeech||document.hidden||recording||busy||location.hash!=='#session/'+next.session.id)return;
+        const key=next.session.id+'/'+(next.turnId||'first');
+        if(current?.id!==next.session.id||(current.turns.at(-1)?.id||null)!==next.turnId)return;
+        if(spokenReplies.has(key))return;
+        // Озвучиваем только новую принятую реплику, не историю при перерисовке/возврате вкладки.
+        // Если браузер запрещает autoplay после сетевого ожидания, остаётся явная кнопка «Послушать».
+        spokenReplies.add(key);playQuestion(next.session,next.turnId,false);
+    }
     function playQuestion(session,turnId,slow){
         if(recording)return;
         run(async()=>{
@@ -222,7 +243,7 @@
                 url=URL.createObjectURL(blob);speechCache.set(key,url);
             }
             if(epoch!==speechEpoch)return;
-            screen.querySelectorAll('audio').forEach(audio=>audio.pause());stopSpeech();playing=new Audio(url);playing.playbackRate=slow?0.75:1;
+            screen.querySelectorAll('audio').forEach(audio=>audio.pause());stopSpeech();playing=speaker;playing.src=url;playing.playbackRate=slow?0.75:1;
             try{await playing.play();}catch(failure){throw new Error('speech_play');}
         });
     }
@@ -254,7 +275,6 @@
                 if(!response.ok){const failure=new Error(result.code||'network');failure.status=response.status;throw failure;}
                 if(epoch!==voiceEpoch||hash!==location.hash)return;
                 attempt.transcript=result;draft=result.text;pending=null;typing=true;renderSession(session);
-                screen.querySelector('#sp-answer')?.focus({preventScroll:true});
             } catch(failure) {
                 if(epoch!==voiceEpoch||hash!==location.hash)return;
                 if(['speaking_version_conflict','speaking_session_closed'].includes(failure.message)) {
@@ -379,7 +399,7 @@
             const signature=JSON.stringify(body);
             if (!pending || pending.signature!==signature) pending={signature,key:crypto.randomUUID()};
             const session=await request('/sessions','POST',body,pending.key);
-            pending=null; draft=''; current=session; location.hash='#session/'+session.id;
+            pending=null; draft=''; current=session;queueReplySpeech(session); location.hash='#session/'+session.id;
         }),true)); screen.append(card);
     }
 
@@ -421,6 +441,11 @@
         mode.textContent=t(session.providerMode==='LIVE'?'liveMode':'stubMode');
         const head=el('div','sp-row sp-session-head'); const copy=el('div');
         copy.append(el('h2','',title(session.scenario)),el('small','',`${session.level} · ${t('accepted')}: ${session.acceptedTurns} / 8`));head.append(copy);
+        if(session.speechAvailable){
+            const label=()=>kk?'Автоматты дыбыстау: '+(automaticSpeech?'қосулы':'өшірулі'):'Автоозвучка: '+(automaticSpeech?'включена':'выключена');
+            const auto=button(label(),()=>{automaticSpeech=!automaticSpeech;auto.textContent=label();auto.setAttribute('aria-pressed',String(automaticSpeech));if(!automaticSpeech){queuedSpeech=null;speechEpoch++;stopSpeech();}});
+            auto.setAttribute('aria-pressed',String(automaticSpeech));head.append(auto);
+        }
         if (session.status==='ACTIVE'||session.status==='PAUSED_SUPPORT') head.append(button(t('finish'),()=>{
                 if (window.confirm(t('confirmFinish'))) run(async()=>{current=await request(`/sessions/${session.id}/finish`,'POST',{expectedVersion:session.version});draft='';clearVoice();renderSession(current);});
         }));screen.append(head);
@@ -474,6 +499,7 @@
                     pending={path,text,key:crypto.randomUUID(),body:{text,expectedVersion:session.version,voiceAttemptId}};
                 try {
                     const updated=await request(path,'POST',pending.body,pending.key);pending=null;draft='';clearVoice();typing=false;renderSession(updated);
+                    const latest=updated.turns.at(-1);if(latest)queueReplySpeech(updated,latest.id);
                 } catch(failure) {
                     if(failure.status>=400&&failure.status<500){pending=null;current=await request('/sessions/'+session.id);renderSession(current);}
                     throw failure;
@@ -534,6 +560,7 @@
         operation?.abort();if(voice?.transcript&&!pending)draft='';clearVoice();clearSpeech();
     });
     document.addEventListener('visibilitychange',()=>{
+        if(document.hidden){queuedSpeech=null;speechEpoch++;stopSpeech();}
         if(document.hidden&&recording)cancelRecording(current,'interrupted');
         if(!document.hidden){needsSync=true;synchronizeSession();}
     });

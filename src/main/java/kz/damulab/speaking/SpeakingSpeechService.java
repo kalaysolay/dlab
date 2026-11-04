@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Озвучивает только проверенные серверные вопросы. Голос явно обозначен как ИИ; DeepSeek не имеет TTS API. */
+/** Озвучивает проверенную серверную реплику целиком: реакция и вопрос, без учебных цитат из исправлений. */
 @Service
 class SpeakingSpeechService {
     private final SpeakingSessionService sessions;
@@ -28,7 +28,8 @@ class SpeakingSpeechService {
     byte[] speak(UUID id,UUID turnId){
         if(!llm.speechAvailable())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_speech_unavailable");
         String text=sessions.speechText(id,turnId),key=id+"/"+turnId+"/"+cloud.getSpeechModel();
-        if(text.length()>500)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_speech_unavailable");
+        // Реакция (до 240) и вопрос (до 500) озвучиваются вместе; запас также для вступления из каталога.
+        if(text.length()>1000)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"speaking_speech_unavailable");
         purge();
         Cached old=cache.get(key);if(old!=null)return old.bytes();
         if(!slots.tryAcquire())throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"speaking_provider_busy");
