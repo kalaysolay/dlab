@@ -1,0 +1,101 @@
+{
+  "total": 500,
+  "words": 350,
+  "expressions": 150,
+  "themes": [
+    {
+      "code": "study",
+      "ru": "Учёба и исследование",
+      "kk": "Оқу және зерттеу",
+      "order": 1,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "communication",
+      "ru": "Общение и отношения",
+      "kk": "Қарым-қатынас",
+      "order": 2,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "decisions",
+      "ru": "Решения и планы",
+      "kk": "Шешімдер мен жоспарлар",
+      "order": 3,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "work",
+      "ru": "Работа и карьера",
+      "kk": "Жұмыс және мансап",
+      "order": 4,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "money",
+      "ru": "Деньги и покупки",
+      "kk": "Ақша және сауда",
+      "order": 5,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "travel",
+      "ru": "Поездки и транспорт",
+      "kk": "Саяхат және көлік",
+      "order": 6,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "health",
+      "ru": "Самочувствие и привычки",
+      "kk": "Денсаулық және әдеттер",
+      "order": 7,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "nature",
+      "ru": "Природа и изменения среды",
+      "kk": "Табиғат және қоршаған орта",
+      "order": 8,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "technology",
+      "ru": "Технологии и информация",
+      "kk": "Технология және ақпарат",
+      "order": 9,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    },
+    {
+      "code": "character",
+      "ru": "Характер и переживания",
+      "kk": "Мінез және сезімдер",
+      "order": 10,
+      "items": 50,
+      "words": 35,
+      "expressions": 15
+    }
+  ],
+  "groups": 100,
+  "ambiguousPairs": 6,
+  "minimumDistractors": 3,
+  "source": "Авторский набор Damulab EN→RU v3: 350 слов и 150 выражений; scripts/english-v3/content.txt"
+}

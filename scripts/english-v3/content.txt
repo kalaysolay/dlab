@@ -1,0 +1,619 @@
+@ study|Учёба и исследование|Оқу және зерттеу
+# word|noun|Элементы научного рассуждения
+hypothesis|проверяемое научное предположение
+evidence|доказательства
+assumption|допущение, принятое без доказательства
+inference|вывод на основе косвенных признаков|inference (from clues)
+conclusion|заключительный вывод рассуждения|conclusion (of an argument)
+# word|noun|Способы работы с текстом
+summary|краткое изложение
+quotation|дословная цитата
+paraphrase|пересказ другими словами
+annotation|пояснительная пометка
+outline|краткий план
+# word|verb|Операции с аргументами
+justify|обосновывать
+refute|опровергать
+corroborate|подкреплять доказательствами
+question|ставить под сомнение|question (a claim)
+deduce|выводить логически
+# word|verb|Работа с данными
+classify|распределять по категориям
+quantify|выражать количественно
+interpret|истолковывать
+verify|проверять достоверность
+extrapolate|распространять вывод за пределы имеющихся данных
+# word|adjective|Свойства исследовательских результатов
+conclusive|окончательно доказывающий
+preliminary|предварительный
+inconclusive|не позволяющий сделать определённый вывод
+contradictory|противоречивый
+replicable|воспроизводимый
+# word|noun|Организация учёбы
+syllabus|программа отдельного курса
+curriculum|учебный план образовательной программы
+tuition|плата за обучение|tuition (fees)
+scholarship|стипендия на обучение
+assessment|оценивание учебных результатов|assessment (of learning)
+# word|adjective|Качество изложения
+concise|краткий и ёмкий
+coherent|связный и последовательный
+ambiguous|допускающий несколько толкований
+redundant|избыточный
+explicit|сформулированный прямо
+# expression|verb|Действия с аргументами
+back up a claim|подкреплять утверждение доказательствами
+draw a conclusion|делать вывод
+challenge an assumption|оспаривать допущение
+rule out an explanation|исключать объяснение
+weigh the evidence|взвешивать доказательства
+# expression|verb|Подготовка учебной работы
+hand in an assignment|сдавать учебное задание
+meet a deadline|укладываться в срок
+fall behind with coursework|отставать с выполнением учебных работ
+catch up on missed lessons|наверстывать пропущенные занятия
+revise for an exam|повторять материал перед экзаменом
+# expression|verb|Осмысление материала
+get the gist|улавливать основную мысль
+read between the lines|понимать скрытый смысл
+learn by rote|заучивать механически
+think outside the box|мыслить нестандартно
+lose the thread|терять нить рассуждения
+
+@ communication|Общение и отношения|Қарым-қатынас
+# word|verb|Речевые действия
+imply|подразумевать, не говоря прямо
+assert|уверенно утверждать
+concede|признавать правоту оппонента
+retract|брать свои слова обратно
+clarify|прояснять смысл
+# word|verb|Реакция на спор
+reassure|успокаивать и вселять уверенность
+reproach|упрекать
+ridicule|высмеивать
+flatter|льстить
+contradict|возражать, утверждая обратное
+# word|noun|Сообщения и их намерение
+complaint|жалоба
+allegation|неподтверждённое обвинение
+apology|извинение
+compliment|комплимент
+reassurance|заверение, снимающее тревогу
+# word|adjective|Манера говорить
+candid|откровенный
+evasive|уклончивый
+tactful|тактичный
+blunt|прямолинейный до резкости
+sarcastic|язвительно-насмешливый
+# word|noun|Проявления в разговоре
+interruption|перебивание собеседника
+digression|отступление от темы
+repetition|повторение сказанного
+hesitation|заминка перед ответом
+reticence|сдержанность и нежелание говорить
+# word|adjective|Отношение к собеседнику
+condescending|снисходительно-высокомерный
+respectful|уважительный
+hostile|враждебный
+indifferent|безразличный
+sympathetic|сочувствующий
+# word|noun|Отношения между людьми
+rapport|взаимопонимание и лёгкость в общении
+resentment|затаённая обида
+camaraderie|товарищеское чувство взаимной поддержки
+rivalry|соперничество
+estrangement|отчуждение между близкими
+# expression|verb|Динамика разговора
+bring up a subject|поднимать тему
+cut someone short|обрывать собеседника на полуслове
+get a word in edgeways|вставлять слово в чужой разговор
+beat around the bush|говорить вокруг да около
+get straight to the point|сразу переходить к сути
+# expression|verb|Разногласия и понимание
+take something the wrong way|неверно истолковывать сказанное и обижаться
+clear the air|откровенно обсуждать напряжённость для её снятия
+agree to disagree|признавать, что каждый останется при своём мнении
+put words in someone's mouth|приписывать человеку чужие слова
+see eye to eye|полностью сходиться во мнениях
+# expression|verb|Обещания и признания
+give someone your word|давать человеку твёрдое обещание
+go back on your word|нарушать собственное обещание
+take someone at their word|верить человеку на слово
+let something slip|нечаянно проговариваться
+own up to a mistake|честно признаваться в ошибке
+
+@ decisions|Решения и планы|Шешімдер мен жоспарлар
+# word|verb|Выбор и обязательства
+prioritize|определять первоочерёдность
+postpone|откладывать на более позднее время
+abandon|окончательно отказываться от замысла
+commit|твёрдо брать на себя обязательство|commit (to a plan)
+reconsider|заново обдумывать принятое решение
+# word|noun|Ограничения выбора
+constraint|ограничение
+incentive|побуждающий стимул
+obstacle|препятствие
+prerequisite|необходимое предварительное условие
+trade-off|компромисс между конкурирующими преимуществами
+# word|adjective|Готовность принять решение
+reluctant|неохотно соглашающийся
+eager|стремящийся с большим желанием
+hesitant|колеблющийся
+determined|твёрдо настроенный
+apathetic|безучастный и лишённый мотивации
+# word|noun|Планы и ожидаемый результат
+objective|цель, которую нужно достичь
+strategy|общий способ достижения цели
+contingency|возможная нештатная ситуация
+milestone|важный промежуточный этап
+outcome|конечный результат
+# word|adjective|Реализуемость замысла
+feasible|осуществимый
+impractical|непрактичный и трудно применимый
+premature|преждевременный
+overdue|давно назревший|overdue (a reform)
+tentative|предварительный, ещё не окончательный
+# word|verb|Управление процессом
+delegate|поручать задачу другому
+allocate|распределять выделенные ресурсы
+coordinate|согласовывать действия участников
+monitor|отслеживать ход выполнения
+anticipate|предвидеть заранее
+# word|adjective|Оценка риска
+inevitable|неизбежный
+avoidable|такой, которого можно избежать
+unforeseen|непредвиденный
+negligible|пренебрежимо малый
+imminent|вот-вот наступающий
+# expression|verb|Обдумывание решения
+weigh up the options|взвешивать доступные варианты
+make up your mind|окончательно определяться с решением
+sleep on it|откладывать решение до утра, чтобы обдумать
+have second thoughts|начинать сомневаться в своём решении
+keep your options open|сохранять возможность выбора
+# expression|verb|Переход к действию
+take the plunge|решаться на рискованный шаг
+put a plan on hold|приостанавливать реализацию плана
+set the wheels in motion|запускать процесс
+leave it to chance|полагаться на случай
+take matters into your own hands|брать ситуацию в свои руки
+# expression|verb|Согласование и изменение планов
+stick to the plan|придерживаться плана
+play it by ear|действовать по обстоятельствам
+get your priorities straight|правильно расставлять приоритеты
+have a change of heart|менять своё отношение или намерение
+go back to square one|возвращаться к самому началу после неудачи
+
+@ work|Работа и карьера|Жұмыс және мансап
+# word|verb|Кадровые действия
+recruit|набирать сотрудников
+promote|повышать в должности|promote (an employee)
+dismiss|увольнять по решению работодателя|dismiss (an employee)
+resign|увольняться по собственному желанию
+retire|выходить на пенсию
+# word|noun|Деньги за труд
+salary|фиксированный оклад
+wages|оплата за отработанные часы или дни
+bonus|премия сверх обычной оплаты
+commission|вознаграждение в процентах от сделки|commission (sales pay)
+allowance|денежная надбавка на определённые расходы|allowance (work expenses)
+# word|noun|Условия трудоустройства
+probation|испытательный срок|probation (employment)
+tenure|гарантированное постоянное назначение|tenure (academic employment)
+vacancy|незанятая должность
+redundancy|сокращение должности
+secondment|временный перевод в другое подразделение
+# word|adjective|Способы организации труда
+remote|дистанционный|remote (work)
+hybrid|сочетающий работу из дома и офиса|hybrid (work)
+freelance|внештатный|freelance (work)
+seasonal|сезонный|seasonal (work)
+voluntary|добровольный и неоплачиваемый|voluntary (work)
+# word|noun|Составляющие карьеры
+expertise|глубокие профессиональные знания
+seniority|старшинство по стажу или положению
+workload|объём рабочей нагрузки
+autonomy|самостоятельность в работе
+accountability|обязанность отчитываться за результаты
+# word|verb|Работа с задачей
+undertake|браться за выполнение
+oversee|руководить и контролировать выполнение
+outsource|передавать выполнение внешнему подрядчику
+streamline|упрощать процесс для повышения эффективности
+automate|переводить выполнение на автоматику
+# word|adjective|Оценка сотрудника
+diligent|усердный и старательный
+resourceful|находчивый
+meticulous|скрупулёзно внимательный к деталям
+complacent|самодовольный и утративший бдительность
+assertive|уверенно отстаивающий свою позицию
+# expression|verb|Начало карьеры
+apply for a vacancy|подавать заявление на открытую должность
+turn down a job offer|отказываться от предложения работы
+take up a post|приступать к работе в должности
+serve a notice period|отрабатывать срок после уведомления об увольнении
+be made redundant|попадать под сокращение штата
+# expression|verb|Рабочее усилие
+go the extra mile|делать больше, чем от тебя ожидают
+cut corners|экономить усилия в ущерб качеству
+pull your weight|выполнять свою долю общей работы
+pass the buck|перекладывать ответственность на другого
+learn the ropes|осваивать практические основы работы
+# expression|verb|Служебное положение
+climb the career ladder|продвигаться по карьерной лестнице
+hit a glass ceiling|сталкиваться с невидимым барьером карьерного роста
+be your own boss|работать на себя
+be on the payroll|числиться в штате и получать зарплату
+be out of work|не иметь работы
+
+@ money|Деньги и покупки|Ақша және сауда
+# word|noun|Показатели бизнеса
+revenue|выручка до вычета расходов
+profit|прибыль после вычета расходов
+turnover|объём продаж за период|turnover (sales)
+overheads|постоянные расходы на содержание бизнеса
+margin|доля прибыли в цене продажи|margin (profit percentage)
+# word|noun|Платежи и документы
+invoice|счёт с требованием оплаты
+receipt|документ, подтверждающий оплату
+estimate|предварительная оценка стоимости|estimate (cost)
+instalment|один платёж при оплате в рассрочку
+deposit|предварительный частичный платёж|deposit (part payment)
+# word|verb|Обращение с долгом
+borrow|брать взаймы
+lend|давать взаймы
+owe|быть должным деньги
+repay|возвращать долг
+default|не выполнять обязательства по выплате|default (on a loan)
+# word|verb|Изменение цены
+inflate|искусственно завышать|inflate (a price)
+discount|снижать цену|discount (a product)
+undercharge|взимать меньше положенного
+overcharge|взимать больше положенного
+refund|возвращать уплаченные деньги
+# word|adjective|Цена и доступность
+affordable|доступный по средствам
+overpriced|неоправданно дорогой
+priceless|бесценный, не поддающийся денежной оценке
+costly|требующий больших затрат
+complimentary|предоставляемый бесплатно|complimentary (a service)
+# word|noun|Денежное положение
+debt|сумма задолженности
+savings|накопленные сбережения
+deficit|превышение расходов над доходами
+surplus|избыток средств после покрытия расходов
+liquidity|возможность быстро получить доступные денежные средства
+# word|verb|Обращение с деньгами
+budget|планировать доходы и расходы|budget (verb)
+squander|расточительно тратить
+hoard|накапливать, не желая расходовать
+invest|вкладывать ради будущей отдачи
+donate|жертвовать на благотворительность
+# expression|verb|Нехватка денег
+make ends meet|сводить концы с концами
+live beyond your means|жить не по средствам
+dip into your savings|тратить часть отложенных сбережений
+tighten your belt|сокращать привычные расходы
+fall into debt|влезать в долги
+# expression|verb|Покупка и цена
+shop around|сравнивать предложения перед покупкой
+pay through the nose|платить чрезмерно высокую цену
+get your money's worth|получать ценность, соответствующую уплаченным деньгам
+drive a hard bargain|настойчиво добиваться выгодных условий сделки
+snap up a bargain|быстро покупать вещь по особенно выгодной цене
+# expression|verb|Платежи и результат
+break even|выходить на уровень без прибыли и убытка
+pay off a loan|полностью погашать заём
+put money aside|откладывать деньги
+run up a bill|накапливать большой счёт к оплате
+write off a debt|списывать долг как невзыскиваемый
+
+@ travel|Поездки и транспорт|Саяхат және көлік
+# word|noun|Планирование маршрута
+itinerary|подробный план поездки
+detour|объездной путь
+stopover|промежуточная остановка в пути
+transfer|пересадка между рейсами|transfer (between flights)
+excursion|короткая организованная поездка для осмотра мест
+# word|noun|Устройство дороги
+underpass|подземный проезд под другой дорогой
+roundabout|перекрёсток с круговым движением
+interchange|многоуровневая дорожная развязка
+bypass|дорога в обход населённого пункта
+causeway|дорога по насыпи через воду или низину
+# word|verb|Движение транспорта
+accelerate|набирать скорость
+decelerate|снижать скорость
+overtake|обгонять
+reverse|двигаться задним ходом|reverse (a vehicle)
+swerve|резко отклоняться в сторону
+# word|noun|Оплата поездки
+fare|плата за проезд
+toll|сбор за пользование дорогой
+surcharge|дополнительный сбор сверх основной цены
+reimbursement|возмещение понесённых расходов
+penalty|штраф за нарушение правил|penalty (transport rules)
+# word|adjective|Характер поездки
+outbound|следующий от места отправления|outbound (flight)
+inbound|прибывающий в данный пункт|inbound (flight)
+connecting|стыковочный|connecting (flight)
+nonstop|без промежуточных посадок|nonstop (flight)
+chartered|заказанный для отдельной группы|chartered (flight)
+# word|noun|Устройство корабля
+bow|носовая часть судна|bow (of a ship)
+stern|кормовая часть судна
+deck|палуба
+hull|корпус судна
+keel|киль вдоль днища судна
+# word|verb|Ситуации в поездке
+navigate|ориентироваться и выбирать путь|navigate (a route)
+taxi|рулить по аэродрому|taxi (an aircraft)
+cruise|двигаться с постоянной крейсерской скоростью|cruise (a vehicle)
+dock|подходить к причалу для швартовки|dock (a ship)
+commute|регулярно ездить между домом и работой
+# expression|verb|Посадка и отправление
+check in for a flight|регистрироваться на рейс
+go through customs|проходить таможенный контроль
+miss a connection|не успевать на стыковочный рейс
+get bumped from a flight|лишаться места на рейсе из-за перепродажи билетов
+be held up in traffic|задерживаться из-за дорожного движения
+# expression|verb|Маршрут в пути
+set off on a journey|отправляться в путешествие
+pull over to the side|съезжать к обочине и останавливаться
+take a wrong turn|сворачивать не туда
+double back|возвращаться по только что пройденному пути
+get off the beaten track|сходить с популярных туристических маршрутов
+# expression|verb|Изменение планов поездки
+bring a flight forward|переносить рейс на более раннее время
+put a flight back|переносить рейс на более позднее время
+call off a trip|отменять поездку
+cut a trip short|заканчивать поездку раньше намеченного
+extend your stay|продлевать пребывание
+
+@ health|Самочувствие и привычки|Денсаулық және әдеттер
+# word|noun|Характер неприятного ощущения
+ache|ноющая боль
+cramp|болезненный мышечный спазм
+numbness|онемение и потеря чувствительности
+tingling|ощущение покалывания
+soreness|болезненность при прикосновении или движении
+# word|noun|Общие симптомы
+dizziness|головокружение
+nausea|тошнота
+fatigue|сильное утомление
+breathlessness|одышка
+drowsiness|сонливость
+# word|noun|Повреждения тела
+bruise|синяк от подкожного кровоизлияния
+sprain|растяжение связок
+fracture|перелом кости
+abrasion|поверхностная ссадина
+blister|пузырь на коже
+# word|verb|Изменение самочувствия
+recover|восстанавливаться после болезни
+relapse|снова заболевать после улучшения
+deteriorate|ухудшаться|deteriorate (health)
+stabilize|приходить в устойчивое состояние|stabilize (a patient's condition)
+faint|терять сознание на короткое время
+# word|adjective|Характер недомогания
+acute|острый, быстро развившийся|acute (illness)
+chronic|хронический, длительно сохраняющийся|chronic (illness)
+recurrent|возникающий повторно|recurrent (symptom)
+latent|скрытый, ещё не проявившийся|latent (infection)
+contagious|заразный
+# word|noun|Состояние организма
+stamina|выносливость при длительной нагрузке
+flexibility|гибкость тела
+coordination|согласованность движений
+balance|способность сохранять равновесие|balance (physical ability)
+strength|мышечная сила|strength (physical ability)
+# word|verb|Усвоение пищи и обмен веществ
+ingest|принимать пищу или вещество внутрь
+digest|переваривать пищу
+absorb|всасывать питательные вещества|absorb (nutrients)
+metabolize|преобразовывать вещество в процессе обмена веществ
+excrete|выделять продукты обмена из организма
+# expression|verb|Изменение привычки
+cut down on sugar|сокращать употребление сахара
+give up smoking|полностью бросать курить
+take up a sport|начинать заниматься видом спорта
+stick to a routine|придерживаться заведённого распорядка
+slip back into old habits|незаметно возвращаться к старым привычкам
+# expression|verb|Состояние человека
+feel under the weather|чувствовать лёгкое недомогание
+be on the mend|идти на поправку
+be run down|быть измотанным и ослабленным
+be out of breath|задыхаться после нагрузки
+be in good shape|быть в хорошей физической форме
+# expression|verb|Нагрузка и восстановление
+warm up before exercise|разогреваться перед физической нагрузкой
+cool down after exercise|постепенно снижать нагрузку после тренировки
+push yourself too hard|чрезмерно себя нагружать
+catch your breath|восстанавливать дыхание
+sleep off the exhaustion|отсыпаться после сильного утомления
+
+@ nature|Природа и изменения среды|Табиғат және қоршаған орта
+# word|noun|Изменение рельефа и почвы
+erosion|разрушение и снос почвы или горных пород
+weathering|разрушение породы на месте под воздействием среды
+sedimentation|осаждение переносимых частиц
+subsidence|проседание поверхности земли
+uplift|поднятие участка земной коры|uplift (geology)
+# word|noun|Водные процессы
+evaporation|переход жидкости в пар
+condensation|переход пара в жидкость
+precipitation|выпадение атмосферных осадков
+infiltration|просачивание воды в грунт
+runoff|сток воды по поверхности
+# word|noun|Состояние популяции
+extinction|полное исчезновение вида
+migration|сезонное перемещение животных|migration (seasonal movement)
+hibernation|зимняя спячка
+adaptation|приспособление к условиям среды
+predation|поедание одних животных другими
+# word|adjective|Происхождение и распространение вида
+indigenous|исконно обитающий в данной местности
+invasive|чужеродный и вытесняющий местные виды
+endemic|встречающийся только в ограниченном регионе
+ubiquitous|встречающийся повсюду
+domesticated|одомашненный человеком
+# word|verb|Изменения вещества
+dissolve|растворяться в жидкости
+crystallize|образовывать кристаллы
+decompose|разлагаться на более простые вещества
+oxidize|окисляться
+ferment|подвергаться брожению
+# word|noun|Скопления животных
+herd|стадо крупных травоядных животных
+flock|стая птиц или стадо овец
+swarm|рой насекомых
+pack|стая совместно охотящихся зверей
+shoal|косяк рыб
+# word|adjective|Свойства природного материала
+porous|пористый, содержащий множество мелких отверстий
+brittle|хрупкий, легко раскалывающийся
+elastic|упругий, восстанавливающий форму
+viscous|вязкий, медленно текучий
+soluble|способный растворяться
+# expression|verb|Изменение природных ресурсов
+deplete natural resources|истощать природные ресурсы
+replenish water reserves|пополнять запасы воды
+curb carbon emissions|сдерживать выбросы углерода
+restore a damaged habitat|восстанавливать повреждённую среду обитания
+phase out fossil fuels|постепенно отказываться от ископаемого топлива
+# expression|verb|Состояние природного объекта
+be on the brink of extinction|находиться на грани исчезновения
+be at the top of the food chain|находиться на вершине пищевой цепи
+be native to a region|иметь естественное происхождение в данном регионе
+be washed ashore|быть выброшенным на берег водой
+be swept downstream|быть унесённым вниз по течению
+# expression|verb|Реакция на природные условия
+withstand a harsh winter|выдерживать суровую зиму
+succumb to the cold|погибать под воздействием холода
+seek shelter from a storm|искать укрытие от бури
+blend in with the surroundings|сливаться с окружающей средой
+thrive in a dry climate|успешно развиваться в сухом климате
+
+@ technology|Технологии и информация|Технология және ақпарат
+# word|noun|Ограничения работы системы
+latency|задержка до получения отклика
+throughput|объём данных, обрабатываемых за единицу времени
+bandwidth|максимальная пропускная способность канала
+capacity|предельный объём вмещаемых данных|capacity (storage)
+uptime|время непрерывной работоспособности
+# word|noun|Доступ к системе
+authentication|проверка личности пользователя
+authorization|проверка разрешённых пользователю действий
+encryption|преобразование данных в зашифрованный вид
+anonymization|удаление возможности установить личность по данным
+verification|подтверждение правильности или подлинности данных|verification (of data)
+# word|verb|Управление данными
+retrieve|извлекать сохранённые данные
+replicate|создавать синхронную копию данных
+compress|уменьшать объём данных сжатием
+cache|сохранять данные для быстрого повторного доступа
+purge|полностью очищать от ненужных данных|purge (stored data)
+# word|noun|Неполадки
+glitch|кратковременный технический сбой
+outage|период полной недоступности сервиса
+bottleneck|узкое место, ограничивающее производительность
+vulnerability|уязвимость, допускающая нарушение безопасности
+incompatibility|несовместимость компонентов
+# word|adjective|Свойства системы
+scalable|способный расширяться при росте нагрузки
+resilient|способный восстанавливаться после сбоев
+modular|состоящий из отдельных взаимосвязанных модулей
+interoperable|способный обмениваться данными с другими системами
+obsolete|устаревший и вышедший из употребления
+# word|verb|Действия с программой
+deploy|развёртывать для использования
+debug|находить и устранять программные ошибки
+patch|исправлять точечным обновлением
+configure|настраивать параметры
+deprecate|объявлять устаревшим и не рекомендуемым
+# word|noun|Источники информации
+rumour|непроверенный слух
+hoax|намеренная мистификация
+leak|несанкционированное раскрытие сведений
+disclosure|раскрытие ранее неизвестных сведений
+retraction|отзыв ранее опубликованного утверждения
+# expression|verb|Учётные записи и доступ
+sign up for a service|регистрироваться в сервисе впервые
+sign in to an account|входить в существующую учётную запись
+sign out of an account|выходить из учётной записи
+get locked out of an account|терять доступ к учётной записи из-за блокировки
+opt out of data collection|отказываться от сбора своих данных
+# expression|verb|Работа с файлами
+back up your files|создавать резервные копии файлов
+wipe a drive clean|полностью стирать данные с накопителя
+roll back an update|откатывать установленное обновление
+run out of storage|исчерпывать свободное место для данных
+restore from a backup|восстанавливать данные из резервной копии
+# expression|verb|Проверка информации
+cross-check the facts|сверять факты по нескольким источникам
+trace a claim to its source|устанавливать первоисточник утверждения
+take a report with a pinch of salt|относиться к сообщению с долей недоверия
+fall for a hoax|попадаться на намеренную выдумку
+blow something out of proportion|сильно преувеличивать значение события
+
+@ character|Характер и переживания|Мінез және сезімдер
+# word|adjective|Отношение к трудностям
+tenacious|упорно не отступающий от цели
+reckless|безрассудно пренебрегающий опасностью
+cautious|осторожный
+timid|робкий
+stoic|стойко и без жалоб переносящий трудности
+# word|adjective|Отношение к чужим потребностям
+considerate|внимательный к чувствам и нуждам других
+selfish|эгоистичный
+generous|щедрый
+possessive|стремящийся единолично владеть близким человеком
+manipulative|склонный скрытно управлять другими в своих интересах
+# word|noun|Сложные чувства
+remorse|угрызения совести за свой поступок
+envy|зависть к чужому преимуществу
+nostalgia|тоска по прошлому
+awe|благоговейный трепет
+relief|облегчение после исчезновения тревоги
+# word|adjective|Состояние перед неопределённостью
+apprehensive|тревожно ожидающий неприятностей
+hopeful|полный надежды на хороший исход
+bewildered|растерянный от непонимания происходящего
+composed|сохраняющий самообладание
+impatient|нетерпеливо ожидающий
+# word|verb|Внутренняя реакция
+resent|испытывать обиду и недовольство из-за несправедливости
+cherish|бережно хранить и высоко ценить
+dread|с ужасом ожидать
+regret|сожалеть о случившемся
+yearn|страстно тосковать по желаемому
+# word|noun|Особенности личности
+integrity|нравственная цельность и честность
+humility|скромность без чувства превосходства
+vanity|тщеславная потребность в восхищении
+impulsiveness|склонность действовать без обдумывания
+perseverance|настойчивость вопреки трудностям
+# word|adjective|Реакция на успех и неудачу
+elated|ликующий от радости
+disheartened|потерявший веру в успех
+embarrassed|смущённый неловкой ситуацией
+envious|завидующий чужому успеху
+grateful|испытывающий благодарность
+# expression|verb|Эмоциональная саморегуляция
+keep your composure|сохранять самообладание
+lose your temper|выходить из себя от гнева
+bottle up your feelings|подавлять и скрывать свои чувства
+let off steam|давать выход накопившемуся напряжению
+pull yourself together|брать себя в руки после потрясения
+# expression|verb|Реакция на неприятное
+take something to heart|принимать что-либо близко к сердцу
+brush something off|отмахиваться от чего-либо как от неважного
+dwell on the past|постоянно возвращаться мыслями к прошлому
+come to terms with a loss|постепенно примиряться с утратой
+put on a brave face|скрывать огорчение за внешней бодростью
+# expression|verb|Доверие и поддержка
+give someone the benefit of the doubt|толковать сомнение в пользу человека
+hold a grudge|долго таить обиду
+bear someone in mind|помнить о человеке при принятии решения
+stand by someone|оставаться на стороне человека в трудностях
+turn your back on someone|отворачиваться от человека, отказывая в поддержке
