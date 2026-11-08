@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Отчёт за неделю · Damulab.kz</title>
+  <link rel="icon" href="../../src/main/resources/static/icons/damulab-icon.svg">
+  <link rel="stylesheet" href="../../src/main/resources/static/css/app.css">
+  <link rel="stylesheet" href="reports.css">
+  <script src="reports.js" defer></script>
+</head>
+<body class="report-mockup" data-page="report">
+<a class="report-skip" href="#main">Перейти к отчёту</a>
+<div class="app-shell">
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand brand-link" href="index.html">
+        <span class="brand-mark"><svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path></svg></span>
+        <span class="brand-copy"><strong>Damulab.kz</strong><small>Кабинет родителя</small></span>
+      </a>
+      <nav class="nav" aria-label="Основная навигация">
+        <a href="index.html" aria-current="page">Отчёты детей</a>
+        <a href="delivery.html">Рассылка отчётов</a>
+        <span class="badge">Русский</span>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="page report-page">
+    <div class="report-heading">
+      <div><p class="report-eyebrow">МОЯ СЕМЬЯ</p><h1 class="page-title">Каждый маленький шаг — прогресс</h1><p class="lede">Что получилось у ребёнка и как поддержать его на следующей неделе.</p></div>
+      <a class="button" href="delivery.html"><span aria-hidden="true">↗</span> Получать в мессенджере</a>
+    </div>
+    <div class="report-toolbar">
+      <div class="report-child-tabs" role="group" aria-label="Выберите ребёнка">
+        <button type="button" class="report-child active" data-child="amir" aria-pressed="true"><span class="report-avatar">А</span><span>Амир<small>5 класс</small></span></button>
+        <button type="button" class="report-child" data-child="aiya" aria-pressed="false"><span class="report-avatar lilac">А</span><span>Айя<small>6 класс</small></span></button>
+      </div>
+      <div class="report-period">
+        <button class="button report-arrow" type="button" id="previous-week" aria-label="Предыдущая неделя">‹</button>
+        <label class="sr-only" for="week">Неделя отчёта</label>
+        <select id="week">
+          <option value="current">19–25 октября 2026</option>
+          <option value="previous">12–18 октября 2026</option>
+          <option value="empty">5–11 октября 2026</option>
+          <option value="first">28 сентября – 4 октября 2026</option>
+        </select>
+        <button class="button report-arrow" type="button" id="next-week" aria-label="Следующая неделя" disabled>›</button>
+      </div>
+    </div>
+    <div id="report-content" class="report-layout" aria-live="polite" aria-atomic="false"></div>
+    <footer class="report-footer"><span>Damulab.kz · Учимся с интересом, растём с поддержкой</span><span>HTML-макет · демонстрационные данные</span></footer>
+  </main>
+</div>
+<div id="toast" class="report-toast" role="status" hidden></div>
+</body>
+</html>

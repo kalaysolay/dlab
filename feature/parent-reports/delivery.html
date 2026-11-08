@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Рассылка отчётов · Damulab.kz</title>
+  <link rel="icon" href="../../src/main/resources/static/icons/damulab-icon.svg">
+  <link rel="stylesheet" href="../../src/main/resources/static/css/app.css">
+  <link rel="stylesheet" href="reports.css">
+  <script src="reports.js" defer></script>
+</head>
+<body class="report-mockup" data-page="delivery">
+<a class="report-skip" href="#main">Перейти к настройкам</a>
+<div class="app-shell">
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand brand-link" href="index.html">
+        <span class="brand-mark"><svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path></svg></span>
+        <span class="brand-copy"><strong>Damulab.kz</strong><small>Кабинет родителя</small></span>
+      </a>
+      <nav class="nav" aria-label="Основная навигация">
+        <a href="index.html">Отчёты детей</a><a href="delivery.html" aria-current="page">Рассылка отчётов</a><span class="badge">Русский</span>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="page report-page">
+    <a class="report-back" href="index.html">← К отчётам детей</a>
+    <div class="report-heading"><div><p class="report-eyebrow">ВСЕГДА РЯДОМ</p><h1 class="page-title">Неделя ребёнка — в одном сообщении</h1><p class="lede">Итоги, достижения и небольшой совет прямо в вашем мессенджере.</p></div></div>
+    <div class="report-delivery-layout">
+      <section class="panel report-settings" aria-labelledby="delivery-title">
+        <div class="report-section-heading"><h2 id="delivery-title">Настройки рассылки</h2><span class="badge">Макет</span></div>
+        <p class="report-muted">Показываем, как будет работать подключение. Сообщения из макета не отправляются.</p>
+        <form id="delivery-form">
+          <fieldset class="report-fieldset"><legend>1. О ком рассказывать</legend>
+            <div class="report-check-row"><label><input type="checkbox" name="children" value="amir" checked> Амир <span class="report-muted">· 5 класс</span></label><label><input type="checkbox" name="children" value="aiya" checked> Айя <span class="report-muted">· 6 класс</span></label></div>
+            <p class="report-hint">Для каждого ребёнка придёт отдельный отчёт.</p>
+          </fieldset>
+          <fieldset class="report-fieldset"><legend>2. Куда присылать</legend>
+            <div class="report-channel" id="telegram-channel"><div><span class="report-channel-icon telegram" aria-hidden="true">➤</span><span><strong>Telegram</strong><small id="telegram-state">Не подключён</small></span></div><button type="button" class="button" id="connect-telegram">Подключить</button></div>
+            <div class="report-channel" id="whatsapp-channel"><div><span class="report-channel-icon whatsapp" aria-hidden="true">◔</span><span><strong>WhatsApp</strong><small id="whatsapp-state">Не подключён</small></span></div><button type="button" class="button" id="connect-whatsapp">Подключить</button></div>
+            <p class="report-hint">Выберите один или оба мессенджера. Подтверждение подключения показано в деморежиме.</p>
+          </fieldset>
+          <fieldset class="report-fieldset"><legend>3. Когда присылать</legend>
+            <div class="report-form-grid"><div class="field"><label for="delivery-day">Каждую неделю</label><select id="delivery-day" name="day"><option value="monday">В понедельник</option><option value="sunday">В воскресенье</option></select></div><div class="field"><label for="delivery-time">Время</label><input id="delivery-time" name="time" type="time" value="09:00" required></div></div>
+            <p class="report-hint">UTC+5 · Казахстан. Отчёт за понедельник–воскресенье; при отправке в воскресенье — за предыдущую завершённую неделю.</p>
+          </fieldset>
+          <label class="report-consent"><input id="delivery-consent" type="checkbox" checked> <span>Хочу получать еженедельные отчёты о выбранных детях. Рассылку можно отключить в любой момент.</span></label>
+          <p id="form-error" class="field-error" role="alert" hidden></p>
+          <div class="report-save-row"><button class="button primary" type="submit">Сохранить настройки</button><button class="link-button" type="button" id="pause-delivery" hidden>Отключить рассылку</button></div>
+          <p id="delivery-summary" class="report-saved" role="status">Рассылка ещё не настроена.</p>
+        </form>
+      </section>
+      <aside class="report-preview-column">
+        <div class="report-section-heading"><h2>Так выглядит сообщение</h2><span class="badge">Предпросмотр</span></div>
+        <div class="type-tabs report-preview-tabs" role="group" aria-label="Мессенджер для предпросмотра"><button type="button" class="type-tab active" data-preview="telegram" aria-pressed="true">Telegram</button><button type="button" class="type-tab" data-preview="whatsapp" aria-pressed="false">WhatsApp</button></div>
+        <label class="sr-only" for="preview-child">Ребёнок для предпросмотра</label><select id="preview-child" class="report-preview-select"><option value="amir">Отчёт Амира</option><option value="aiya">Отчёт Айи</option></select>
+        <div id="message-preview" class="report-messenger telegram-preview">
+          <div class="report-messenger-header"><span class="report-bot-avatar">D</span><div><strong>Damulab</strong><small id="messenger-subtitle">бот · еженедельные отчёты</small></div><span aria-hidden="true">⋮</span></div>
+          <div class="report-message-area"><span class="report-message-date">26 октября</span><article class="report-message"><div id="message-body"></div><span class="report-message-time">09:00</span></article><a id="message-link" class="report-message-link" href="index.html?child=amir">Открыть полный отчёт ↗</a></div>
+        </div>
+        <button class="button report-copy" type="button" id="copy-message">Скопировать текст сообщения</button>
+        <p class="report-hint">Короткие итоги в сообщении, подробности — на странице отчёта в кабинете родителя.</p>
+      </aside>
+    </div>
+    <footer class="report-footer"><span>Damulab.kz · Учимся с интересом, растём с поддержкой</span><span>HTML-макет · демонстрационные данные</span></footer>
+  </main>
+</div>
+<dialog id="connect-dialog" class="report-connect-dialog" aria-labelledby="connect-title">
+  <form id="connect-form"><div class="report-section-heading"><h2 id="connect-title">Подключить Telegram</h2><button type="button" class="button report-arrow" id="close-connect" aria-label="Закрыть">×</button></div><p id="connect-description" class="report-muted"></p><div class="field" id="phone-field" hidden><label for="whatsapp-phone">Номер WhatsApp</label><input id="whatsapp-phone" type="tel" autocomplete="tel" placeholder="+7 700 123 45 67"><small class="report-hint">Только пример: номер никуда не отправляется и не сохраняется.</small></div><p class="notice">Демонстрация подключения: в готовом сервисе потребуется подтверждение в мессенджере.</p><button type="submit" class="button primary">Показать подключённое состояние</button></form>
+</dialog>
+<div id="toast" class="report-toast" role="status" hidden></div>
+</body>
+</html>
