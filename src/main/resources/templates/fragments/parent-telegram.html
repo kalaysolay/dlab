@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org"><body>
+<section th:fragment="telegramReports" class="panel" th:if="${telegramAvailable}">
+    <h2>Отчёты в Telegram</h2>
+    <p>Раз в неделю: завершённые уроки, результаты тестов и викторин по всем связанным детям.</p>
+    <p class="alert" th:if="${param.reportSaved}">Настройки рассылки сохранены.</p>
+    <form th:unless="${telegram.connected}" th:action="@{/parent/telegram/connect}" method="post">
+        <p>По умолчанию — понедельник, 09:00 по времени Казахстана. Откройте бота и нажмите «Начать».</p>
+        <button class="button primary" type="submit">Подключить Telegram</button>
+    </form>
+    <form class="form" th:if="${telegram.connected}" th:action="@{/parent/telegram/settings}" method="post">
+        <span class="badge success">Telegram подключён</span>
+        <label class="checkbox-field"><input type="checkbox" name="enabled" value="true" th:checked="${telegram.enabled}"> Получать недельные отчёты</label>
+        <div class="field"><label for="report-day">День отправки</label>
+            <select id="report-day" name="day">
+                <option th:each="name,stat : ${ {'Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'} }" th:value="${stat.count}" th:text="${name}" th:selected="${stat.count == telegram.send_day}"></option>
+            </select>
+        </div>
+        <div class="field"><label for="report-time">Время Казахстана (UTC+5)</label><input id="report-time" name="time" type="time" th:value="${telegram.send_time}" required></div>
+        <p class="muted-line">Отчёт за предыдущую завершённую неделю: понедельник–воскресенье.</p>
+        <button class="button" type="submit">Сохранить</button>
+    </form>
+</section>
+</body></html>

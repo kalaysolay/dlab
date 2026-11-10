@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Недельный отчёт</title>
+    <th:block th:replace="~{fragments/pwa-head :: pwaHead}"></th:block><link rel="stylesheet" th:href="@{/css/app.css}"></head>
+<body><div class="app-shell"><header th:replace="~{fragments/header :: header}"></header>
+<main class="page"><section class="panel"><a th:href="@{/parent}">К детям</a><h1>Итоги недели</h1>
+    <p style="white-space: pre-wrap; overflow-wrap: anywhere" th:text="${reportText}"></p>
+</section></main></div></body></html>

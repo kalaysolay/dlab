@@ -47,6 +47,7 @@
         <aside class="panel profile-summary parent-connect-panel">
             <span class="badge">Профиль</span>
             <h2>Семейный кабинет</h2>
+            <div th:replace="~{fragments/parent-telegram :: telegramReports}"></div>
             <dl>
                 <dt>Email</dt>
                 <dd th:text="${profile.email()}">parent@damulab.kz</dd>

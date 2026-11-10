@@ -32,6 +32,7 @@ public class SecurityConfig {
     ) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/telegram/webhook").permitAll()
                         .requestMatchers(HttpMethod.GET, "/parent-link-invitations/confirm").permitAll()
                         .requestMatchers(
                                 "/",
@@ -71,7 +72,7 @@ public class SecurityConfig {
                         .requestMatchers("/parent/**").hasRole("PARENT")
                         .anyRequest().authenticated()
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**", "/api/passkeys/**", "/api/push/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**", "/api/passkeys/**", "/api/push/**", "/api/telegram/webhook"))
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler((request, response, authentication) ->

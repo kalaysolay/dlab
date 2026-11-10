@@ -24,6 +24,7 @@
                 </div>
             </div>
 
+            <div th:replace="~{fragments/parent-telegram :: telegramReports}"></div>
             <div class="notice success" th:if="${param.childCreated}">
                 Ребенок добавлен.
             </div>

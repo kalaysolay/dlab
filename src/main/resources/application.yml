@@ -43,6 +43,12 @@ logging:
     kz.damulab.questions.QuestionBankService: INFO
 
 damulab:
+  telegram:
+    enabled: ${TELEGRAM_REPORTS_ENABLED:false}
+    mode: ${TELEGRAM_MODE:webhook}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    bot-username: ${TELEGRAM_BOT_USERNAME:}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
   speaking:
     # Модуль и прямой API закрыты по умолчанию. Внешний диалог и голос включаются отдельными флагами ниже.
     enabled: ${SPEAKING_ENABLED:false}
