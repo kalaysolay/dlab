@@ -2,6 +2,7 @@
 
 Реализация находится в ветке `feat/parent-telegram-reports`. HTML-макеты из отдельной
 ветки не нужны для запуска: рабочий блок встроен в `/parent` и `/parent/profile`.
+Изменения объединены с `main` и выпущены: [результат production-проверок](PRODUCTION_DEPLOYMENT.md).
 
 ## Поведение
 
