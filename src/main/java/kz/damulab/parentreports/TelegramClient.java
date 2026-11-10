@@ -45,7 +45,7 @@ public class TelegramClient {
             body.put("link_preview_options", Map.of("is_disabled", true));
             // Локальный localhost недоступен на телефоне родителя: кнопку добавляем после HTTPS-деплоя.
             if (reportUrl != null && reportUrl.startsWith("https://")) body.put("reply_markup", Map.of("inline_keyboard", java.util.List.of(
-                    java.util.List.of(Map.of("text", "Полный отчёт / Толық есеп", "url", reportUrl)))));
+                    java.util.List.of(Map.of("text", "Толық есеп / Полный отчёт", "url", reportUrl)))));
             var request = HttpRequest.newBuilder(URI.create("https://api.telegram.org/bot" + config.botToken() + "/sendMessage"))
                     .timeout(Duration.ofSeconds(12)).header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body))).build();
